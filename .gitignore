@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Build / output
+dist/
+build/
+.expo/
+web-build/
+.metro/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Logs / debug
+*.log
+npm-debug.log*
+
+# Test / tooling
+coverage/
+.cache/
+
+# Local-only
+mobile/TROUBLESHOOTING.md
+
