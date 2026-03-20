@@ -138,16 +138,13 @@ export default function UserProfilePage() {
         </View>
         <View style={styles.profileHeaderRow}>
           <View style={styles.profileTextBlock}>
-            <Text style={styles.profileName} testID="profile-name">
-              {profile.fullName}
-            </Text>
+            <Text style={styles.profileName}>{profile.fullName}</Text>
             <Text style={styles.profileEmail}>{profile.email}</Text>
             <Text style={styles.profileMeta}>{profile.location}</Text>
             <Text style={styles.profileMeta}>Member since {profile.memberSince}</Text>
           </View>
           <Pressable
             style={styles.editButton}
-            testID="profile-edit-button"
             onPress={() =>
               router.push({
                 pathname: '/edit-profile',
@@ -155,7 +152,7 @@ export default function UserProfilePage() {
               })
             }
           >
-            <Text style={styles.editButtonText}>Edit Profile</Text>
+            <Text style={styles.editButtonText}>Edit profile</Text>
           </Pressable>
         </View>
       </View>
@@ -181,9 +178,7 @@ export default function UserProfilePage() {
 
       <View style={styles.sectionCard}>
         <Text style={styles.sectionEyebrow}>Cycling preference</Text>
-        <Text style={styles.sectionTitle} testID="profile-cycling-preference">
-          {profile.cyclingPreference}
-        </Text>
+        <Text style={styles.sectionTitle}>{profile.cyclingPreference}</Text>
         <Text style={styles.sectionBody}>
           Weekly goal: {profile.weeklyGoalKm} km
         </Text>
@@ -198,20 +193,26 @@ export default function UserProfilePage() {
         <Text style={styles.sectionEyebrow}>Account settings</Text>
         <Pressable
           style={styles.settingRow}
-          testID="profile-security-button"
           onPress={() => router.push('/privacy-security')}
         >
-          <Text style={styles.settingTitle}>Privacy & Security</Text>
-          <Text style={styles.settingValue}>Open</Text>
+          <Text style={styles.settingTitle}>Notifications</Text>
+          <Text style={styles.settingValue}>Manage</Text>
         </Pressable>
         <View style={styles.divider} />
         <Pressable
           style={styles.settingRow}
-          testID="profile-change-password-shortcut"
+          onPress={() => router.push('/privacy-security')}
+        >
+          <Text style={styles.settingTitle}>Privacy</Text>
+          <Text style={styles.settingValue}>Review</Text>
+        </Pressable>
+        <View style={styles.divider} />
+        <Pressable
+          style={styles.settingRow}
           onPress={() => router.push('/change-password')}
         >
-          <Text style={styles.settingTitle}>Change Password</Text>
-          <Text style={styles.settingValue}>Shortcut</Text>
+          <Text style={styles.settingTitle}>Password</Text>
+          <Text style={styles.settingValue}>Change</Text>
         </Pressable>
       </View>
     </ScrollView>

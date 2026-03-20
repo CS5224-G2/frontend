@@ -9,7 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 
 import { updatePassword } from '@/services/settingsService';
 
@@ -35,7 +35,6 @@ type PasswordFieldProps = {
   secureTextEntry: boolean;
   onToggleVisibility: () => void;
   helperText?: string;
-  testID?: string;
 };
 
 function PasswordField({
@@ -46,7 +45,6 @@ function PasswordField({
   secureTextEntry,
   onToggleVisibility,
   helperText,
-  testID,
 }: PasswordFieldProps) {
   return (
     <View style={styles.fieldBlock}>
@@ -61,7 +59,6 @@ function PasswordField({
           autoCapitalize="none"
           autoCorrect={false}
           style={styles.input}
-          testID={testID}
         />
         <Pressable onPress={onToggleVisibility} hitSlop={12}>
           <Text style={styles.visibilityText}>{secureTextEntry ? 'Show' : 'Hide'}</Text>
@@ -156,6 +153,7 @@ export default function ChangePasswordPage() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.contentContainer}>
+      <Stack.Screen options={{ title: 'Change password' }} />
       <View style={styles.heroCard}>
         <Text style={styles.heroEyebrow}>Security</Text>
         <Text style={styles.heroTitle}>Change password</Text>
@@ -172,7 +170,6 @@ export default function ChangePasswordPage() {
           onChangeText={setCurrentPassword}
           secureTextEntry={!showCurrentPassword}
           onToggleVisibility={() => setShowCurrentPassword((value) => !value)}
-          testID="change-password-current-input"
         />
 
         <PasswordField
@@ -183,7 +180,6 @@ export default function ChangePasswordPage() {
           secureTextEntry={!showNewPassword}
           onToggleVisibility={() => setShowNewPassword((value) => !value)}
           helperText="Use at least 8 characters, including one number and one uppercase letter."
-          testID="change-password-new-input"
         />
 
         <View style={styles.strengthBlock}>
@@ -210,7 +206,6 @@ export default function ChangePasswordPage() {
           onChangeText={setConfirmNewPassword}
           secureTextEntry={!showConfirmPassword}
           onToggleVisibility={() => setShowConfirmPassword((value) => !value)}
-          testID="change-password-confirm-input"
         />
 
         {!passwordsMatch ? (
