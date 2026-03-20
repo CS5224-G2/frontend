@@ -1,0 +1,96 @@
+appId: ${APP_ID}
+name: CycleLink integrated auth profile security flow
+---
+- launchApp:
+    clearState: true
+
+- extendedWaitUntil:
+    visible: "Sign In"
+    timeout: 10000
+
+- tapOn:
+    id: "login-email-input"
+- inputText: "alex.johnson@example.com"
+
+- tapOn:
+    id: "login-password-input"
+- inputText: "CycleLink123"
+- hideKeyboard
+
+- tapOn:
+    id: "login-submit-button"
+
+- extendedWaitUntil:
+    visible: "Alex Johnson"
+    timeout: 10000
+
+- assertVisible:
+    id: "profile-name"
+
+- tapOn:
+    id: "profile-edit-button"
+
+- extendedWaitUntil:
+    visible: "Edit profile"
+    timeout: 8000
+
+- tapOn:
+    id: "edit-profile-preference-performance"
+
+- tapOn:
+    id: "edit-profile-weekly-goal-input"
+- eraseText
+- inputText: "120"
+- hideKeyboard
+
+- tapOn:
+    id: "edit-profile-save-button"
+
+- extendedWaitUntil:
+    visible: "Performance"
+    timeout: 8000
+
+- assertVisible: "Weekly goal: 120 km"
+
+- tapOn:
+    id: "profile-security-button"
+
+- extendedWaitUntil:
+    visible: "Account security"
+    timeout: 8000
+
+- tapOn:
+    id: "privacy-security-change-password-button"
+
+- extendedWaitUntil:
+    visible: "Change password"
+    timeout: 8000
+
+- tapOn:
+    id: "change-password-current-input"
+- inputText: "CycleLink123"
+
+- tapOn:
+    id: "change-password-new-input"
+- inputText: "CycleLink456"
+
+- tapOn:
+    id: "change-password-confirm-input"
+- inputText: "CycleLink456"
+- hideKeyboard
+
+- tapOn:
+    id: "change-password-submit-button"
+
+- extendedWaitUntil:
+    visible: "Password changed"
+    timeout: 8000
+
+- tapOn: "OK"
+
+- extendedWaitUntil:
+    visible: "Account security"
+    timeout: 8000
+
+- tapOn:
+    id: "notifications-settings-button"

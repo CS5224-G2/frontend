@@ -92,7 +92,7 @@ describe('LoginPage', () => {
     });
   });
 
-  it('navigates to the home screen upon successful login', async () => {
+  it('navigates to the profile screen upon successful login', async () => {
     render(<LoginPage />);
     const submitButtonText = screen.getAllByText('Sign In')[1];
 
@@ -101,7 +101,7 @@ describe('LoginPage', () => {
     fireEvent.press(submitButtonText);
 
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith('/home');
+      expect(mockReplace).toHaveBeenCalledWith('/profile');
     });
   });
 });

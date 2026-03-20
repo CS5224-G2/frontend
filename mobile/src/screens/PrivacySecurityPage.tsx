@@ -10,7 +10,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 
 import {
   getPrivacySecuritySettings,
@@ -148,7 +148,6 @@ export default function PrivacySecurityPage() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.contentContainer}>
-      <Stack.Screen options={{ title: 'Privacy & security' }} />
       <View style={styles.heroCard}>
         <Text style={styles.heroEyebrow}>Privacy and device</Text>
         <Text style={styles.heroTitle}>Privacy & security</Text>
@@ -196,6 +195,23 @@ export default function PrivacySecurityPage() {
             </Text>
           </View>
           <Text style={styles.deviceAction}>Open settings</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>Account security</Text>
+        <Pressable
+          testID="privacy-security-change-password-button"
+          style={styles.deviceRow}
+          onPress={() => router.push('/change-password')}
+        >
+          <View style={styles.deviceTextBlock}>
+            <Text style={styles.deviceTitle}>Change password</Text>
+            <Text style={styles.deviceDescription}>
+              Update your CycleLink password and keep your account credentials secure.
+            </Text>
+          </View>
+          <Text style={styles.deviceAction}>Open</Text>
         </Pressable>
       </View>
 

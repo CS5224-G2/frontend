@@ -161,6 +161,7 @@ export default function EditProfilePage() {
           placeholder="Enter your full name"
           placeholderTextColor={theme.textMuted}
           style={styles.input}
+          testID="edit-profile-name-input"
         />
 
         <Text style={styles.label}>Email</Text>
@@ -179,6 +180,7 @@ export default function EditProfilePage() {
           placeholder="City, State"
           placeholderTextColor={theme.textMuted}
           style={styles.input}
+          testID="edit-profile-location-input"
         />
 
         <Text style={styles.label}>Bio</Text>
@@ -203,6 +205,7 @@ export default function EditProfilePage() {
               <Pressable
                 key={option}
                 style={[styles.choiceChip, isSelected && styles.choiceChipSelected]}
+                testID={`edit-profile-preference-${option.toLowerCase()}`}
                 onPress={() => updateField('cyclingPreference', option)}
               >
                 <Text style={[styles.choiceChipText, isSelected && styles.choiceChipTextSelected]}>
@@ -224,6 +227,7 @@ export default function EditProfilePage() {
           placeholder="80"
           placeholderTextColor={theme.textMuted}
           style={styles.input}
+          testID="edit-profile-weekly-goal-input"
         />
       </View>
 
@@ -231,7 +235,12 @@ export default function EditProfilePage() {
         <Pressable style={styles.secondaryButton} onPress={() => router.back()} disabled={isSaving}>
           <Text style={styles.secondaryButtonText}>Cancel</Text>
         </Pressable>
-        <Pressable style={styles.primaryButton} onPress={handleSave} disabled={isSaving}>
+        <Pressable
+          style={styles.primaryButton}
+          onPress={handleSave}
+          disabled={isSaving}
+          testID="edit-profile-save-button"
+        >
           <Text style={styles.primaryButtonText}>{isSaving ? 'Saving...' : 'Save changes'}</Text>
         </Pressable>
       </View>

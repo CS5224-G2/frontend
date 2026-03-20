@@ -39,7 +39,7 @@ export default function LoginPage() {
         rememberMe,
       });
 
-      router.replace('/home');
+      router.replace('/profile');
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Something went wrong while signing in.';
@@ -105,6 +105,7 @@ export default function LoginPage() {
                 placeholder="you@example.com"
                 placeholderTextColor="#94a3b8"
                 style={styles.input}
+                testID="login-email-input"
                 value={email}
               />
             </View>
@@ -120,6 +121,7 @@ export default function LoginPage() {
                   placeholderTextColor="#94a3b8"
                   secureTextEntry={!showPassword}
                   style={styles.passwordInput}
+                  testID="login-password-input"
                   value={password}
                 />
                 <Pressable onPress={() => setShowPassword((current) => !current)}>
@@ -145,6 +147,7 @@ export default function LoginPage() {
               disabled={isSubmitting}
               onPress={handleLogin}
               style={[styles.primaryButton, isSubmitting && styles.primaryButtonDisabled]}
+              testID="login-submit-button"
             >
               {isSubmitting ? (
                 <ActivityIndicator color="#ffffff" />
