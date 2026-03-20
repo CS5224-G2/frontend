@@ -12,7 +12,9 @@ export default function RootLayout() {
         title: 'CycleLink',
       }}
     >
-      <Stack.Screen name="index" options={{ title: 'CycleLink' }} />
+      <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen name="login" options={{ headerShown: false }} />
+      <Stack.Screen name="register" options={{ headerShown: false }} />
       <Stack.Screen name="onboarding" options={{ title: 'Onboarding' }} />
       <Stack.Screen name="home" options={{ title: 'Home' }} />
       <Stack.Screen name="route" options={{ title: 'Route' }} />
