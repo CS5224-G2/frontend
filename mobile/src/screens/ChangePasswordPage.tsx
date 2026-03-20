@@ -222,6 +222,7 @@ export default function ChangePasswordPage() {
 
       <View style={styles.actionRow}>
         <Pressable
+          testID="change-password-cancel-button"
           style={styles.secondaryButton}
           onPress={() => router.back()}
           disabled={isSaving}
@@ -229,6 +230,7 @@ export default function ChangePasswordPage() {
           <Text style={styles.secondaryButtonText}>Cancel</Text>
         </Pressable>
         <Pressable
+          testID="change-password-submit-button"
           style={[styles.primaryButton, isSubmitDisabled && styles.primaryButtonDisabled]}
           onPress={handleSave}
           disabled={isSubmitDisabled}

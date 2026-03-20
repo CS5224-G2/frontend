@@ -184,7 +184,11 @@ export default function PrivacySecurityPage() {
 
       <View style={styles.sectionCard}>
         <Text style={styles.sectionTitle}>Device permissions</Text>
-        <Pressable style={styles.deviceRow} onPress={handleOpenNotificationSettings}>
+        <Pressable
+          testID="notifications-settings-button"
+          style={styles.deviceRow}
+          onPress={handleOpenNotificationSettings}
+        >
           <View style={styles.deviceTextBlock}>
             <Text style={styles.deviceTitle}>Notifications</Text>
             <Text style={styles.deviceDescription}>
@@ -197,13 +201,19 @@ export default function PrivacySecurityPage() {
 
       <View style={styles.actionRow}>
         <Pressable
+          testID="privacy-security-cancel-button"
           style={styles.secondaryButton}
           onPress={() => router.back()}
           disabled={isSaving}
         >
           <Text style={styles.secondaryButtonText}>Cancel</Text>
         </Pressable>
-        <Pressable style={styles.primaryButton} onPress={handleSave} disabled={isSaving}>
+        <Pressable
+          testID="privacy-security-save-button"
+          style={styles.primaryButton}
+          onPress={handleSave}
+          disabled={isSaving}
+        >
           {isSaving ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
