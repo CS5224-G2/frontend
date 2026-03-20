@@ -19,6 +19,12 @@ export default function HomeScreen() {
       >
         <Text>Open Route / Export to Maps</Text>
       </Pressable>
+      <Pressable
+        onPress={() => router.push('/profile')}
+        style={{ padding: 12, backgroundColor: '#dbeafe', borderRadius: 8, marginTop: 12 }}
+      >
+        <Text>Open Profile Settings</Text>
+      </Pressable>
     </View>
   );
 }

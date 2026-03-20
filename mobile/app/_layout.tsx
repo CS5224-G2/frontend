@@ -17,6 +17,8 @@ export default function RootLayout() {
       <Stack.Screen name="register" options={{ headerShown: false }} />
       <Stack.Screen name="onboarding" options={{ title: 'Onboarding' }} />
       <Stack.Screen name="home" options={{ title: 'Home' }} />
+      <Stack.Screen name="profile" options={{ title: 'Profile' }} />
+      <Stack.Screen name="edit-profile" options={{ title: 'Edit profile' }} />
       <Stack.Screen name="route" options={{ title: 'Route' }} />
       <Stack.Screen name="feedback" options={{ title: 'Rate your ride' }} />
     </Stack>
