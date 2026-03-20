@@ -3,21 +3,32 @@ name: CycleLink current auth profile security flow
 ---
 - launchApp:
     clearState: true
+    
+- waitForAnimationToEnd:
+    timeout: 5000
 
 - extendedWaitUntil:
     visible: "Sign In"
     timeout: 10000
 
 - tapOn: "you@example.com"
-- inputText: "alex.johnson@example.com"
+- setClipboard: "alex.johnson@example.com"
+- pasteText
+- assertVisible: "alex.johnson@example.com"
+- hideKeyboard
 
+- tapOn: "Show"
 - tapOn: "Enter your password"
 - inputText: "CycleLink123"
-- hideKeyboard
+- tapOn: "Choose your preferred sign-in method"
 
 - tapOn:
     text: "Sign In"
     below: "Remember me"
+
+- tapOn:
+    text: "Not Now"
+    optional: true
 
 - extendedWaitUntil:
     visible: "Open Profile Settings"
@@ -36,10 +47,19 @@ name: CycleLink current auth profile security flow
 - tapOn: "Edit profile"
 
 - extendedWaitUntil:
-    visible: "Save changes"
+    visible: "Edit profile"
     timeout: 8000
 
+- scrollUntilVisible:
+    element: "Cycling preference"
+    direction: DOWN
+
 - tapOn: "Performance"
+
+- scrollUntilVisible:
+    element: "Save changes"
+    direction: DOWN
+
 - tapOn: "Save changes"
 
 - extendedWaitUntil:
@@ -48,13 +68,21 @@ name: CycleLink current auth profile security flow
 
 - assertVisible: "Performance"
 
-- tapOn: "Privacy"
+- scroll
+
+- tapOn:
+    point: "83%,86%"
 
 - extendedWaitUntil:
     visible: "Privacy controls"
     timeout: 8000
 
 - assertVisible: "Device permissions"
+
+- scrollUntilVisible:
+    element:
+      id: "privacy-security-cancel-button"
+    direction: DOWN
 
 - tapOn:
     id: "privacy-security-cancel-button"
@@ -63,21 +91,71 @@ name: CycleLink current auth profile security flow
     visible: "Alex Johnson"
     timeout: 8000
 
-- tapOn: "Password"
+- scroll
+
+- tapOn:
+    point: "83%,92%"
 
 - extendedWaitUntil:
     visible: "Update password"
     timeout: 8000
 
+- tapOn: "Show"
 - tapOn: "Enter current password"
 - inputText: "CycleLink123"
 
+- tapOn: "Show"
 - tapOn: "Enter new password"
 - inputText: "CycleLink456"
 
+- tapOn:
+    point: "88%,50%"
+    optional: true
+
+- tapOn:
+    point: "90%,52%"
+    optional: true
+
+- tapOn:
+    point: "92%,54%"
+    optional: true
+
+- waitForAnimationToEnd:
+    timeout: 2000
+
+- tapOn: "Enter new password"
+- eraseText
+- inputText: "CycleLink456"
+- tapOn: "Security tip"
+
+- tapOn: "Show"
 - tapOn: "Re-enter new password"
 - inputText: "CycleLink456"
-- hideKeyboard
+- tapOn: "Security tip"
+
+- tapOn:
+    point: "88%,58%"
+    optional: true
+
+- tapOn:
+    point: "90%,60%"
+    optional: true
+
+- tapOn:
+    point: "92%,62%"
+    optional: true
+
+- waitForAnimationToEnd:
+    timeout: 2000
+
+- tapOn:
+    point: "90%,58%"
+    optional: true
+
+- scrollUntilVisible:
+    element:
+      id: "change-password-submit-button"
+    direction: DOWN
 
 - tapOn:
     id: "change-password-submit-button"
@@ -92,11 +170,22 @@ name: CycleLink current auth profile security flow
     visible: "Alex Johnson"
     timeout: 8000
 
-- tapOn: "Notifications"
+- scroll
+
+- waitForAnimationToEnd:
+    timeout: 2000
+
+- tapOn:
+    point: "83%,86%"
 
 - extendedWaitUntil:
     visible: "Privacy controls"
     timeout: 8000
+
+- scrollUntilVisible:
+    element:
+      id: "notifications-settings-button"
+    direction: DOWN
 
 - tapOn:
     id: "notifications-settings-button"
