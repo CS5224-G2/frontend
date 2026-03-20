@@ -1,5 +1,5 @@
 appId: ${APP_ID}
-name: CycleLink integrated auth profile security flow
+name: CycleLink current auth profile security flow
 ---
 - launchApp:
     clearState: true
@@ -8,74 +8,74 @@ name: CycleLink integrated auth profile security flow
     visible: "Sign In"
     timeout: 10000
 
-- tapOn:
-    id: "login-email-input"
+- tapOn: "you@example.com"
 - inputText: "alex.johnson@example.com"
 
-- tapOn:
-    id: "login-password-input"
+- tapOn: "Enter your password"
 - inputText: "CycleLink123"
 - hideKeyboard
 
 - tapOn:
-    id: "login-submit-button"
+    text: "Sign In"
+    below: "Remember me"
+
+- extendedWaitUntil:
+    visible: "Open Profile Settings"
+    timeout: 10000
+
+- assertVisible: "Home — discover or customise routes (placeholder)"
+
+- tapOn: "Open Profile Settings"
 
 - extendedWaitUntil:
     visible: "Alex Johnson"
     timeout: 10000
 
-- assertVisible:
-    id: "profile-name"
+- assertVisible: "Weekly goal: 80 km"
 
-- tapOn:
-    id: "profile-edit-button"
+- tapOn: "Edit profile"
 
 - extendedWaitUntil:
-    visible: "Edit profile"
+    visible: "Save changes"
     timeout: 8000
 
-- tapOn:
-    id: "edit-profile-preference-performance"
-
-- tapOn:
-    id: "edit-profile-weekly-goal-input"
-- eraseText
-- inputText: "120"
-- hideKeyboard
-
-- tapOn:
-    id: "edit-profile-save-button"
+- tapOn: "Performance"
+- tapOn: "Save changes"
 
 - extendedWaitUntil:
     visible: "Performance"
     timeout: 8000
 
-- assertVisible: "Weekly goal: 120 km"
+- assertVisible: "Performance"
 
-- tapOn:
-    id: "profile-security-button"
-
-- extendedWaitUntil:
-    visible: "Account security"
-    timeout: 8000
-
-- tapOn:
-    id: "privacy-security-change-password-button"
+- tapOn: "Privacy"
 
 - extendedWaitUntil:
-    visible: "Change password"
+    visible: "Privacy controls"
     timeout: 8000
 
+- assertVisible: "Device permissions"
+
 - tapOn:
-    id: "change-password-current-input"
+    id: "privacy-security-cancel-button"
+
+- extendedWaitUntil:
+    visible: "Alex Johnson"
+    timeout: 8000
+
+- tapOn: "Password"
+
+- extendedWaitUntil:
+    visible: "Update password"
+    timeout: 8000
+
+- tapOn: "Enter current password"
 - inputText: "CycleLink123"
 
-- tapOn:
-    id: "change-password-new-input"
+- tapOn: "Enter new password"
 - inputText: "CycleLink456"
 
-- tapOn:
-    id: "change-password-confirm-input"
+- tapOn: "Re-enter new password"
 - inputText: "CycleLink456"
 - hideKeyboard
 
@@ -89,7 +89,13 @@ name: CycleLink integrated auth profile security flow
 - tapOn: "OK"
 
 - extendedWaitUntil:
-    visible: "Account security"
+    visible: "Alex Johnson"
+    timeout: 8000
+
+- tapOn: "Notifications"
+
+- extendedWaitUntil:
+    visible: "Privacy controls"
     timeout: 8000
 
 - tapOn:
