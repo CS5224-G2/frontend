@@ -191,20 +191,29 @@ export default function UserProfilePage() {
 
       <View style={styles.sectionCard}>
         <Text style={styles.sectionEyebrow}>Account settings</Text>
-        <View style={styles.settingRow}>
+        <Pressable
+          style={styles.settingRow}
+          onPress={() => router.push('/privacy-security')}
+        >
           <Text style={styles.settingTitle}>Notifications</Text>
-          <Text style={styles.settingValue}>Enabled</Text>
-        </View>
+          <Text style={styles.settingValue}>Manage</Text>
+        </Pressable>
         <View style={styles.divider} />
-        <View style={styles.settingRow}>
+        <Pressable
+          style={styles.settingRow}
+          onPress={() => router.push('/privacy-security')}
+        >
           <Text style={styles.settingTitle}>Privacy</Text>
-          <Text style={styles.settingValue}>Friends only</Text>
-        </View>
+          <Text style={styles.settingValue}>Review</Text>
+        </Pressable>
         <View style={styles.divider} />
-        <View style={styles.settingRow}>
+        <Pressable
+          style={styles.settingRow}
+          onPress={() => router.push('/change-password')}
+        >
           <Text style={styles.settingTitle}>Password</Text>
-          <Text style={styles.settingValue}>Managed separately</Text>
-        </View>
+          <Text style={styles.settingValue}>Change</Text>
+        </Pressable>
       </View>
     </ScrollView>
   );
