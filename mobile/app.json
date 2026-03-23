@@ -14,7 +14,10 @@
     },
     "ios": {
       "bundleIdentifier": "sg.edu.nus.cyclelink",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "sg.edu.nus.cyclelink",

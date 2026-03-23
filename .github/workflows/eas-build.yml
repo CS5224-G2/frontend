@@ -43,4 +43,4 @@ jobs:
       - name: Trigger EAS Build
         if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
         working-directory: mobile
-        run: npx eas-cli build --platform all --non-interactive --no-wait
+        run: npx eas-cli build --platform android --non-interactive --no-wait
