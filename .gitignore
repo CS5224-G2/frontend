@@ -5,9 +5,14 @@ node_modules/
 dist/
 build/
 .expo/
+.expo-shared/
 web-build/
 .metro/
 *.tsbuildinfo
+
+# Expo prebuild / native projects
+mobile/ios/
+mobile/android/
 
 # Environment
 .env
@@ -30,4 +35,3 @@ coverage/
 
 # Local-only
 mobile/TROUBLESHOOTING.md
-

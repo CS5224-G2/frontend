@@ -6,9 +6,10 @@
     "build": "expo build:web",
     "dev": "expo start",
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "test": "jest --watchman=false"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
@@ -26,6 +27,7 @@
     "expo-status-bar": "~3.0.9",
     "lucide-react-native": "^0.577.0",
     "react": "19.1.0",
+    "react-dom": "19.1.0",
     "react-hook-form": "^7.55.0",
     "react-native": "0.81.5",
     "react-native-gesture-handler": "~2.28.0",
@@ -38,9 +40,28 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.0",
+    "@testing-library/react-native": "^13.3.3",
+    "@types/jest": "^30.0.0",
     "@types/react": "~19.1.10",
     "@types/react-native": "^0.72.8",
     "babel-preset-expo": "~54.0.0",
+    "jest": "^29.7.0",
+    "jest-expo": "~54.0.17",
+    "react-test-renderer": "19.1.0",
     "typescript": "~5.9.2"
+  },
+  "jest": {
+    "preset": "jest-expo",
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/dist/"
+    ],
+    "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/src/$1"
+    }
+  },
+  "overrides": {
+    "tar": ">=6.2.2",
+    "@xmldom/xmldom": ">=0.8.0"
   }
 }

@@ -1,0 +1,112 @@
+name: Mobile Manual Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: "Which test suite to run"
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - jest
+          - maestro
+
+jobs:
+  jest-tests:
+    name: Jest Frontend Tests
+    if: ${{ inputs.suite == 'all' || inputs.suite == 'jest' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Jest test suites
+        run: npm test -- --watch=false
+
+  maestro-ios:
+    name: Maestro iOS Flow
+    if: ${{ inputs.suite == 'all' || inputs.suite == 'maestro' }}
+    runs-on: macos-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: mobile
+
+    env:
+      APP_ID: sg.edu.nus.cyclelink
+      MAESTRO_APP_ID: sg.edu.nus.cyclelink
+      DERIVED_DATA_PATH: ios/build
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install CocoaPods dependencies
+        working-directory: mobile/ios
+        run: pod install
+
+      - name: Install Maestro CLI
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      - name: Create and boot iOS simulator
+        run: |
+          RUNTIME_ID="$(xcrun simctl list runtimes available | awk -F '[()]' '/iOS/ {print $2}' | tail -1)"
+          DEVICE_TYPE_ID="$(xcrun simctl list devicetypes | awk -F '[()]' '/iPhone 16/ {print $2; exit}')"
+
+          if [ -z "$DEVICE_TYPE_ID" ]; then
+            DEVICE_TYPE_ID="$(xcrun simctl list devicetypes | awk -F '[()]' '/iPhone 15/ {print $2; exit}')"
+          fi
+
+          SIMULATOR_UDID="$(xcrun simctl create "CycleLink-CI" "$DEVICE_TYPE_ID" "$RUNTIME_ID")"
+          echo "SIMULATOR_UDID=$SIMULATOR_UDID" >> "$GITHUB_ENV"
+
+          xcrun simctl boot "$SIMULATOR_UDID"
+          xcrun simctl bootstatus "$SIMULATOR_UDID" -b
+          open -a Simulator
+
+      - name: Build app for iOS simulator
+        working-directory: mobile/ios
+        run: |
+          xcodebuild \
+            -workspace CycleLink.xcworkspace \
+            -scheme CycleLink \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination "id=$SIMULATOR_UDID" \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Install app on simulator
+        run: |
+          xcrun simctl install booted "ios/build/Build/Products/Debug-iphonesimulator/CycleLink.app"
+
+      - name: Run Maestro integration flow
+        run: maestro test .maestro/integration_flow.yaml

@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Cyclink",
-    "slug": "cyclink",
-    "version": "0.0.1",
+    "name": "CycleLink",
+    "slug": "cycle-link",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -10,8 +10,11 @@
       "**/*"
     ],
     "ios": {
-      "supportsTabletMode": true,
-      "requireFullScreen": false
+      "bundleIdentifier": "sg.edu.nus.cyclelink",
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -28,7 +31,16 @@
         {
           "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location"
         }
-      ]
-    ]
+      ],
+      "expo-router",
+      "expo-asset"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "e21b97a7-8360-4a6e-adcd-55187e00e833"
+      }
+    },
+    "owner": "gappyduck"
   }
 }
