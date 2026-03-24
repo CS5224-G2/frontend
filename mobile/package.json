@@ -8,9 +8,13 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "test": "jest --watchman=false"
+    "test": "jest --watchman=false",
+    "test:ci": "jest --watchman=false --ci --no-watch"
   },
   "dependencies": {
+    "@react-native-async-storage/async-storage": "^3.0.1",
+    "@react-native-community/slider": "5.0.1",
+    "@rnmapbox/maps": "^10.3.0",
     "expo": "~54.0.0",
     "expo-asset": "~12.0.12",
     "expo-linking": "~8.0.11",
@@ -35,12 +39,16 @@
   },
   "jest": {
     "preset": "jest-expo",
+    "setupFilesAfterEnv": [
+      "<rootDir>/jest.setup.js"
+    ],
     "testPathIgnorePatterns": [
       "/node_modules/",
       "/dist/"
     ],
     "moduleNameMapper": {
-      "^@/(.*)$": "<rootDir>/src/$1"
+      "^@/(.*)$": "<rootDir>/src/$1",
+      "^@rnmapbox/maps$": "<rootDir>/__mocks__/rnmapbox-maps.js"
     }
   },
   "overrides": {

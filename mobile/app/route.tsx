@@ -1,25 +1,71 @@
-import { View, Text, Pressable } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
+import { mockRoutes } from '../src/types/route';
+
 /**
- * Route: show recommended route; open in Google/Apple Maps via deep link.
- * Implement: call backend for route + waypoints, build maps URL, Linking.openURL().
- * See src/services/maps.ts for URL builder placeholder.
+ * Route recommendations after configuring preferences (wireframe: route-recommendation).
+ * Tap a route to confirm, then start live Mapbox navigation.
  */
 export default function RouteScreen() {
   const router = useRouter();
 
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
-      <Text style={{ fontSize: 16, marginBottom: 16, textAlign: 'center' }}>
-        Route — export to Google/Apple Maps (placeholder)
+    <SafeAreaView style={styles.safe} edges={['bottom']}>
+      <Text style={styles.heading} testID="route-list-heading">
+        Recommended routes
       </Text>
-      <Pressable
-        onPress={() => router.push('/feedback')}
-        style={{ padding: 12, backgroundColor: '#eee', borderRadius: 8 }}
-      >
-        <Text>Simulate: Ride done → Feedback</Text>
-      </Pressable>
-    </View>
+      <Text style={styles.sub}>Based on your preferences — tap to confirm</Text>
+      <FlatList
+        data={mockRoutes}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.list}
+        renderItem={({ item }) => (
+          <Pressable
+            style={styles.card}
+            onPress={() => router.push(`/route-confirmed/${item.id}`)}
+            testID={`route-list-item-${item.id}`}
+          >
+            <Text style={styles.cardTitle}>{item.name}</Text>
+            <Text style={styles.cardMeta}>
+              {item.distance} km · ~{item.estimatedTime} min · {item.checkpoints.length} checkpoints
+            </Text>
+            <Text style={styles.cardDesc} numberOfLines={2}>
+              {item.description}
+            </Text>
+          </Pressable>
+        )}
+      />
+    </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: '#f8fafc' },
+  heading: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#0f172a',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+  },
+  sub: {
+    fontSize: 14,
+    color: '#64748b',
+    paddingHorizontal: 20,
+    marginBottom: 12,
+  },
+  list: { paddingHorizontal: 16, paddingBottom: 24 },
+  card: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  cardTitle: { fontSize: 17, fontWeight: '700', color: '#0f172a', marginBottom: 6 },
+  cardMeta: { fontSize: 13, color: '#64748b', marginBottom: 8 },
+  cardDesc: { fontSize: 14, color: '#475569', lineHeight: 20 },
+});

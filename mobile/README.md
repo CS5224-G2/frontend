@@ -10,7 +10,7 @@ npx expo start
 ```
 
 - **Test on iPhone:** Scan the QR code with the Camera app → Open in Expo Go. Full steps (including optional standalone build): **[../docs/TEST_DEPLOY.md](../docs/TEST_DEPLOY.md)**.
-- Create a `.env` (see `.env.example`) for `EXPO_PUBLIC_API_BASE_URL` when the backend is available.
+- Create a `.env` (see `.env.example`) for `EXPO_PUBLIC_API_BASE_URL` when the backend is available, and `EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN` for the live map (development build required — see **[docs/TESTING.md](docs/TESTING.md)**).
 
 **npm install warnings or audit issues?** See **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** (deprecation warnings are from the Expo/React Native toolchain and can be ignored; run `npm audit fix` for vulnerabilities).
 
@@ -20,10 +20,15 @@ npx expo start
   - `index.tsx` — entry (redirect to onboarding or home)
   - `onboarding.tsx` — cyclist type + preferences
   - `home.tsx` — discover / customise routes
-  - `route.tsx` — show route, export to Google/Apple Maps
+  - `route-config.tsx` — **RouteConfigPage** (preferences, start/end → recommendations)
+  - `route.tsx` — recommended routes list → **RouteConfirmedPage**
+  - `route-confirmed/[routeId].tsx` — **RouteConfirmedPage** (summary, external maps, start ride)
+  - `live-map/[routeId].tsx` — **LiveMapPage** (Mapbox line + progress UI)
   - `feedback.tsx` — post-ride rating
 - **`src/services/`** — API client (`api.ts`), maps URL builder and open (`maps.ts`)
-- **`src/types/`** — shared types (e.g. preferences, cyclist type)
+- **`src/types/`** — shared types (e.g. preferences, cyclist type, `route.ts` mock routes)
+- **`docs/TESTING.md`** — Jest, Maestro, Mapbox QC
+- **`.maestro/`** — Maestro flows (e.g. route journey → live map)
 
 ## Export to maps
 

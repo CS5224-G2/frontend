@@ -15,7 +15,13 @@ export default function RootLayout() {
       <Stack.Screen name="home" options={{ title: 'Home' }} />
       <Stack.Screen name="profile" options={{ title: 'Profile' }} />
       <Stack.Screen name="edit-profile" options={{ title: 'Edit profile' }} />
-      <Stack.Screen name="route" options={{ title: 'Route' }} />
+      <Stack.Screen name="route" options={{ title: 'Recommended routes' }} />
+      <Stack.Screen name="route-config" options={{ title: 'Configure route' }} />
+      <Stack.Screen
+        name="route-confirmed/[routeId]"
+        options={{ title: 'Route confirmed', headerShown: false }}
+      />
+      <Stack.Screen name="live-map/[routeId]" options={{ headerShown: false }} />
       <Stack.Screen name="feedback" options={{ title: 'Rate your ride' }} />
     </Stack>
   );

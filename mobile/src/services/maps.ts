@@ -45,10 +45,9 @@ export async function openRouteInMaps(params: {
   waypoints?: string[];
   preferGoogle?: boolean;
 }): Promise<void> {
-  const url =
-    params.preferGoogle ?? false
-      ? buildGoogleMapsUrl(params)
-      : buildAppleMapsUrl(params);
+  const url = (params.preferGoogle ?? false)
+    ? buildGoogleMapsUrl(params)
+    : buildAppleMapsUrl(params);
   const canOpen = await Linking.canOpenURL(url);
   if (!canOpen) {
     throw new Error('Cannot open maps URL');

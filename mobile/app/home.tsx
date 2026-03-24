@@ -1,30 +1,72 @@
-import { View, Text, Pressable } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 /**
- * Home: discover recommended routes or customise route (start/end, preferences, checkpoints).
- * Implement: list of recommendations, custom route form, then navigate to route screen.
+ * Home: discover recommended routes or customise route (start/end, preferences).
  */
 export default function HomeScreen() {
   const router = useRouter();
 
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
-      <Text style={{ fontSize: 16, marginBottom: 16, textAlign: 'center' }}>
-        Home — discover or customise routes (placeholder)
+    <View style={styles.container}>
+      <Text style={styles.title} testID="home-title">
+        Home
       </Text>
+      <Text style={styles.subtitle}>Discover routes or customise your next ride</Text>
+
       <Pressable
-        onPress={() => router.push('/route')}
-        style={{ padding: 12, backgroundColor: '#eee', borderRadius: 8 }}
+        style={styles.primary}
+        onPress={() => router.push('/route-config')}
+        testID="home-configure-route"
       >
-        <Text>Open Route / Export to Maps</Text>
+        <Text style={styles.primaryText}>Configure custom route</Text>
       </Pressable>
+
       <Pressable
-        onPress={() => router.push('/profile')}
-        style={{ padding: 12, backgroundColor: '#dbeafe', borderRadius: 8, marginTop: 12 }}
+        style={styles.secondary}
+        onPress={() => router.push('/route')}
+        testID="home-browse-routes"
       >
-        <Text>Open Profile Settings</Text>
+        <Text style={styles.secondaryText}>Browse recommended routes</Text>
+      </Pressable>
+
+      <Pressable style={styles.link} onPress={() => router.push('/profile')} testID="home-profile">
+        <Text style={styles.linkText}>Profile settings</Text>
       </Pressable>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
+  title: { fontSize: 22, fontWeight: '800', color: '#0f172a', marginBottom: 8 },
+  subtitle: {
+    fontSize: 15,
+    color: '#64748b',
+    textAlign: 'center',
+    marginBottom: 28,
+    maxWidth: 300,
+  },
+  primary: {
+    backgroundColor: '#2563eb',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 14,
+    marginBottom: 12,
+    minWidth: 280,
+    alignItems: 'center',
+  },
+  primaryText: { color: '#ffffff', fontSize: 16, fontWeight: '700' },
+  secondary: {
+    backgroundColor: '#e0e7ff',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 14,
+    marginBottom: 20,
+    minWidth: 280,
+    alignItems: 'center',
+  },
+  secondaryText: { color: '#3730a3', fontSize: 15, fontWeight: '700' },
+  link: { padding: 8 },
+  linkText: { color: '#2563eb', fontSize: 14, fontWeight: '600' },
+});

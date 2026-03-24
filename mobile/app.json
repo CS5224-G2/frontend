@@ -28,7 +28,8 @@
     },
     "plugins": [
       "expo-router",
-      "expo-asset"
+      "expo-asset",
+      "@rnmapbox/maps"
     ],
     "extra": {
       "router": {},
