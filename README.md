@@ -58,6 +58,27 @@ Mobile app will call:
 
 Exact endpoints and payloads to be aligned with backend team; keep API client in `mobile/src/services/` and types in `mobile/src/types/`.
 
+## AI Usage Declaration
+
+This project used AI-assisted development tools as part of the CS5224 Cloud Computing group project.
+
+**Tools used:** Claude Code (Anthropic Claude Sonnet 4.6) via the Claude Code CLI
+
+**Scope of AI assistance:**
+- Generating the `web-app/` frontend (React + Vite + TypeScript + Tailwind CSS) from a human-authored specification and implementation plan
+- Writing and reviewing unit tests (Vitest + React Testing Library)
+- Identifying and fixing bugs (accessibility issues, redirect logic, TypeScript type errors)
+- Code quality review (accessibility, React anti-patterns, security)
+
+**Human contributions:**
+- Project requirements, system design, and architecture decisions
+- Review and approval of all design specifications before implementation
+- Review and approval of the implementation plan
+- Validation of final output against project goals
+- All backend, mobile app, and deployment infrastructure work
+
+All AI-generated code was reviewed and approved by the team before being committed.
+
 ## Contributing
 
 1. Create a branch, implement under the existing folders (screens, components, services).
