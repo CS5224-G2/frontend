@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, FlatList, Pressable, Alert } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -62,7 +62,7 @@ export default function RideHistoryPage({ navigation }: Props) {
       <View key={item.id} style={styles.graphBarRow}>
         <Text style={styles.graphBarLabel}>{period === 'week' ? item.day : item.week}</Text>
         <View style={styles.graphBarTrack}>
-          <View style={[styles.graphBarFill, { width }]} />
+          <View style={[styles.graphBarFill, { width: width as any }]} />
         </View>
         <Text style={styles.graphBarValue}>{item.distance.toFixed(1)} km</Text>
       </View>

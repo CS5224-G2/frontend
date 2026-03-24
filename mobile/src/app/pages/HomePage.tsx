@@ -7,7 +7,7 @@ import { mockRoutes, type Route, type UserPreferences } from '../types';
 import { FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
-type Props = NativeStackScreenProps<any, 'HomeTab'>;
+type Props = NativeStackScreenProps<any, 'HomePage'>;
 
 export default function HomeScreen({ navigation }: Props) {
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
