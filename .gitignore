@@ -35,3 +35,7 @@ coverage/
 
 # Local-only
 mobile/TROUBLESHOOTING.md
+
+# Tooling / AI
+.superpowers/
+web-app/dist/
