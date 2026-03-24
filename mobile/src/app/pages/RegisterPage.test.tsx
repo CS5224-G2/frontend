@@ -1,7 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 
-import LoginPage from './LoginPage';
+import RegisterPage from './RegisterPage';
 import { AuthContext } from '../AuthContext';
 import * as authService from '../../services/authService';
 
@@ -30,7 +30,7 @@ jest.mock('../AuthContext', () => {
 });
 
 jest.mock('../../services/authService', () => ({
-  loginUser: jest.fn(),
+  registerUser: jest.fn(),
 }));
 
 jest.mock('react-native-safe-area-context', () => {
@@ -42,29 +42,34 @@ jest.mock('react-native-safe-area-context', () => {
   };
 });
 
-describe('LoginPage', () => {
-  const mockedLoginUser = authService.loginUser as jest.MockedFunction<typeof authService.loginUser>;
+describe('RegisterPage', () => {
+  const mockedRegisterUser = authService.registerUser as jest.MockedFunction<
+    typeof authService.registerUser
+  >;
 
   beforeEach(() => {
     jest.clearAllMocks();
 
-    mockedLoginUser.mockResolvedValue({
+    mockedRegisterUser.mockResolvedValue({
       accessToken: 'mock-access-token',
       refreshToken: 'mock-refresh-token',
       expiresIn: 3600,
       requestPayload: {
+        first_name: 'Alex',
+        last_name: 'Tan',
         email: 'alex@example.com',
         password: 'password123',
-        remember_me: false,
+        confirm_password: 'password123',
+        agreed_to_terms: true,
         client: 'mobile_app',
       },
       user: {
-        id: 'user_001',
+        id: 'user_002',
         firstName: 'Alex',
-        lastName: 'Rider',
-        fullName: 'Alex Rider',
+        lastName: 'Tan',
+        fullName: 'Alex Tan',
         email: 'alex@example.com',
-        onboardingComplete: true,
+        onboardingComplete: false,
       },
     } as any);
   });
@@ -78,49 +83,52 @@ describe('LoginPage', () => {
   };
 
   it('renders correctly', () => {
-    renderWithAuth(<LoginPage />);
+    renderWithAuth(<RegisterPage />);
 
-    expect(screen.getAllByText('Sign In').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Create Account').length).toBeGreaterThan(0);
+    expect(screen.getByPlaceholderText('Alex')).toBeTruthy();
+    expect(screen.getByPlaceholderText('Johnson')).toBeTruthy();
     expect(screen.getByPlaceholderText('you@example.com')).toBeTruthy();
-    expect(screen.getByPlaceholderText('Enter your password')).toBeTruthy();
+    expect(screen.getByPlaceholderText('At least 8 characters')).toBeTruthy();
+    expect(screen.getByPlaceholderText('Re-enter your password')).toBeTruthy();
   });
 
-  it('updates state when text is typed into the inputs', () => {
-    renderWithAuth(<LoginPage />);
+  it('calls the mocked registerUser middleware when submitted', async () => {
+    renderWithAuth(<RegisterPage />);
+    const submitButtonText = screen.getAllByText('Create Account')[1];
 
-    const emailInput = screen.getByPlaceholderText('you@example.com');
-    const passwordInput = screen.getByPlaceholderText('Enter your password');
-
-    fireEvent.changeText(emailInput, 'alex@example.com');
-    fireEvent.changeText(passwordInput, 'password123');
-
-    expect(screen.getByDisplayValue('alex@example.com')).toBeTruthy();
-    expect(screen.getByDisplayValue('password123')).toBeTruthy();
-  });
-
-  it('calls the mocked loginUser middleware with the correct payload when submitted', async () => {
-    renderWithAuth(<LoginPage />);
-    const submitButtonText = screen.getAllByText('Sign In')[1];
-
+    fireEvent.changeText(screen.getByPlaceholderText('Alex'), 'Alex');
+    fireEvent.changeText(screen.getByPlaceholderText('Johnson'), 'Tan');
     fireEvent.changeText(screen.getByPlaceholderText('you@example.com'), 'alex@example.com');
-    fireEvent.changeText(screen.getByPlaceholderText('Enter your password'), 'password123');
+    fireEvent.changeText(screen.getByPlaceholderText('At least 8 characters'), 'password123');
+    fireEvent.changeText(screen.getByPlaceholderText('Re-enter your password'), 'password123');
+
+    fireEvent.press(screen.getByText(/I agree to the/i));
     fireEvent.press(submitButtonText);
 
     await waitFor(() => {
-      expect(mockedLoginUser).toHaveBeenCalledWith({
+      expect(mockedRegisterUser).toHaveBeenCalledWith({
+        firstName: 'Alex',
+        lastName: 'Tan',
         email: 'alex@example.com',
         password: 'password123',
-        rememberMe: false,
+        confirmPassword: 'password123',
+        agreedToTerms: true,
       });
     });
   });
 
-  it('calls login from AuthContext upon successful login', async () => {
-    renderWithAuth(<LoginPage />);
-    const submitButtonText = screen.getAllByText('Sign In')[1];
+  it('calls login from AuthContext upon successful registration', async () => {
+    renderWithAuth(<RegisterPage />);
+    const submitButtonText = screen.getAllByText('Create Account')[1];
 
+    fireEvent.changeText(screen.getByPlaceholderText('Alex'), 'Alex');
+    fireEvent.changeText(screen.getByPlaceholderText('Johnson'), 'Tan');
     fireEvent.changeText(screen.getByPlaceholderText('you@example.com'), 'alex@example.com');
-    fireEvent.changeText(screen.getByPlaceholderText('Enter your password'), 'password123');
+    fireEvent.changeText(screen.getByPlaceholderText('At least 8 characters'), 'password123');
+    fireEvent.changeText(screen.getByPlaceholderText('Re-enter your password'), 'password123');
+
+    fireEvent.press(screen.getByText(/I agree to the/i));
     fireEvent.press(submitButtonText);
 
     await waitFor(() => {
