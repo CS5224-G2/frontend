@@ -8,7 +8,7 @@ import ProtectedRoute from './ProtectedRoute'
 function makeCtx(user: AuthUser | null) {
   return {
     user,
-    login: async () => user!,
+    login: async () => { throw new Error('login not implemented in test stub') },
     logout: () => {},
   }
 }
@@ -49,6 +49,12 @@ describe('ProtectedRoute', () => {
   it('redirects business to /dashboard when accessing admin route', () => {
     const biz: AuthUser = { id: '2', email: 'b@b.com', role: 'business' }
     renderInRouter('admin', biz)
+    expect(screen.getByText('dashboard page')).toBeTruthy()
+  })
+
+  it('redirects user role to /dashboard when accessing protected route', () => {
+    const regularUser: AuthUser = { id: '3', email: 'u@b.com', role: 'user' }
+    renderInRouter('admin', regularUser)
     expect(screen.getByText('dashboard page')).toBeTruthy()
   })
 })
