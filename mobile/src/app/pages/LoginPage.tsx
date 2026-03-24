@@ -1,281 +1,422 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator } from 'react-native';
+import { useState, useContext } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/native/Common';
-import { Input, Label, Checkbox, Separator } from '../components/native/FormComponents';
-import { Button } from '../components/native/Common';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { AuthContext } from '../AuthContext';
 
-type AuthScreenNavigationProp = NativeStackNavigationProp<any, 'Login'>;
+import { loginUser } from '../../services/authService';
 
-export default function LoginScreen() {
-  const navigation = useNavigation<AuthScreenNavigationProp>();
+export default function LoginPage() {
+  const navigation = useNavigation<any>();
+  const { login } = useContext(AuthContext);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleEmailLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+  const handleLogin = async () => {
+    if (!email.trim() || !password) {
+      Alert.alert('Missing details', 'Please enter your email and password.');
       return;
     }
 
-    setIsLoading(true);
-    // Simulate login
-    setTimeout(() => {
-      setIsLoading(false);
-      Alert.alert('Success', 'Welcome back!');
-      navigation.navigate('Onboarding');
-    }, 1000);
-  };
+    setIsSubmitting(true);
 
-  const handleGoogleLogin = () => {
-    Alert.alert('Info', 'Google sign-in would open here');
-    setTimeout(() => {
-      navigation.navigate('Onboarding');
-    }, 1000);
-  };
+    try {
+      await loginUser({
+        email,
+        password,
+        rememberMe,
+      });
 
-  const handleAppleLogin = () => {
-    Alert.alert('Info', 'Apple sign-in would open here');
-    setTimeout(() => {
-      navigation.navigate('Onboarding');
-    }, 1000);
+      login();
+      // Navigation is now handled by RootNavigator reacting to AuthContext
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Something went wrong while signing in.';
+      Alert.alert('Sign in failed', message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      {/* Logo and Title */}
-      <View style={styles.headerContainer}>
-        <View style={styles.logoCircle}>
-          <MaterialCommunityIcons name="bike" size={40} color="#ffffff" />
-        </View>
-        <Text style={styles.appTitle}>CycleLink</Text>
-        <Text style={styles.subtitle}>Welcome back! Sign in to continue</Text>
-      </View>
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.backgroundBubbleTop} />
+          <View style={styles.backgroundBubbleBottom} />
 
-      {/* Login Card */}
-      <Card style={styles.card}>
-        <CardHeader>
-          <CardTitle>Sign In</CardTitle>
-          <CardDescription>Choose your preferred sign-in method</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {/* Social Login Buttons */}
-          <View style={styles.socialButtonsContainer}>
-            <Button onPress={handleGoogleLogin} style={styles.socialButton}>
-              <View style={styles.socialButtonContent}>
-                <Text style={styles.socialButtonText}>Google</Text>
-              </View>
-            </Button>
-
-            <Button onPress={handleAppleLogin} style={styles.socialButton}>
-              <View style={styles.socialButtonContent}>
-                <MaterialCommunityIcons name="apple" size={20} color="#ffffff" />
-                <Text style={styles.socialButtonText}>Apple</Text>
-              </View>
-            </Button>
+          <View style={styles.header}>
+            <View style={styles.logoCircle}>
+              <Text style={styles.logoGlyph}>CL</Text>
+            </View>
+            <Text style={styles.brand}>CycleLink</Text>
+            <Text style={styles.subtitle}>Welcome back. Sign in to continue your next ride.</Text>
           </View>
 
-          <Separator />
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Sign In</Text>
+            <Text style={styles.cardDescription}>Choose your preferred sign-in method</Text>
 
-          {/* Email Login Form */}
-          <View style={styles.formContainer}>
-            <View>
-              <Label>Email</Label>
-              <Input
-                value={email}
+            <Pressable style={styles.socialButton} onPress={() => Alert.alert('Google', 'Mock only')}>
+              <View style={[styles.socialIcon, styles.googleIcon]}>
+                <Text style={styles.socialIconText}>G</Text>
+              </View>
+              <Text style={styles.socialButtonText}>Continue with Google</Text>
+            </Pressable>
+
+            <Pressable style={styles.socialButton} onPress={() => Alert.alert('Apple', 'Mock only')}>
+              <View style={[styles.socialIcon, styles.appleIcon]}>
+                <Text style={[styles.socialIconText, styles.appleIconText]}>A</Text>
+              </View>
+              <Text style={styles.socialButtonText}>Continue with Apple</Text>
+            </Pressable>
+
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>Or continue with email</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>Email</Text>
+              <TextInput
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="email-address"
                 onChangeText={setEmail}
                 placeholder="you@example.com"
-                keyboardType="email-address"
+                placeholderTextColor="#94a3b8"
+                style={styles.input}
+                value={email}
               />
             </View>
 
-            <View>
-              <Label>Password</Label>
-              <View style={styles.passwordInputContainer}>
-                <Input
-                  value={password}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>Password</Text>
+              <View style={styles.passwordRow}>
+                <TextInput
+                  autoCapitalize="none"
+                  autoCorrect={false}
                   onChangeText={setPassword}
-                  placeholder="••••••••"
+                  placeholder="Enter your password"
+                  placeholderTextColor="#94a3b8"
                   secureTextEntry={!showPassword}
-                  style={{ flex: 1 }}
+                  style={styles.passwordInput}
+                  value={password}
                 />
-                <Pressable
-                  onPress={() => setShowPassword(!showPassword)}
-                  style={styles.eyeIcon}
-                >
-                  <MaterialCommunityIcons
-                    name={showPassword ? 'eye-off' : 'eye'}
-                    size={20}
-                    color="#64748b"
-                  />
+                <Pressable onPress={() => setShowPassword((current) => !current)}>
+                  <Text style={styles.toggleText}>{showPassword ? 'Hide' : 'Show'}</Text>
                 </Pressable>
               </View>
             </View>
 
-            <View style={styles.rememberForgotContainer}>
-              <View style={styles.rememberMeContainer}>
-                <Checkbox
-                  value={rememberMe}
-                  onValueChange={setRememberMe}
-                />
-                <Text style={styles.rememberMeText}>Remember me</Text>
-              </View>
+            <View style={styles.metaRow}>
+              <Pressable style={styles.checkboxRow} onPress={() => setRememberMe((current) => !current)}>
+                <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
+                  {rememberMe ? <Text style={styles.checkboxTick}>x</Text> : null}
+                </View>
+                <Text style={styles.metaText}>Remember me</Text>
+              </Pressable>
+
               <Pressable>
-                <Text style={styles.forgotPasswordLink}>Forgot password?</Text>
+                <Text style={styles.linkText}>Forgot password?</Text>
               </Pressable>
             </View>
 
-            <Button
-              onPress={handleEmailLogin}
-              disabled={isLoading}
-              loading={isLoading}
-              style={styles.signInButton}
+            <Pressable
+              disabled={isSubmitting}
+              onPress={handleLogin}
+              style={[styles.primaryButton, isSubmitting && styles.primaryButtonDisabled]}
             >
-              {isLoading ? '' : 'Sign In'}
-            </Button>
-          </View>
-
-          {/* Sign Up Link */}
-          <View style={styles.signUpContainer}>
-            <Text style={styles.signUpText}>Don't have an account? </Text>
-            <Pressable onPress={() => navigation.navigate('Register')}>
-              <Text style={styles.signUpLink}>Sign up</Text>
+              {isSubmitting ? (
+                <ActivityIndicator color="#ffffff" />
+              ) : (
+                <Text style={styles.primaryButtonText}>Sign In</Text>
+              )}
             </Pressable>
-          </View>
-        </CardContent>
-      </Card>
 
-      {/* Skip for Demo */}
-      <Button
-        onPress={() => navigation.navigate('Onboarding')}
-        variant="ghost"
-        style={styles.skipButton}
-      >
-        <Text style={styles.skipButtonText}>Skip and explore demo</Text>
-      </Button>
-    </ScrollView>
+            <View style={styles.footerRow}>
+              <Text style={styles.footerText}>Do not have an account? </Text>
+              <Pressable onPress={() => navigation.navigate('Register')}>
+                <Text style={styles.linkText}>Sign up</Text>
+              </Pressable>
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
-    backgroundColor: '#f0f4f8',
+    backgroundColor: '#eef4ff',
   },
-  contentContainer: {
-    padding: 16,
-    paddingTop: 40,
+  flex: {
+    flex: 1,
   },
-  headerContainer: {
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 32,
+    backgroundColor: '#eef4ff',
+  },
+  backgroundBubbleTop: {
+    position: 'absolute',
+    top: 20,
+    right: -40,
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: '#d8e6ff',
+  },
+  backgroundBubbleBottom: {
+    position: 'absolute',
+    bottom: 40,
+    left: -60,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: '#dbeafe',
+  },
+  header: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 28,
   },
   logoCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: '#2563eb',
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 16,
+    shadowColor: '#1d4ed8',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.22,
+    shadowRadius: 18,
+    elevation: 8,
   },
-  appTitle: {
-    fontSize: 32,
-    fontWeight: 'bold',
+  logoGlyph: {
+    color: '#ffffff',
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  brand: {
+    fontSize: 34,
+    fontWeight: '800',
     color: '#2563eb',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#666666',
+    fontSize: 15,
+    lineHeight: 22,
+    color: '#475569',
+    textAlign: 'center',
+    maxWidth: 280,
   },
   card: {
-    marginBottom: 16,
+    backgroundColor: '#ffffff',
+    borderRadius: 28,
+    paddingHorizontal: 22,
+    paddingVertical: 24,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
+    elevation: 8,
   },
-  socialButtonsContainer: {
-    gap: 12,
-    marginBottom: 16,
+  cardTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#0f172a',
+    marginBottom: 6,
+  },
+  cardDescription: {
+    fontSize: 14,
+    color: '#64748b',
+    marginBottom: 18,
   },
   socialButton: {
-    backgroundColor: '#f1f5f9',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    height: 48,
-  },
-  socialButtonContent: {
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#dbe3f0',
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    backgroundColor: '#ffffff',
+  },
+  socialIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  googleIcon: {
+    backgroundColor: '#f1f5f9',
+  },
+  appleIcon: {
+    backgroundColor: '#111827',
+  },
+  socialIconText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  appleIconText: {
+    color: '#ffffff',
   },
   socialButtonText: {
-    color: '#1e293b',
-    fontSize: 14,
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#0f172a',
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#e2e8f0',
+  },
+  dividerText: {
+    marginHorizontal: 12,
+    color: '#94a3b8',
+    fontSize: 12,
     fontWeight: '600',
   },
-  formContainer: {
-    gap: 16,
-    marginTop: 16,
+  fieldGroup: {
+    marginBottom: 16,
   },
-  passwordInputContainer: {
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#334155',
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#dbe3f0',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 15,
+    fontSize: 15,
+    color: '#0f172a',
+    backgroundColor: '#f8fbff',
+  },
+  passwordRow: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 8,
-    paddingRight: 12,
+    borderColor: '#dbe3f0',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    backgroundColor: '#f8fbff',
   },
-  eyeIcon: {
-    padding: 8,
+  passwordInput: {
+    flex: 1,
+    paddingVertical: 15,
+    fontSize: 15,
+    color: '#0f172a',
   },
-  rememberForgotContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  rememberMeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  rememberMeText: {
-    fontSize: 14,
-    color: '#666666',
-  },
-  forgotPasswordLink: {
-    fontSize: 14,
+  toggleText: {
     color: '#2563eb',
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '700',
   },
-  signInButton: {
-    marginTop: 8,
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
   },
-  signUpContainer: {
-    marginTop: 24,
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+    backgroundColor: '#ffffff',
+  },
+  checkboxChecked: {
+    backgroundColor: '#2563eb',
+    borderColor: '#2563eb',
+  },
+  checkboxTick: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  metaText: {
+    color: '#475569',
+    fontSize: 13,
+  },
+  linkText: {
+    color: '#2563eb',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  primaryButton: {
+    backgroundColor: '#2563eb',
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    marginBottom: 18,
+  },
+  primaryButtonDisabled: {
+    opacity: 0.7,
+  },
+  primaryButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  footerRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  signUpText: {
-    fontSize: 14,
-    color: '#666666',
-  },
-  signUpLink: {
-    fontSize: 14,
-    color: '#2563eb',
-    fontWeight: '600',
-  },
-  skipButton: {
-    marginTop: 8,
-  },
-  skipButtonText: {
-    color: '#666666',
-    fontSize: 14,
+  footerText: {
+    color: '#64748b',
+    fontSize: 13,
   },
 });
-

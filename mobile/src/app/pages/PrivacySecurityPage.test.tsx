@@ -8,14 +8,16 @@ import {
   updatePrivacySecuritySettings,
 } from '@/services/settingsService';
 
-const mockBack = jest.fn();
+const mockGoBack = jest.fn();
 
-jest.mock('expo-router', () => ({
-  Stack: {
-    Screen: () => null,
-  },
-  useRouter: () => ({
-    back: mockBack,
+jest.mock('@react-navigation/native', () => ({
+  ...jest.requireActual('@react-navigation/native'),
+  useNavigation: () => ({
+    goBack: mockGoBack,
+    navigate: jest.fn(),
+  }),
+  useRoute: () => ({
+    params: {},
   }),
 }));
 
@@ -60,7 +62,7 @@ describe('PrivacySecurityPage', () => {
       expect(mockedGetPrivacySecuritySettings).toHaveBeenCalledTimes(1);
     });
 
-    await act(async () => {});
+    await act(async () => { });
 
     await waitFor(() => {
       expect(screen.getByText('Privacy & security')).toBeTruthy();
@@ -80,7 +82,7 @@ describe('PrivacySecurityPage', () => {
       expect(mockedGetPrivacySecuritySettings).toHaveBeenCalledTimes(1);
     });
 
-    await act(async () => {});
+    await act(async () => { });
 
     await waitFor(() => {
       expect(screen.getByTestId('notifications-settings-button')).toBeTruthy();

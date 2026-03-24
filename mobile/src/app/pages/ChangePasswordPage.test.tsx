@@ -5,14 +5,16 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import ChangePasswordPage from './ChangePasswordPage';
 import { updatePassword } from '@/services/settingsService';
 
-const mockBack = jest.fn();
+const mockGoBack = jest.fn();
 
-jest.mock('expo-router', () => ({
-  Stack: {
-    Screen: () => null,
-  },
-  useRouter: () => ({
-    back: mockBack,
+jest.mock('@react-navigation/native', () => ({
+  ...jest.requireActual('@react-navigation/native'),
+  useNavigation: () => ({
+    goBack: mockGoBack,
+    navigate: jest.fn(),
+  }),
+  useRoute: () => ({
+    params: {},
   }),
 }));
 

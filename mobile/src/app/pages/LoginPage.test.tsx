@@ -2,19 +2,34 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 
 import LoginPage from './LoginPage';
-import * as authService from '../services/authService';
+import { AuthContext } from '../AuthContext';
+import * as authService from '../../services/authService';
 
-const mockReplace = jest.fn();
-const mockPush = jest.fn();
+const mockNavigate = jest.fn();
 
-jest.mock('expo-router', () => ({
-  useRouter: () => ({
-    replace: mockReplace,
-    push: mockPush,
+jest.mock('@react-navigation/native', () => ({
+  ...jest.requireActual('@react-navigation/native'),
+  useNavigation: () => ({
+    navigate: mockNavigate,
   }),
 }));
 
-jest.mock('../services/authService', () => ({
+const mockLogin = jest.fn();
+
+jest.mock('../AuthContext', () => {
+  const React = require('react');
+  const ActualReact = jest.requireActual('react');
+  const mockContext = ActualReact.createContext({
+    login: jest.fn(),
+    logout: jest.fn(),
+    isLoggedIn: false,
+  });
+  return {
+    AuthContext: mockContext,
+  };
+});
+
+jest.mock('../../services/authService', () => ({
   loginUser: jest.fn(),
 }));
 
@@ -51,11 +66,19 @@ describe('LoginPage', () => {
         email: 'alex@example.com',
         onboardingComplete: true,
       },
-    });
+    } as any);
   });
 
+  const renderWithAuth = (component: React.ReactElement) => {
+    return render(
+      <AuthContext.Provider value={{ login: mockLogin, logout: jest.fn(), isLoggedIn: false }}>
+        {component}
+      </AuthContext.Provider>
+    );
+  };
+
   it('renders correctly', () => {
-    render(<LoginPage />);
+    renderWithAuth(<LoginPage />);
 
     expect(screen.getAllByText('Sign In').length).toBeGreaterThan(0);
     expect(screen.getByPlaceholderText('you@example.com')).toBeTruthy();
@@ -63,7 +86,7 @@ describe('LoginPage', () => {
   });
 
   it('updates state when text is typed into the inputs', () => {
-    render(<LoginPage />);
+    renderWithAuth(<LoginPage />);
 
     const emailInput = screen.getByPlaceholderText('you@example.com');
     const passwordInput = screen.getByPlaceholderText('Enter your password');
@@ -76,7 +99,7 @@ describe('LoginPage', () => {
   });
 
   it('calls the mocked loginUser middleware with the correct payload when submitted', async () => {
-    render(<LoginPage />);
+    renderWithAuth(<LoginPage />);
     const submitButtonText = screen.getAllByText('Sign In')[1];
 
     fireEvent.changeText(screen.getByPlaceholderText('you@example.com'), 'alex@example.com');
@@ -92,8 +115,8 @@ describe('LoginPage', () => {
     });
   });
 
-  it('navigates to the home screen upon successful login', async () => {
-    render(<LoginPage />);
+  it('calls login from AuthContext upon successful login', async () => {
+    renderWithAuth(<LoginPage />);
     const submitButtonText = screen.getAllByText('Sign In')[1];
 
     fireEvent.changeText(screen.getByPlaceholderText('you@example.com'), 'alex@example.com');
@@ -101,7 +124,7 @@ describe('LoginPage', () => {
     fireEvent.press(submitButtonText);
 
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith('/home');
+      expect(mockLogin).toHaveBeenCalled();
     });
   });
 });
