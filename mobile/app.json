@@ -17,6 +17,7 @@
       }
     },
     "android": {
+      "package": "sg.edu.nus.cyclelink",
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#ffffff"
