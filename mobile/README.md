@@ -1,11 +1,12 @@
 
 # User Journey
 
-This is an Expo-based React Native mobile application for cycling route recommendation and user journey mapping. The original design is available at https://www.figma.com/design/XdnwPzGPGYGu3E1bwy2arg/User-Journey.
+This is an Expo-based React Native mobile application for cycling route recommendation and user journey mapping. The original design is available at <https://www.figma.com/design/XdnwPzGPGYGu3E1bwy2arg/User-Journey>.
 
 ## Running the code
 
 ### Prerequisites
+
 - Node.js 16+ and npm
 - For iOS development: macOS with Xcode
 - For Android development: Android Studio or Android SDK
@@ -16,22 +17,26 @@ Run `npm install` or `npm ci` to install dependencies.
 
 ### Development
 
-**Run on Web (Browser)**
+#### Run on Web (Browser)
+
 ```bash
 npm run web
 ```
 
-**Run on iOS**
+#### Run on iOS
+
 ```bash
 npm run ios
 ```
 
-**Run on Android**
+#### Run on Android
+
 ```bash
 npm run android
 ```
 
-**Interactive Expo Menu**
+#### Interactive Expo Menu
+
 ```bash
 npm start
 # or
@@ -40,13 +45,16 @@ expo start
 
 ### Building
 
-**Build for Web**
+#### Build for Web
+
 ```bash
 npm run build
 ```
 
-**Build for iOS/Android**
+#### Build for iOS/Android
+
 Use Expo's build service (requires Expo account):
+
 ```bash
 expo build:ios
 expo build:android
@@ -55,6 +63,7 @@ expo build:android
 ## Architecture
 
 This application uses:
+
 - **Framework**: React Native with Expo
 - **Navigation**: React Navigation (Bottom Tabs + Native Stacks)
 - **State Management**: AsyncStorage for persistence
@@ -63,7 +72,7 @@ This application uses:
 
 ## Project Structure
 
-```
+```text
 src/
 ├── app/
 │   ├── App.tsx              # Root component
@@ -82,6 +91,7 @@ babel.config.js            # Babel configuration
 ## Migration Notes
 
 This project was migrated from Vite (web) to Expo (React Native). See [EXPO_MIGRATION.md](./EXPO_MIGRATION.md) for detailed migration information including:
+
 - Changes in build system and dependencies
 - Component migration examples
 - Navigation changes
@@ -108,6 +118,13 @@ This project was migrated from Vite (web) to Expo (React Native). See [EXPO_MIGR
 - `expo-location` - Location services
 - `react-native-paper` - Material Design components
 
+## Testing
+
+This project uses **Jest** and **React Native Testing Library**.
+
+- **Running Tests**: `npm test` from the `mobile` directory.
+- **Documentation**: See [TESTING.md](./TESTING.md) for mocking patterns and established examples.
+
 ## Available Scripts
 
 - `npm start` - Start Expo development server
@@ -122,5 +139,3 @@ This project was migrated from Vite (web) to Expo (React Native). See [EXPO_MIGR
 - [React Native Documentation](https://reactnative.dev)
 - [React Navigation Documentation](https://reactnavigation.org)
 - [Original Figma Design](https://www.figma.com/design/XdnwPzGPGYGu3E1bwy2arg/User-Journey)
-
-  

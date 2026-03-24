@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 
-export const styles = StyleSheet.create({
+export const styles = {
   // Colors
   primaryColor: '#2563eb',
   secondaryColor: '#64748b',
@@ -27,7 +27,7 @@ export const styles = StyleSheet.create({
   radiusLg: 12,
   radiusXl: 16,
   radiusFull: 9999,
-});
+};
 
 interface CardProps {
   children: React.ReactNode;

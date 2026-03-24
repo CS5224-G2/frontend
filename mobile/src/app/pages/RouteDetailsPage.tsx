@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { Button } from '../components/native/Common';
 
 type Props = NativeStackScreenProps<any, any>;
 
@@ -10,6 +11,7 @@ export default function Screen({ navigation }: Props) {
       <View style={styles.content}>
         <Text style={styles.title}>Route Details</Text>
         <Text style={styles.subtitle}>Page content</Text>
+        <Button onPress={() => navigation.navigate("RouteFeedback")}>Route Feedback</Button>
       </View>
     </ScrollView>
   );
