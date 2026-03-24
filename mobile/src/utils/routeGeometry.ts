@@ -1,9 +1,9 @@
-import type { CyclingRoute } from '../types/route';
+import type { Route } from '../app/types';
 
 /** GeoJSON positions as [lng, lat] for Mapbox. */
 export type LngLat = [number, number];
 
-export function routeToLineCoordinates(route: CyclingRoute): LngLat[] {
+export function routeToLineCoordinates(route: Route): LngLat[] {
   const coords: LngLat[] = [
     [route.startPoint.lng, route.startPoint.lat],
     ...route.checkpoints.map((c) => [c.lng, c.lat] as LngLat),

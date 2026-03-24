@@ -3,7 +3,8 @@
 # Preconditions:
 # - Development build with Mapbox native SDK (not Expo Go).
 # - EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN set for the build under test.
-# - App showing Home (e.g. already signed in). If you land on Login, add steps or adjust entry.
+# - App uses React Navigation (entry: index.js → src/app/App.tsx), not Expo Router.
+# - Logged-in Home tab visible. Add login steps if needed, or extend flows for RecommendationFlow.
 #
 # appId must match your binary (see docs/TESTING.md).
 
@@ -12,11 +13,13 @@ appId: sg.edu.nus.cyclelink
 - launchApp:
     clearState: false
 
-- assertVisible:
-    id: "home-title"
+# Home screen has no fixed testID on title — use text or add testIDs for Maestro.
+# Example placeholder (adjust to your build):
+# - assertVisible:
+#     text: "Discover Routes"
 
 - tapOn:
-    id: "home-configure-route"
+    text: "Create Custom Route"
 
 - assertVisible:
     id: "route-config-title"
@@ -29,6 +32,9 @@ appId: sg.edu.nus.cyclelink
 
 - tapOn:
     id: "route-list-item-1"
+
+- tapOn:
+    id: "route-details-confirm"
 
 - assertVisible:
     id: "route-confirmed-title"

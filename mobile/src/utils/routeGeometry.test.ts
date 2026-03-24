@@ -1,9 +1,5 @@
-import { mockRoutes } from '../types/route';
-import {
-  boundsFromCoordinates,
-  interpolateAlongRoute,
-  routeToLineCoordinates,
-} from './routeGeometry';
+import { mockRoutes } from '../app/types';
+import { boundsFromCoordinates, interpolateAlongRoute, routeToLineCoordinates } from './routeGeometry';
 
 describe('routeGeometry', () => {
   it('routeToLineCoordinates joins start, checkpoints, end', () => {

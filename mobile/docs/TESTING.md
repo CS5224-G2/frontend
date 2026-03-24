@@ -18,7 +18,7 @@ npm test -- --watchman=false --no-watch
 - **Preset:** `jest-expo` (see `package.json`).
 - **Setup:** `jest.setup.js` stubs `@rnmapbox/maps`, `@react-native-async-storage/async-storage`, and `@react-native-community/slider`, and removes `global.MessageChannel` to avoid test hangs.
 - **Route / map logic:** `src/utils/routeGeometry.test.ts` validates polyline construction and interpolation used by `LiveMapPage`.
-- **Screens:** `RouteConfigPage.test.tsx`, `RouteConfirmedPage.test.tsx`, `LiveMapPage.test.tsx` cover persistence, navigation, and Mapbox UI when a token is present (mocked `MapView`).
+- **Screens:** `src/app/pages/RouteConfigPage.test.tsx`, `RouteConfirmedPage.test.tsx`, and `LiveMapPage.test.tsx` cover persistence, React Navigation, and Mapbox UI when a token is present (mocked `MapView`).
 
 ## Maestro (mobile UI / E2E)
 
