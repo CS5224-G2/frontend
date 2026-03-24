@@ -23,7 +23,8 @@ postcss
 ### Files to create / modify
 
 **`mobile/tailwind.config.js`** (new)
-Extends default Tailwind theme with existing design tokens from `Common.tsx`:
+
+Extends default Tailwind theme with existing design tokens. Note: custom spacing keys (`cy-xs`, `cy-sm`, etc.) are prefixed with `cy-` to avoid colliding with Tailwind's built-in spacing/breakpoint scale names (`sm`, `lg`, `xl`, `2xl`).
 
 ```js
 /** @type {import('tailwindcss').Config} */
@@ -31,6 +32,7 @@ module.exports = {
   content: [
     './app/**/*.{js,jsx,ts,tsx}',
     './src/**/*.{js,jsx,ts,tsx}',
+    './index.js',
   ],
   presets: [require('nativewind/preset')],
   theme: {
@@ -48,32 +50,21 @@ module.exports = {
         'bg-page': '#eef4ff',
         'bubble-top': '#d8e6ff',
         'bubble-bottom': '#dbeafe',
-        'slate-50': '#f8fafc',
-        'slate-100': '#f1f5f9',
-        'slate-200': '#e2e8f0',
-        'slate-300': '#cbd5e1',
-        'slate-400': '#94a3b8',
-        'slate-500': '#64748b',
-        'slate-600': '#475569',
-        'slate-700': '#334155',
-        'slate-800': '#1e293b',
-        'slate-900': '#0f172a',
       },
       spacing: {
-        xs: '4px',
-        sm: '8px',
-        md: '12px',
-        lg: '16px',
-        xl: '24px',
-        '2xl': '32px',
+        'cy-xs': '4px',
+        'cy-sm': '8px',
+        'cy-md': '12px',
+        'cy-lg': '16px',
+        'cy-xl': '24px',
+        'cy-2xl': '32px',
       },
       borderRadius: {
-        sm: '6px',
-        md: '8px',
-        lg: '12px',
-        xl: '16px',
-        '2xl': '28px',
-        full: '9999px',
+        'cy-sm': '6px',
+        'cy-md': '8px',
+        'cy-lg': '12px',
+        'cy-xl': '16px',
+        'cy-2xl': '28px',
       },
     },
   },
@@ -88,19 +79,59 @@ module.exports = {
 @tailwind utilities;
 ```
 
+**`mobile/metro.config.js`** (new — required for NativeWind v4)
+
+NativeWind v4 requires Metro to be configured with its CSS preprocessing pipeline. Without this the app fails to start or `className` props have no effect.
+
+```js
+const { getDefaultConfig } = require('expo/metro-config');
+const { withNativeWind } = require('nativewind/metro');
+
+const config = getDefaultConfig(__dirname);
+
+module.exports = withNativeWind(config, { input: './global.css' });
+```
+
 **`mobile/app/_layout.tsx`** (modify)
 Add `import '../global.css'` at the top.
 
 **`mobile/babel.config.js`** (modify)
-Add `'nativewind/babel'` to the plugins array.
+
+Add `'nativewind/babel'` **before** `'react-native-reanimated/plugin'`. Reanimated's plugin must always be last.
+
+```js
+module.exports = function(api) {
+  api.cache(true);
+  return {
+    presets: ['babel-preset-expo'],
+    plugins: ['nativewind/babel', 'react-native-reanimated/plugin'],
+  };
+};
+```
 
 **`mobile/nativewind-env.d.ts`** (new)
 ```ts
 /// <reference types="nativewind/types" />
 ```
 
-**`mobile/tsconfig.json`** (modify if needed)
-Ensure `include` covers `nativewind-env.d.ts`.
+**`mobile/tsconfig.json`** (verify)
+Confirm `include` covers `nativewind-env.d.ts` (it should by default if `"include": ["."]`).
+
+**`mobile/package.json`** — Jest config (modify)
+
+NativeWind requires a CSS module mock so tests don't throw on `.css` imports. Add to the `jest` config block:
+
+```json
+"moduleNameMapper": {
+  "^@/(.*)$": "<rootDir>/src/$1",
+  "\\.css$": "<rootDir>/__mocks__/fileMock.js"
+}
+```
+
+Create `mobile/__mocks__/fileMock.js`:
+```js
+module.exports = '';
+```
 
 ---
 
@@ -122,27 +153,41 @@ Ensure `include` covers `nativewind-env.d.ts`.
 | `borderRadius` | `rounded-*` |
 | `borderWidth`, `borderColor` | `border`, `border-*` |
 | `opacity` | `opacity-*` |
-| `width`, `height` | `w-*`, `h-*` |
-| `maxWidth` | `max-w-*` |
+| `width`, `height` (fixed pixel values) | `w-*`, `h-*` |
+| `maxWidth` (standard values) | `max-w-*` |
 | `position: 'absolute'` | `absolute` |
 | `top`, `right`, `bottom`, `left` | `top-*`, `right-*`, etc. |
 | `gap` | `gap-*` |
 | `textAlign: 'center'` | `text-center` |
 | `alignSelf: 'center'` | `self-center` |
+| `letterSpacing` | `tracking-*` |
+| `lineHeight` | `leading-*` |
+| `borderRadius: 999` (pill pattern) | `rounded-full` |
 
 ### What stays as `style={}`
 
-These cannot be expressed in NativeWind v4 and must remain as inline style props:
+These cannot be expressed in NativeWind v4 and must remain as inline style props or style arrays:
 
 - **Shadow props:** `shadowColor`, `shadowOffset`, `shadowOpacity`, `shadowRadius`, `elevation`
 - **Animated transforms:** `transform: [{ scale: ... }]`
 - **Pressable state callbacks:** `({ pressed, hovered }) => [...]` — dynamic style arrays
-- **`placeholderTextColor`** — this is a direct RN prop, not a style class
-- Exact pixel values that have no clean Tailwind equivalent (use `style` for one-off values like `width: 180`)
+- **`placeholderTextColor`** — direct RN prop, not a style class
+- **`Slider` native color props:** `minimumTrackTintColor`, `maximumTrackTintColor`, `thumbTintColor` on `@react-native-community/slider` — these are component API props, not style properties
+- **`LinearGradient` props:** `colors`, `start`, `end` on `expo-linear-gradient` — component API props
+- **`Switch` native props:** `trackColor`, `thumbColor` on RN `Switch` — component API props
+- **Percentage width values:** `width: '100%'` converts to `w-full` (use className). Fractional percentages like `width: '48%'`, `minWidth: '45%'` have no Tailwind equivalent — use `style={{ width: '48%' }}` directly. Runtime-computed percentages like `` width: `${percent}%` `` must also remain as style props
+- **Arbitrary pixel values** with no clean Tailwind step (e.g. `width: 180`, `height: 220`) — use `style={}` for one-off values
 
-### Common.tsx token object removal
+### `Common.tsx` token object removal
 
-The `styles` export in `Common.tsx` (colors, spacing, radii as JS object) is replaced by the tailwind config. Components in `Common.tsx` and `FormComponents.tsx` that currently reference `styles.primaryColor`, `styles.spacing.md`, etc. will use className equivalents instead. The `styles` export is deleted.
+The `styles` export in `Common.tsx` (colors, spacing, radii as a JS object) is replaced by the tailwind config. When removing this export:
+
+- All `StyleSheet` references to `styles.primaryColor`, `styles.spacing.md`, etc. become `className` equivalents
+- Any remaining `style={{}}` prop that previously used `styles.spacing.md` (a number) must use the numeric literal directly (e.g. `style={{ paddingVertical: 12 }}`) — the JS object is deleted so the runtime reference no longer exists
+
+### Per-file `theme` objects
+
+`UserProfilePage.tsx`, `EditProfilePage.tsx`, `ChangePasswordPage.tsx`, and `PrivacySecurityPage.tsx` each define a local `const theme = { ... }` with raw hex values. These are separate from the shared `styles` export. They should be removed and replaced with `className` equivalents using the custom tokens defined in the tailwind config.
 
 ---
 
@@ -151,9 +196,12 @@ The `styles` export in `Common.tsx` (colors, spacing, radii as JS object) is rep
 ### Config / setup (new/modified)
 - `mobile/tailwind.config.js` — new
 - `mobile/global.css` — new
+- `mobile/metro.config.js` — new
 - `mobile/nativewind-env.d.ts` — new
+- `mobile/__mocks__/fileMock.js` — new
 - `mobile/app/_layout.tsx` — add CSS import
-- `mobile/babel.config.js` — add NativeWind babel plugin
+- `mobile/babel.config.js` — add NativeWind babel plugin (before reanimated)
+- `mobile/package.json` — add CSS moduleNameMapper to jest config
 
 ### Shared components (convert first)
 1. `mobile/src/app/components/native/Common.tsx`
@@ -173,9 +221,9 @@ The `styles` export in `Common.tsx` (colors, spacing, radii as JS object) is rep
 13. `mobile/src/app/pages/RouteFeedbackPage.tsx`
 14. `mobile/src/app/pages/RouteHistoryDetailsPage.tsx`
 15. `mobile/src/app/pages/RideHistoryPage.tsx`
+16. `mobile/src/app/pages/RouteDetailsPage.tsx`
 
 ### Skipped (placeholders / no styles)
-- `mobile/src/app/pages/RouteDetailsPage.tsx` — placeholder (teammates WIP)
 - `mobile/src/app/pages/LiveMapPage.tsx` — placeholder (teammates WIP)
 - `mobile/src/app/pages/UserJourneyPage.tsx` — placeholder (teammates WIP)
 - `mobile/src/app/pages/RouteConfirmedPage.tsx` — placeholder (teammates WIP)
