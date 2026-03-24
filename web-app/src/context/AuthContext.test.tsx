@@ -46,4 +46,33 @@ describe('AuthContext', () => {
     act(() => { screen.getByText('logout').click() })
     expect(screen.getByTestId('role').textContent).toBe('none')
   })
+
+  it('user remains null when login throws', async () => {
+    function BadLoginConsumer() {
+      const { user, login } = useAuth()
+      return (
+        <div>
+          <span data-testid="role">{user?.role ?? 'none'}</span>
+          <button onClick={() => login({ email: '', password: '' }).catch(() => {})}>bad-login</button>
+        </div>
+      )
+    }
+    render(<AuthProvider><BadLoginConsumer /></AuthProvider>)
+    await act(async () => {
+      screen.getByText('bad-login').click()
+      await vi.runAllTimersAsync()
+    })
+    expect(screen.getByTestId('role').textContent).toBe('none')
+  })
+
+  it('hydrates user from localStorage on remount', async () => {
+    const { unmount } = render(<AuthProvider><TestConsumer /></AuthProvider>)
+    await act(async () => {
+      screen.getByText('login').click()
+      await vi.runAllTimersAsync()
+    })
+    unmount()
+    render(<AuthProvider><TestConsumer /></AuthProvider>)
+    expect(screen.getByTestId('role').textContent).toBe('admin')
+  })
 })
