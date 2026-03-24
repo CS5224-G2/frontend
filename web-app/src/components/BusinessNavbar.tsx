@@ -4,7 +4,7 @@ export default function BusinessNavbar() {
   return (
     <nav className="bg-primary-900 px-6 py-3 flex items-center justify-between">
       <Link to="/business" className="flex items-center gap-2 text-white font-extrabold text-lg">
-        🚲 CycleLink{' '}
+        <span aria-hidden="true">🚲</span> CycleLink{' '}
         <span className="font-normal text-primary-200 text-sm">Business</span>
       </Link>
       <div className="flex items-center gap-4">
