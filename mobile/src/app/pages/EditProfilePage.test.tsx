@@ -1,0 +1,76 @@
+import React from 'react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
+import EditProfilePage from './EditProfilePage';
+import { AuthContext } from '../AuthContext';
+import * as userService from '../../services/userService';
+
+const mockNavigate = jest.fn();
+const mockGoBack = jest.fn();
+
+jest.mock('@react-navigation/native', () => ({
+  ...jest.requireActual('@react-navigation/native'),
+  useNavigation: () => ({
+    navigate: mockNavigate,
+    goBack: mockGoBack,
+  }),
+  useRoute: () => ({
+    params: { profile: JSON.stringify({
+      id: '1',
+      fullName: 'John Doe',
+      email: 'john@example.com',
+      location: 'Singapore',
+      bio: 'Loves cycling',
+      cyclingPreference: 'Leisure',
+      weeklyGoalKm: 50,
+      avatarColor: '#000000'
+    })},
+  }),
+}));
+
+jest.mock('../../services/userService', () => ({
+  getUserProfile: jest.fn(),
+  updateUserProfile: jest.fn(),
+  parseUserProfileParam: jest.requireActual('../../services/userService').parseUserProfileParam,
+}));
+
+describe('EditProfilePage', () => {
+  const renderWithAuth = (component: React.ReactElement) => {
+    return render(
+      <AuthContext.Provider value={{ login: jest.fn(), logout: jest.fn(), isLoggedIn: true }}>
+        {component}
+      </AuthContext.Provider>
+    );
+  };
+
+  it('renders correctly with profile data', async () => {
+    renderWithAuth(<EditProfilePage />);
+
+    expect(await screen.findByDisplayValue('John Doe')).toBeTruthy();
+    expect(screen.getByDisplayValue('Singapore')).toBeTruthy();
+    expect(screen.getByText('Cycling preference')).toBeTruthy();
+  });
+
+  it('calls updateProfile and goes back when save is pressed', async () => {
+    const mockUpdate = userService.updateUserProfile as jest.Mock;
+    mockUpdate.mockResolvedValueOnce({ success: true });
+
+    renderWithAuth(<EditProfilePage />);
+    
+    const saveButton = await screen.findByText(/Save changes/i);
+    fireEvent.press(saveButton);
+
+    await waitFor(() => {
+      expect(mockUpdate).toHaveBeenCalled();
+      expect(mockGoBack).toHaveBeenCalled();
+    });
+  });
+
+  it('cancels and goes back', async () => {
+    renderWithAuth(<EditProfilePage />);
+    
+    const cancelButton = await screen.findByText(/Cancel/i);
+    fireEvent.press(cancelButton);
+
+    expect(mockGoBack).toHaveBeenCalled();
+  });
+});

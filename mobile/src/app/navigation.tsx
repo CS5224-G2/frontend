@@ -24,9 +24,9 @@ import LiveMapScreen from './pages/LiveMapPage';
 import OnboardingScreen from './pages/OnboardingPage';
 import UserJourneyScreen from './pages/UserJourneyPage';
 
-const Stack = createNativeStackNavigator();
-const Tab = createBottomTabNavigator();
-const AuthStack = createNativeStackNavigator();
+const Stack = createNativeStackNavigator<any>();
+const Tab = createBottomTabNavigator<any>();
+const AuthStack = createNativeStackNavigator<any>();
 
 function AuthNavigator() {
   return (
