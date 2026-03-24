@@ -50,6 +50,8 @@ function HomeNavigator() {
       }}
     >
       <Stack.Screen name="HomePage" component={HomeScreen} options={{ title: 'Home' }} />
+      <Stack.Screen name="RouteConfig" component={RouteConfigScreen} options={{ title: 'Customize Route' }} />
+      <Stack.Screen name="Recommendation" component={RouteRecommendationScreen} options={{ title: 'Route Recommendation' }} />
       <Stack.Screen name="RouteDetails" component={RouteDetailsScreen} options={{ title: 'Route Details' }} />
       <Stack.Screen name="RouteConfirmed" component={RouteConfirmedScreen} options={{ title: 'Route Confirmed' }} />
       <Stack.Screen name="RouteFeedback" component={RouteFeedbackScreen} options={{ title: 'Feedback' }} />
@@ -57,19 +59,6 @@ function HomeNavigator() {
   );
 }
 
-function RecommendationNavigator() {
-  return (
-    <Stack.Navigator
-      screenOptions={{
-        headerBackTitleVisible: false,
-      }}
-    >
-      <Stack.Screen name="Recommendation" component={RouteRecommendationScreen} options={{ title: 'Route Recommendation' }} />
-      <Stack.Screen name="RouteConfig" component={RouteConfigScreen} options={{ title: 'Customize Route' }} />
-      <Stack.Screen name="RecommendationDetails" component={RouteDetailsScreen} options={{ title: 'Route Details' }} />
-    </Stack.Navigator>
-  );
-}
 
 function HistoryNavigator() {
   return (
