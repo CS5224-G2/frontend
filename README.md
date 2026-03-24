@@ -58,6 +58,72 @@ Mobile app will call:
 
 Exact endpoints and payloads to be aligned with backend team; keep API client in `mobile/src/services/` and types in `mobile/src/types/`.
 
+## Web App (`web-app/`)
+
+A React + Vite + TypeScript SPA intended for S3 + CloudFront. Contains:
+
+- `/` — B2C landing page (cyclists)
+- `/business` — B2B landing page (sponsors, government agencies)
+- `/login` — Partner & Admin login portal
+- `/admin` — Admin dashboard (protected, role: `admin`)
+- `/dashboard` — Business dashboard (protected, role: `business`)
+
+### Running locally
+
+```bash
+cd web-app
+npm install
+npm run dev        # http://localhost:5173
+```
+
+Demo credentials (mock auth, no backend needed):
+
+| Email | Password | Redirects to |
+|-------|----------|-------------|
+| `admin@cyclink.com` | any | `/admin` |
+| `business@cyclink.com` | any | `/dashboard` |
+
+### Tests
+
+```bash
+cd web-app
+npm test           # runs all Vitest unit tests
+```
+
+15 unit tests covering: auth service, AuthContext (localStorage persistence), and ProtectedRoute (role-based redirect).
+
+### Production build
+
+```bash
+cd web-app
+npm run build      # TypeScript check + Vite bundle → web-app/dist/
+npm run preview    # serve dist/ locally to verify
+```
+
+### CI
+
+The `web-ci.yml` workflow runs automatically on every push or PR that touches `web-app/`. It runs the full test suite and production build to catch regressions before merge.
+
+### Deployment (not yet active — pending backend team AWS setup)
+
+Once AWS is ready, add the following to the GitHub repo (Settings → Secrets and variables):
+
+| Name | Type | Description |
+|------|------|-------------|
+| `AWS_ACCESS_KEY_ID` | Secret | IAM key with S3 + CloudFront write access |
+| `AWS_SECRET_ACCESS_KEY` | Secret | IAM secret |
+| `AWS_REGION` | Variable | e.g. `ap-southeast-1` |
+| `AWS_S3_BUCKET` | Variable | S3 bucket name for the web app |
+| `AWS_CLOUDFRONT_DISTRIBUTION_ID` | Variable | CloudFront distribution to invalidate after deploy |
+
+Then uncomment the `deploy` job in `.github/workflows/web-ci.yml`. The deploy step:
+1. Syncs `dist/` to S3 (long-lived cache headers for assets, `no-cache` for `index.html`)
+2. Invalidates `/*` on CloudFront so the new build is served immediately
+
+The S3 bucket needs a **static website** configuration with the error document set to `index.html` so React Router client-side routes work on direct load/refresh.
+
+---
+
 ## AI Usage Declaration
 
 This project used AI-assisted development tools as part of the CS5224 Cloud Computing group project.
