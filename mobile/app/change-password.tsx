@@ -1,1 +1,1 @@
-export { default } from '@/screens/ChangePasswordPage';
+export { default } from '@/app/pages/ChangePasswordPage';

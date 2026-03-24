@@ -1,1 +1,1 @@
-export { default } from '../src/screens/RegisterPage';
+export { default } from '@/app/pages/RegisterPage';

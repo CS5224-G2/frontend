@@ -100,7 +100,7 @@ export default function OnboardingPage({ navigation }: Props) {
                 onValueChange={(value) => setPreferences({ ...preferences, preferredShade: value })}
                 minimumTrackTintColor="#3b82f6"
                 maximumTrackTintColor="#d1d5db"
-                thumbStyle={styles.sliderThumb}
+                thumbTintColor="#3b82f6"
               />
               <View style={styles.sliderLabels}>
                 <Text style={styles.sliderLabelText}>Full Sun</Text>
@@ -123,7 +123,7 @@ export default function OnboardingPage({ navigation }: Props) {
                 onValueChange={(value) => setPreferences({ ...preferences, elevation: value })}
                 minimumTrackTintColor="#3b82f6"
                 maximumTrackTintColor="#d1d5db"
-                thumbStyle={styles.sliderThumb}
+                thumbTintColor="#3b82f6"
               />
               <View style={styles.sliderLabels}>
                 <Text style={styles.sliderLabelText}>Flat</Text>
@@ -146,7 +146,7 @@ export default function OnboardingPage({ navigation }: Props) {
                 onValueChange={(value) => setPreferences({ ...preferences, distance: value })}
                 minimumTrackTintColor="#3b82f6"
                 maximumTrackTintColor="#d1d5db"
-                thumbStyle={styles.sliderThumb}
+                thumbTintColor="#3b82f6"
               />
               <View style={styles.sliderLabels}>
                 <Text style={styles.sliderLabelText}>5 km</Text>
@@ -169,7 +169,7 @@ export default function OnboardingPage({ navigation }: Props) {
                 onValueChange={(value) => setPreferences({ ...preferences, airQuality: value })}
                 minimumTrackTintColor="#3b82f6"
                 maximumTrackTintColor="#d1d5db"
-                thumbStyle={styles.sliderThumb}
+                thumbTintColor="#3b82f6"
               />
               <View style={styles.sliderLabels}>
                 <Text style={styles.sliderLabelText}>Any</Text>

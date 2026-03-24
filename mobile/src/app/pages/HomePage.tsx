@@ -140,7 +140,7 @@ export default function HomeScreen({ navigation }: Props) {
             <Text style={styles.detailText}>{route.estimatedTime} min</Text>
           </View>
           <View style={styles.detailItem}>
-            <MaterialCommunityIcons name="mountain" size={14} color="#6b7280" />
+            <MaterialCommunityIcons name="image-filter-hdr" size={14} color="#6b7280" />
             <Text style={styles.detailText}>{route.elevation}m</Text>
           </View>
           <View style={[styles.detailItem, styles.badgeItem]}>
@@ -255,7 +255,7 @@ export default function HomeScreen({ navigation }: Props) {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <LinearGradient colors={['#a855f7', '#ec4899']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.sectionIcon}>
-                <MaterialCommunityIcons name="sparkles" size={20} color="white" />
+                <MaterialCommunityIcons name="auto-fix" size={20} color="white" />
               </LinearGradient>
               <View>
                 <Text style={styles.sectionTitle}>Suggested for You</Text>

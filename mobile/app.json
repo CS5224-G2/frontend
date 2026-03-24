@@ -32,11 +32,9 @@
           "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location"
         }
       ],
-      "expo-router",
       "expo-asset"
     ],
     "extra": {
-      "router": {},
       "eas": {
         "projectId": "e21b97a7-8360-4a6e-adcd-55187e00e833"
       }

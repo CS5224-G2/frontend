@@ -2,19 +2,34 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 
 import RegisterPage from './RegisterPage';
-import * as authService from '../services/authService';
+import { AuthContext } from '../AuthContext';
+import * as authService from '../../services/authService';
 
-const mockReplace = jest.fn();
-const mockPush = jest.fn();
+const mockNavigate = jest.fn();
 
-jest.mock('expo-router', () => ({
-  useRouter: () => ({
-    replace: mockReplace,
-    push: mockPush,
+jest.mock('@react-navigation/native', () => ({
+  ...jest.requireActual('@react-navigation/native'),
+  useNavigation: () => ({
+    navigate: mockNavigate,
   }),
 }));
 
-jest.mock('../services/authService', () => ({
+const mockLogin = jest.fn();
+
+jest.mock('../AuthContext', () => {
+  const React = require('react');
+  const ActualReact = jest.requireActual('react');
+  const mockContext = ActualReact.createContext({
+    login: jest.fn(),
+    logout: jest.fn(),
+    isLoggedIn: false,
+  });
+  return {
+    AuthContext: mockContext,
+  };
+});
+
+jest.mock('../../services/authService', () => ({
   registerUser: jest.fn(),
 }));
 
@@ -56,11 +71,19 @@ describe('RegisterPage', () => {
         email: 'alex@example.com',
         onboardingComplete: false,
       },
-    });
+    } as any);
   });
 
+  const renderWithAuth = (component: React.ReactElement) => {
+    return render(
+      <AuthContext.Provider value={{ login: mockLogin, logout: jest.fn(), isLoggedIn: false }}>
+        {component}
+      </AuthContext.Provider>
+    );
+  };
+
   it('renders correctly', () => {
-    render(<RegisterPage />);
+    renderWithAuth(<RegisterPage />);
 
     expect(screen.getAllByText('Create Account').length).toBeGreaterThan(0);
     expect(screen.getByPlaceholderText('Alex')).toBeTruthy();
@@ -71,7 +94,7 @@ describe('RegisterPage', () => {
   });
 
   it('calls the mocked registerUser middleware when submitted', async () => {
-    render(<RegisterPage />);
+    renderWithAuth(<RegisterPage />);
     const submitButtonText = screen.getAllByText('Create Account')[1];
 
     fireEvent.changeText(screen.getByPlaceholderText('Alex'), 'Alex');
@@ -92,6 +115,24 @@ describe('RegisterPage', () => {
         confirmPassword: 'password123',
         agreedToTerms: true,
       });
+    });
+  });
+
+  it('calls login from AuthContext upon successful registration', async () => {
+    renderWithAuth(<RegisterPage />);
+    const submitButtonText = screen.getAllByText('Create Account')[1];
+
+    fireEvent.changeText(screen.getByPlaceholderText('Alex'), 'Alex');
+    fireEvent.changeText(screen.getByPlaceholderText('Johnson'), 'Tan');
+    fireEvent.changeText(screen.getByPlaceholderText('you@example.com'), 'alex@example.com');
+    fireEvent.changeText(screen.getByPlaceholderText('At least 8 characters'), 'password123');
+    fireEvent.changeText(screen.getByPlaceholderText('Re-enter your password'), 'password123');
+
+    fireEvent.press(screen.getByText(/I agree to the/i));
+    fireEvent.press(submitButtonText);
+
+    await waitFor(() => {
+      expect(mockLogin).toHaveBeenCalled();
     });
   });
 });

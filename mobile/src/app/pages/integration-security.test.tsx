@@ -5,29 +5,42 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react-nativ
 import RegisterPage from './RegisterPage';
 import EditProfilePage from './EditProfilePage';
 import ChangePasswordPage from './ChangePasswordPage';
-import * as authService from '../services/authService';
+import { AuthContext } from '../AuthContext';
+import * as authService from '../../services/authService';
 import * as userService from '@/services/userService';
 import * as settingsService from '@/services/settingsService';
 
-const mockReplace = jest.fn();
-const mockPush = jest.fn();
-const mockBack = jest.fn();
-let mockSearchParams: { profile?: string } = {};
+const mockNavigate = jest.fn();
+const mockGoBack = jest.fn();
+let mockRouteParams: any = {};
 
-jest.mock('expo-router', () => ({
-  Stack: {
-    Screen: () => null,
-  },
-  useRouter: () => ({
-    replace: mockReplace,
-    push: mockPush,
-    back: mockBack,
+jest.mock('@react-navigation/native', () => ({
+  ...jest.requireActual('@react-navigation/native'),
+  useNavigation: () => ({
+    navigate: mockNavigate,
+    goBack: mockGoBack,
   }),
-  useLocalSearchParams: () => mockSearchParams,
+  useRoute: () => ({
+    params: mockRouteParams,
+  }),
 }));
 
-jest.mock('../services/authService', () => ({
-  ...jest.requireActual('../services/authService'),
+const mockLogin = jest.fn();
+jest.mock('../AuthContext', () => {
+  const React = require('react');
+  const ActualReact = jest.requireActual('react');
+  const mockContext = ActualReact.createContext({
+    login: jest.fn(),
+    logout: jest.fn(),
+    isLoggedIn: false,
+  });
+  return {
+    AuthContext: mockContext,
+  };
+});
+
+jest.mock('../../services/authService', () => ({
+  ...jest.requireActual('../../services/authService'),
   registerUser: jest.fn(),
 }));
 
@@ -87,7 +100,7 @@ const encodeProfileParam = (profile: userService.UserProfile) =>
 describe('Frontend security and boundary flows', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockSearchParams = {};
+    mockRouteParams = {};
 
     jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
 
@@ -112,7 +125,7 @@ describe('Frontend security and boundary flows', () => {
         email: 'alex@example.com',
         onboardingComplete: false,
       },
-    });
+    } as any);
 
     mockedGetUserProfile.mockResolvedValue(baseProfile);
     mockedUpdateUserProfile.mockImplementation(async (profile) => profile);
@@ -127,12 +140,20 @@ describe('Frontend security and boundary flows', () => {
     jest.restoreAllMocks();
   });
 
+  const renderWithAuth = (component: React.ReactElement) => {
+    return render(
+      <AuthContext.Provider value={{ login: mockLogin, logout: jest.fn(), isLoggedIn: false }}>
+        {component}
+      </AuthContext.Provider>
+    );
+  };
+
   it('passes XSS and SQLi-style RegisterPage inputs through to the mocked middleware without crashing', async () => {
     const xssPayload = '<script>alert(1)</script>';
     const sqliPayload = "' OR '1'='1";
     const javascriptUriPayload = 'javascript:void(0)';
 
-    render(<RegisterPage />);
+    renderWithAuth(<RegisterPage />);
 
     // Drive the screen exactly like a hostile user would: type suspicious content into
     // visible fields rather than calling internal handlers directly.
@@ -162,14 +183,14 @@ describe('Frontend security and boundary flows', () => {
     // Rendering should remain stable after submission, proving the payload did not break
     // client-side state reconciliation.
     expect(screen.getByDisplayValue(xssPayload)).toBeTruthy();
-    expect(mockReplace).toHaveBeenCalledWith('/home');
+    expect(mockLogin).toHaveBeenCalled();
     expect(Alert.alert).not.toHaveBeenCalled();
   });
 
   it('handles a 10,000-character first-name payload on RegisterPage without breaking the form', async () => {
     const veryLongFirstName = 'A'.repeat(10_000);
 
-    render(<RegisterPage />);
+    renderWithAuth(<RegisterPage />);
 
     // This simulates a paste event into the first-name field using the required
     // fireEvent.changeText API.
@@ -202,21 +223,21 @@ describe('Frontend security and boundary flows', () => {
   it('trims and forwards malicious EditProfilePage values to the mocked middleware without crashing', async () => {
     const paddedXssPayload = '  <script>alert(1)</script>  ';
     const paddedSqliPayload = "  ' OR '1'='1  ";
-    const paddedJavascriptUriPayload = '  javascript:void(0)  ';
+    const padded="  javascript:void(0)  "; // Use a simple string to avoid any potential formatting issue
 
     // Feed the screen a profile param so the test mounts directly into the editable state
     // instead of relying on the async fallback loader.
-    mockSearchParams = {
+    mockRouteParams = {
       profile: encodeProfileParam(baseProfile),
     };
 
-    render(<EditProfilePage />);
+    renderWithAuth(<EditProfilePage />);
 
     fireEvent.changeText(screen.getByPlaceholderText('Enter your full name'), paddedXssPayload);
     fireEvent.changeText(screen.getByPlaceholderText('City, State'), paddedSqliPayload);
     fireEvent.changeText(
       screen.getByPlaceholderText('Tell other riders about your style.'),
-      paddedJavascriptUriPayload
+      padded
     );
     fireEvent.press(screen.getByText('Save changes'));
 
@@ -234,7 +255,7 @@ describe('Frontend security and boundary flows', () => {
     });
 
     expect(screen.getByDisplayValue(paddedXssPayload)).toBeTruthy();
-    expect(mockBack).toHaveBeenCalled();
+    expect(mockGoBack).toHaveBeenCalled();
     expect(Alert.alert).not.toHaveBeenCalled();
   });
 
@@ -243,11 +264,11 @@ describe('Frontend security and boundary flows', () => {
 
     // EditProfilePage exposes a single full-name field instead of separate first/last
     // name inputs, so this is the closest equivalent boundary surface on that screen.
-    mockSearchParams = {
+    mockRouteParams = {
       profile: encodeProfileParam(baseProfile),
     };
 
-    render(<EditProfilePage />);
+    renderWithAuth(<EditProfilePage />);
 
     fireEvent.changeText(screen.getByPlaceholderText('Enter your full name'), veryLongFullName);
     fireEvent.changeText(screen.getByPlaceholderText('City, State'), 'Boundary City');
@@ -272,7 +293,7 @@ describe('Frontend security and boundary flows', () => {
   });
 
   it('does not call updatePassword when confirmNewPassword mismatches, even if submit is force-pressed', () => {
-    render(<ChangePasswordPage />);
+    renderWithAuth(<ChangePasswordPage />);
 
     fireEvent.changeText(screen.getByPlaceholderText('Enter current password'), 'CycleLink123');
     fireEvent.changeText(screen.getByPlaceholderText('Enter new password'), 'NewPassword1');
