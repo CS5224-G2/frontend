@@ -33,7 +33,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: web-app
-        run: npm ci
+        run: npm install
 
       - name: Run Vitest unit tests
         working-directory: web-app
