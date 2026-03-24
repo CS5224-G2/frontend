@@ -31,7 +31,7 @@ jest.mock('expo-linear-gradient', () => ({
 describe('HomePage', () => {
   const renderWithAuth = (component: React.ReactElement) => {
     return render(
-      <AuthContext.Provider value={{ login: jest.fn(), logout: jest.fn(), isLoggedIn: true }}>
+      <AuthContext.Provider value={{ login: jest.fn(), logout: jest.fn(), isLoggedIn: true, role: 'user' }}>
         {component}
       </AuthContext.Provider>
     );

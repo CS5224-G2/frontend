@@ -23,6 +23,7 @@ jest.mock('../AuthContext', () => {
     login: jest.fn(),
     logout: jest.fn(),
     isLoggedIn: false,
+    role: null,
   });
   return {
     AuthContext: mockContext,
@@ -76,7 +77,7 @@ describe('RegisterPage', () => {
 
   const renderWithAuth = (component: React.ReactElement) => {
     return render(
-      <AuthContext.Provider value={{ login: mockLogin, logout: jest.fn(), isLoggedIn: false }}>
+      <AuthContext.Provider value={{ login: mockLogin, logout: jest.fn(), isLoggedIn: false, role: null }}>
         {component}
       </AuthContext.Provider>
     );

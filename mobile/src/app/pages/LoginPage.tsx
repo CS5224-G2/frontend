@@ -35,13 +35,13 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      await loginUser({
+      const result = await loginUser({
         email,
         password,
         rememberMe,
       });
 
-      login();
+      login(result.user.role);
       // Navigation is now handled by RootNavigator reacting to AuthContext
     } catch (error) {
       const message =
@@ -63,6 +63,7 @@ export default function LoginPage() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          <View style={styles.container}>
           <View style={styles.backgroundBubbleTop} />
           <View style={styles.backgroundBubbleBottom} />
 
@@ -109,6 +110,7 @@ export default function LoginPage() {
                 placeholderTextColor="#94a3b8"
                 style={styles.input}
                 value={email}
+                returnKeyType="next"
               />
             </View>
 
@@ -147,7 +149,12 @@ export default function LoginPage() {
             <Pressable
               disabled={isSubmitting}
               onPress={handleLogin}
-              style={[styles.primaryButton, isSubmitting && styles.primaryButtonDisabled]}
+              style={(state: any) => [
+                styles.primaryButton,
+                isSubmitting && styles.primaryButtonDisabled,
+                Platform.OS === 'web' && state.hovered && styles.primaryButtonHover,
+                state.pressed && styles.primaryButtonPressed
+              ]}
             >
               {isSubmitting ? (
                 <ActivityIndicator color="#ffffff" />
@@ -155,6 +162,7 @@ export default function LoginPage() {
                 <Text style={styles.primaryButtonText}>Sign In</Text>
               )}
             </Pressable>
+          </View>
 
             <View style={styles.footerRow}>
               <Text style={styles.footerText}>Do not have an account? </Text>
@@ -179,10 +187,16 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
     paddingHorizontal: 24,
     paddingVertical: 32,
     backgroundColor: '#eef4ff',
+  },
+  container: {
+    flex: 1,
+    width: '100%',
+    maxWidth: 480,
+    alignSelf: 'center',
+    justifyContent: 'center',
   },
   backgroundBubbleTop: {
     position: 'absolute',
@@ -409,6 +423,14 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '700',
+  },
+  primaryButtonHover: {
+    backgroundColor: '#1d4ed8',
+    transform: [{ scale: 1.02 }],
+  },
+  primaryButtonPressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.98 }],
   },
   footerRow: {
     flexDirection: 'row',

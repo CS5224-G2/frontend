@@ -42,6 +42,7 @@ type BackendAuthResponse = {
     last_name: string;
     email: string;
     onboarding_complete: boolean;
+    role: 'user' | 'admin' | 'business';
   };
 };
 
@@ -52,6 +53,7 @@ export type AuthUser = {
   fullName: string;
   email: string;
   onboardingComplete: boolean;
+  role: 'user' | 'admin' | 'business';
 };
 
 export type AuthResult = {
@@ -97,6 +99,7 @@ const toAuthResult = (
     fullName: `${response.user.first_name} ${response.user.last_name}`.trim(),
     email: response.user.email,
     onboardingComplete: response.user.onboarding_complete,
+    role: response.user.role,
   },
   requestPayload,
 });
@@ -120,6 +123,11 @@ export async function loginUser(values: LoginFormValues): Promise<AuthResult> {
       last_name: 'Rider',
       email: requestPayload.email,
       onboarding_complete: true,
+      role: requestPayload.email === 'admin@cyclink.com' 
+        ? 'admin' 
+        : requestPayload.email === 'business@cyclink.com' 
+          ? 'business' 
+          : 'user',
     },
   };
 
@@ -159,6 +167,7 @@ export async function registerUser(values: RegisterFormValues): Promise<AuthResu
       last_name: requestPayload.last_name,
       email: requestPayload.email,
       onboarding_complete: false,
+      role: 'user',
     },
   };
 
