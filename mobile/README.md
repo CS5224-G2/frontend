@@ -1,126 +1,34 @@
+# CycleLink Mobile (Expo)
 
-# User Journey
+Expo (React Native) app for CycleLink. The app uses the CycleLink icon from `design/Icon.png` (stored in `assets/icon.png`). Placeholder screens and services are in place; implement UI and API calls as needed.
 
-This is an Expo-based React Native mobile application for cycling route recommendation and user journey mapping. The original design is available at https://www.figma.com/design/XdnwPzGPGYGu3E1bwy2arg/User-Journey.
+## Setup
 
-## Running the code
-
-### Prerequisites
-- Node.js 16+ and npm
-- For iOS development: macOS with Xcode
-- For Android development: Android Studio or Android SDK
-
-### Setup
-
-Run `npm install` or `npm ci` to install dependencies.
-
-### Development
-
-**Run on Web (Browser)**
 ```bash
-npm run web
+npm install
+npx expo start
 ```
 
-**Run on iOS**
-```bash
-npm run ios
-```
+- **Test on iPhone:** Scan the QR code with the Camera app → Open in Expo Go. Full steps (including optional standalone build): **[../docs/TEST_DEPLOY.md](../docs/TEST_DEPLOY.md)**.
+- Create a `.env` (see `.env.example`) for `EXPO_PUBLIC_API_BASE_URL` when the backend is available.
 
-**Run on Android**
-```bash
-npm run android
-```
+**npm install warnings or audit issues?** See **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** (deprecation warnings are from the Expo/React Native toolchain and can be ignored; run `npm audit fix` for vulnerabilities).
 
-**Interactive Expo Menu**
-```bash
-npm start
-# or
-expo start
-```
+## Structure
 
-### Building
+- **`app/`** — Expo Router screens. Do not remove or rename route files so others can merge easily.
+  - `index.tsx` — entry (redirect to onboarding or home)
+  - `onboarding.tsx` — cyclist type + preferences
+  - `home.tsx` — discover / customise routes
+  - `route.tsx` — show route, export to Google/Apple Maps
+  - `feedback.tsx` — post-ride rating
+- **`src/services/`** — API client (`api.ts`), maps URL builder and open (`maps.ts`)
+- **`src/types/`** — shared types (e.g. preferences, cyclist type)
 
-**Build for Web**
-```bash
-npm run build
-```
+## Export to maps
 
-**Build for iOS/Android**
-Use Expo's build service (requires Expo account):
-```bash
-expo build:ios
-expo build:android
-```
+Use `openRouteInMaps()` from `src/services/maps.ts` with origin, destination, and waypoints from the backend. Build the URL with `buildGoogleMapsUrl` or `buildAppleMapsUrl` as needed.
 
-## Architecture
+## Backend
 
-This application uses:
-- **Framework**: React Native with Expo
-- **Navigation**: React Navigation (Bottom Tabs + Native Stacks)
-- **State Management**: AsyncStorage for persistence
-- **Styling**: React Native StyleSheet (platform-native styling)
-- **Icons**: Expo Vector Icons (Material Community Icons)
-
-## Project Structure
-
-```
-src/
-├── app/
-│   ├── App.tsx              # Root component
-│   ├── navigation.tsx       # Navigation configuration
-│   ├── types.ts            # Type definitions
-│   ├── components/
-│   │   ├── native/         # React Native components
-│   │   └── figma/          # Figma integration components
-│   └── pages/              # Screen components
-├── styles/                 # (Empty - use StyleSheet instead)
-index.js                    # Expo entry point
-app.json                    # Expo configuration
-babel.config.js            # Babel configuration
-```
-
-## Migration Notes
-
-This project was migrated from Vite (web) to Expo (React Native). See [EXPO_MIGRATION.md](./EXPO_MIGRATION.md) for detailed migration information including:
-- Changes in build system and dependencies
-- Component migration examples
-- Navigation changes
-- Styling migration
-
-## Features
-
-- Route discovery and recommendations
-- User preference-based route matching
-- Favorite routes management
-- Route details and checkpoints
-- User profile management
-- Ride history tracking
-- Live map view
-- Route feedback and ratings
-
-## Key Dependencies
-
-- `expo` - Development platform and runtime
-- `react-native` - Core mobile framework
-- `@react-navigation/*` - Navigation libraries
-- `@react-native-async-storage/async-storage` - Data persistence
-- `react-native-maps` - Map functionality
-- `expo-location` - Location services
-- `react-native-paper` - Material Design components
-
-## Available Scripts
-
-- `npm start` - Start Expo development server
-- `npm run web` - Run on web (browser)
-- `npm run ios` - Run on iOS simulator
-- `npm run android` - Run on Android emulator
-- `npm run build` - Build for web deployment
-
-## Resources
-
-- [Expo Documentation](https://docs.expo.dev)
-- [React Native Documentation](https://reactnative.dev)
-- [React Navigation Documentation](https://reactnavigation.org)
-- [Original Figma Design](https://www.figma.com/design/XdnwPzGPGYGu3E1bwy2arg/User-Journey)
-
-  
+Point `EXPO_PUBLIC_API_BASE_URL` at the ALB when ready. Implement `getRouteRecommendation` and `submitRating` in `src/services/api.ts` to match backend contracts.
