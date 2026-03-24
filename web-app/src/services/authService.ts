@@ -16,10 +16,9 @@ export type AuthResult = {
 
 export async function loginUser(values: LoginValues): Promise<AuthResult> {
   const email = values.email.trim().toLowerCase()
-  const password = values.password
 
   if (!email) throw new Error('Email is required.')
-  if (!password) throw new Error('Password is required.')
+  if (!values.password.trim()) throw new Error('Password is required.')
 
   // Simulate network latency
   await new Promise((r) => setTimeout(r, 600))
