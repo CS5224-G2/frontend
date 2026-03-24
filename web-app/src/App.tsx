@@ -9,8 +9,8 @@ import BusinessDashboard from './pages/BusinessDashboard'
 
 export default function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
+    <BrowserRouter>
+      <AuthProvider>
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/business" element={<BusinessLandingPage />} />
@@ -33,7 +33,7 @@ export default function App() {
           />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+      </AuthProvider>
+    </BrowserRouter>
   )
 }

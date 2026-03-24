@@ -19,6 +19,7 @@ function renderInRouter(allowedRole: AuthUser['role'], user: AuthUser | null, in
       <MemoryRouter initialEntries={[initialEntry]}>
         <Routes>
           <Route path="/protected" element={<ProtectedRoute allowedRole={allowedRole}><span>secret</span></ProtectedRoute>} />
+          <Route path="/" element={<span>home page</span>} />
           <Route path="/login" element={<span>login page</span>} />
           <Route path="/admin" element={<span>admin page</span>} />
           <Route path="/dashboard" element={<span>dashboard page</span>} />
@@ -52,9 +53,9 @@ describe('ProtectedRoute', () => {
     expect(screen.getByText('dashboard page')).toBeTruthy()
   })
 
-  it('redirects user role to /dashboard when accessing protected route', () => {
+  it('redirects user role to / when accessing protected route', () => {
     const regularUser: AuthUser = { id: '3', email: 'u@b.com', role: 'user' }
     renderInRouter('admin', regularUser)
-    expect(screen.getByText('dashboard page')).toBeTruthy()
+    expect(screen.getByText('home page')).toBeTruthy()
   })
 })
