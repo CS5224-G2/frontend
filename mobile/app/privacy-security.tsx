@@ -1,1 +1,1 @@
-export { default } from '@/screens/PrivacySecurityPage';
+export { default } from '@/app/pages/PrivacySecurityPage';
