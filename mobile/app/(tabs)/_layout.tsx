@@ -27,6 +27,8 @@ const labelColor =
       })
     : '#111827';
 
+const tabBarBackgroundColor = Platform.OS === 'android' ? '#ffffff' : null;
+
 export default function TabsLayout() {
   const { isLoggedIn } = useContext(AuthContext);
 
@@ -37,6 +39,7 @@ export default function TabsLayout() {
   return (
     <NativeTabs
       tintColor={selectedTintColor}
+      backgroundColor={tabBarBackgroundColor}
       labelStyle={{
         color: labelColor,
         fontSize: 11,
