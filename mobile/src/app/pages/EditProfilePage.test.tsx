@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
+import { Alert } from 'react-native';
 import EditProfilePage from './EditProfilePage';
 import { AuthContext } from '../AuthContext';
 import * as userService from '../../services/userService';
@@ -33,6 +34,7 @@ jest.mock('@react-navigation/native', () => ({
 jest.mock('../../services/userService', () => ({
   getUserProfile: jest.fn(),
   updateUserProfile: jest.fn(),
+  deleteUserProfileAvatar: jest.fn(),
   uploadUserProfileAvatar: jest.fn(),
   parseUserProfileParam: jest.requireActual('../../services/userService').parseUserProfileParam,
 }));
@@ -51,6 +53,10 @@ jest.mock('@expo/vector-icons', () => {
 });
 
 describe('EditProfilePage', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   const renderWithAuth = (component: React.ReactElement) => {
     return render(
       <AuthContext.Provider value={{ login: jest.fn(), logout: jest.fn(), isLoggedIn: true }}>
@@ -92,6 +98,9 @@ describe('EditProfilePage', () => {
   });
 
   it('uploads a selected image from the avatar button', async () => {
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((title, message, buttons) => {
+      buttons?.find((button) => button.text === 'Upload photo')?.onPress?.();
+    });
     (ImagePicker.requestMediaLibraryPermissionsAsync as jest.Mock).mockResolvedValue({
       granted: true,
     });
@@ -109,11 +118,29 @@ describe('EditProfilePage', () => {
     fireEvent.press(avatarButton);
 
     await waitFor(() => {
+      expect(alertSpy).toHaveBeenCalled();
       expect(ImagePicker.requestMediaLibraryPermissionsAsync).toHaveBeenCalled();
       expect(ImagePicker.launchImageLibraryAsync).toHaveBeenCalled();
       expect(userService.uploadUserProfileAvatar).toHaveBeenCalledWith(
         'file:///picked-avatar.jpg'
       );
+    });
+  });
+
+  it('removes the avatar from the action menu', async () => {
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((title, message, buttons) => {
+      buttons?.find((button) => button.text === 'Remove avatar')?.onPress?.();
+    });
+    (userService.deleteUserProfileAvatar as jest.Mock).mockResolvedValue(undefined);
+
+    renderWithAuth(<EditProfilePage />);
+
+    const avatarButton = await screen.findByTestId('edit-profile-avatar-button');
+    fireEvent.press(avatarButton);
+
+    await waitFor(() => {
+      expect(alertSpy).toHaveBeenCalled();
+      expect(userService.deleteUserProfileAvatar).toHaveBeenCalled();
     });
   });
 });

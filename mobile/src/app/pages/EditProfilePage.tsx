@@ -16,6 +16,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import {
   getUserProfile,
+  deleteUserProfileAvatar,
   parseUserProfileParam,
   updateUserProfile,
   uploadUserProfileAvatar,
@@ -99,7 +100,7 @@ export default function EditProfilePage() {
     setFormState((current) => (current ? { ...current, [key]: value } : current));
   };
 
-  const handleAvatarPress = async () => {
+  const handleUploadAvatar = async () => {
     if (!formState || isUploadingPhoto || isSaving) {
       return;
     }
@@ -139,6 +140,54 @@ export default function EditProfilePage() {
     } finally {
       setIsUploadingPhoto(false);
     }
+  };
+
+  const handleRemoveAvatar = async () => {
+    if (!formState || isUploadingPhoto || isSaving) {
+      return;
+    }
+
+    setIsUploadingPhoto(true);
+
+    try {
+      await deleteUserProfileAvatar();
+      updateField('avatarUrl', null);
+    } catch (removeError) {
+      Alert.alert(
+        'Remove failed',
+        removeError instanceof Error
+          ? removeError.message
+          : 'Profile picture could not be removed.'
+      );
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
+  const handleAvatarPress = () => {
+    if (!formState || isUploadingPhoto || isSaving) {
+      return;
+    }
+
+    Alert.alert('Profile photo', 'Choose what you want to do with your profile picture.', [
+      {
+        text: 'Upload photo',
+        onPress: () => {
+          void handleUploadAvatar();
+        },
+      },
+      {
+        text: 'Remove avatar',
+        style: 'destructive',
+        onPress: () => {
+          void handleRemoveAvatar();
+        },
+      },
+      {
+        text: 'Cancel',
+        style: 'cancel',
+      },
+    ]);
   };
 
   const handleSave = async () => {
@@ -226,7 +275,7 @@ export default function EditProfilePage() {
           Update your public details, riding preference, weekly goal, and tap your profile photo to change it.
         </Text>
         <Text className="mt-2 text-[13px] font-semibold text-[#1D4ED8] dark:text-blue-400">
-          {isUploadingPhoto ? 'Uploading photo...' : 'Tap the avatar to change photo'}
+          {isUploadingPhoto ? 'Updating photo...' : 'Tap the camera icon to manage photo'}
         </Text>
       </View>
 

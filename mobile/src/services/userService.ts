@@ -157,6 +157,17 @@ export async function uploadUserProfileAvatar(
   return response.avatar_url;
 }
 
+export async function deleteUserProfileAvatar(token?: string): Promise<void> {
+  if (USE_MOCKS) {
+    await wait(250);
+    _mockProfile = { ..._mockProfile, avatarUrl: null };
+    return;
+  }
+
+  const { httpClient } = await import('./httpClient');
+  await httpClient.delete<void>('/user/profile/avatar', token);
+}
+
 // Utility: serialise profile for navigation params
 export function serializeUserProfile(profile: UserProfile): string {
   return encodeURIComponent(JSON.stringify(profile));
