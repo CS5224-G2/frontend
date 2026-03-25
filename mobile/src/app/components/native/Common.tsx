@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, ActivityIndicator } from 'react-native';
 
 export const styles = {
   // Colors
@@ -9,7 +9,7 @@ export const styles = {
   borderColor: '#e2e8f0',
   textPrimary: '#1e293b',
   textSecondary: '#64748b',
-  
+
   // Spacing
   spacing: {
     xs: 4,
@@ -19,7 +19,7 @@ export const styles = {
     xl: 24,
     '2xl': 32,
   },
-  
+
   // Border radius
   radiusXs: 4,
   radiusSm: 6,
@@ -35,37 +35,20 @@ interface CardProps {
 }
 
 export const Card = ({ children, style }: CardProps) => (
-  <View style={[cardStyles.container, style]}>
+  <View className="bg-bg-base rounded-cy-md border border-border p-cy-md my-cy-sm" style={style}>
     {children}
   </View>
 );
-
-const cardStyles = StyleSheet.create({
-  container: {
-    backgroundColor: '#ffffff',
-    borderRadius: styles.radiusMd,
-    borderWidth: 1,
-    borderColor: styles.borderColor,
-    padding: styles.spacing.md,
-    marginVertical: styles.spacing.sm,
-  },
-});
 
 interface CardHeaderProps {
   children: React.ReactNode;
 }
 
 export const CardHeader = ({ children }: CardHeaderProps) => (
-  <View style={cardHeaderStyles.container}>
+  <View className="mb-cy-md">
     {children}
   </View>
 );
-
-const cardHeaderStyles = StyleSheet.create({
-  container: {
-    marginBottom: styles.spacing.md,
-  },
-});
 
 interface CardTitleProps {
   children: React.ReactNode;
@@ -73,52 +56,30 @@ interface CardTitleProps {
 }
 
 export const CardTitle = ({ children, style }: CardTitleProps) => (
-  <Text style={[cardTitleStyles.text, style]}>
+  <Text className="text-xl font-semibold text-text-primary" style={style}>
     {children}
   </Text>
 );
-
-const cardTitleStyles = StyleSheet.create({
-  text: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: styles.textPrimary,
-  },
-});
 
 interface CardDescriptionProps {
   children: React.ReactNode;
 }
 
 export const CardDescription = ({ children }: CardDescriptionProps) => (
-  <Text style={cardDescriptionStyles.text}>
+  <Text className="text-sm text-text-secondary mt-cy-xs">
     {children}
   </Text>
 );
-
-const cardDescriptionStyles = StyleSheet.create({
-  text: {
-    fontSize: 14,
-    color: styles.textSecondary,
-    marginTop: styles.spacing.xs,
-  },
-});
 
 interface CardContentProps {
   children: React.ReactNode;
 }
 
 export const CardContent = ({ children }: CardContentProps) => (
-  <View style={cardContentStyles.container}>
+  <View className="gap-cy-md">
     {children}
   </View>
 );
-
-const cardContentStyles = StyleSheet.create({
-  container: {
-    gap: styles.spacing.md,
-  },
-});
 
 interface ButtonProps {
   onPress: () => void;
@@ -133,54 +94,24 @@ export const Button = ({ onPress, children, variant = 'default', disabled = fals
   <Pressable
     onPress={onPress}
     disabled={disabled || loading}
+    className={[
+      'px-cy-lg py-cy-md rounded-cy-md justify-center items-center',
+      variant === 'default' ? 'bg-primary' : '',
+      variant === 'secondary' ? 'bg-slate-100 border border-border' : '',
+      variant === 'ghost' ? 'bg-transparent' : '',
+      (disabled || loading) ? 'opacity-50' : '',
+    ].filter(Boolean).join(' ')}
     style={({ pressed }) => [
-      buttonStyles.base,
-      variant === 'default' && buttonStyles.default,
-      variant === 'secondary' && buttonStyles.secondary,
-      variant === 'ghost' && buttonStyles.ghost,
-      (disabled || loading) && buttonStyles.disabled,
-      pressed && buttonStyles.pressed,
+      pressed && { opacity: 0.8 },
       style,
     ]}
   >
     {loading ? (
       <ActivityIndicator color="#ffffff" />
     ) : typeof children === 'string' ? (
-      <Text style={buttonStyles.text}>{children}</Text>
+      <Text className="text-white text-sm font-semibold">{children}</Text>
     ) : (
       children
     )}
   </Pressable>
 );
-
-const buttonStyles = StyleSheet.create({
-  base: {
-    paddingHorizontal: styles.spacing.lg,
-    paddingVertical: styles.spacing.md,
-    borderRadius: styles.radiusMd,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  default: {
-    backgroundColor: styles.primaryColor,
-  },
-  secondary: {
-    backgroundColor: '#f1f5f9',
-    borderWidth: 1,
-    borderColor: styles.borderColor,
-  },
-  ghost: {
-    backgroundColor: 'transparent',
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-  pressed: {
-    opacity: 0.8,
-  },
-  text: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-});
