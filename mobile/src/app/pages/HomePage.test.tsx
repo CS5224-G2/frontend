@@ -29,12 +29,13 @@ jest.mock('expo-linear-gradient', () => ({
 }));
 
 // All mock data defined INSIDE the factory to avoid jest.mock hoisting issues
+// Using plain arrow functions instead of jest.fn() for maximum CI stability
 jest.mock('../../services/routeService', () => ({
-  getRoutes: jest.fn().mockResolvedValue([
+  getRoutes: () => Promise.resolve([
     { id: '1', name: 'Riverside Park Loop', description: 'A scenic route along the river', distance: 12.5, elevation: 45, estimatedTime: 45, rating: 4.8, reviewCount: 234, startPoint: { lat: 0, lng: 0, name: 'Start' }, endPoint: { lat: 0, lng: 0, name: 'End' }, checkpoints: [], cyclistType: 'recreational', shade: 80, airQuality: 85 },
     { id: '2', name: 'City Commuter Express', description: 'Fast commuter route', distance: 8.3, elevation: 25, estimatedTime: 25, rating: 4.5, reviewCount: 567, startPoint: { lat: 0, lng: 0, name: 'Start' }, endPoint: { lat: 0, lng: 0, name: 'End' }, checkpoints: [], cyclistType: 'commuter', shade: 40, airQuality: 70 },
   ]),
-  getRouteRecommendations: jest.fn().mockResolvedValue([
+  getRouteRecommendations: () => Promise.resolve([
     { id: '1', name: 'Riverside Park Loop', description: 'A scenic route along the river', distance: 12.5, elevation: 45, estimatedTime: 45, rating: 4.8, reviewCount: 234, startPoint: { lat: 0, lng: 0, name: 'Start' }, endPoint: { lat: 0, lng: 0, name: 'End' }, checkpoints: [], cyclistType: 'recreational', shade: 80, airQuality: 85 },
   ]),
 }));
