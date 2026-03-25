@@ -8,7 +8,7 @@ interface CardProps {
 }
 
 export const Card = ({ children, style }: CardProps) => (
-  <View className="bg-bg-base rounded-cy-md border border-border p-cy-md my-cy-sm" style={style}>
+  <View className="bg-bg-base dark:bg-[#111111] rounded-cy-md border border-border dark:border-[#2d2d2d] p-cy-md my-cy-sm" style={style}>
     {children}
   </View>
 );
@@ -29,7 +29,7 @@ interface CardTitleProps {
 }
 
 export const CardTitle = ({ children, style }: CardTitleProps) => (
-  <Text className="text-xl font-semibold text-text-primary" style={style}>
+  <Text className="text-xl font-semibold text-text-primary dark:text-slate-100" style={style}>
     {children}
   </Text>
 );
@@ -39,7 +39,7 @@ interface CardDescriptionProps {
 }
 
 export const CardDescription = ({ children }: CardDescriptionProps) => (
-  <Text className="text-sm text-text-secondary mt-cy-xs">
+  <Text className="text-sm text-text-secondary dark:text-slate-400 mt-cy-xs">
     {children}
   </Text>
 );
@@ -69,8 +69,8 @@ export const Button = ({ onPress, children, variant = 'default', disabled = fals
     disabled={disabled || loading}
     className={[
       'px-cy-lg py-cy-md rounded-cy-md justify-center items-center',
-      variant === 'default' ? 'bg-primary' : '',
-      variant === 'secondary' ? 'bg-slate-100 border border-border' : '',
+      variant === 'default' ? 'bg-primary dark:bg-blue-500' : '',
+      variant === 'secondary' ? 'bg-slate-100 dark:bg-[#1a1a1a] border border-border dark:border-[#2d2d2d]' : '',
       variant === 'ghost' ? 'bg-transparent' : '',
       (disabled || loading) ? 'opacity-50' : '',
     ].filter(Boolean).join(' ')}

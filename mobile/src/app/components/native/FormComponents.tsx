@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TextInput, Pressable } from 'react-native';
+import { useColorScheme } from 'nativewind';
 
 interface InputProps {
   value: string;
@@ -19,19 +20,22 @@ export const Input = ({
   editable = true,
   keyboardType = 'default',
   style,
-}: InputProps) => (
-  <TextInput
-    className="border border-border rounded-cy-md px-cy-md py-cy-md text-sm text-text-primary bg-bg-base"
-    value={value}
-    onChangeText={onChangeText}
-    placeholder={placeholder}
-    placeholderTextColor="#94a3b8"
-    secureTextEntry={secureTextEntry}
-    editable={editable}
-    keyboardType={keyboardType}
-    style={style}
-  />
-);
+}: InputProps) => {
+  const { colorScheme } = useColorScheme();
+  return (
+    <TextInput
+      className="border border-border dark:border-[#2d2d2d] rounded-cy-md px-cy-md py-cy-md text-sm text-text-primary dark:text-slate-100 bg-bg-base dark:bg-[#1a1a1a]"
+      value={value}
+      onChangeText={onChangeText}
+      placeholder={placeholder}
+      placeholderTextColor={colorScheme === 'dark' ? '#64748b' : '#94a3b8'}
+      secureTextEntry={secureTextEntry}
+      editable={editable}
+      keyboardType={keyboardType}
+      style={style}
+    />
+  );
+};
 
 interface LabelProps {
   children: React.ReactNode;
@@ -39,7 +43,7 @@ interface LabelProps {
 }
 
 export const Label = ({ children, htmlFor }: LabelProps) => (
-  <Text className="text-sm font-medium text-text-primary mb-cy-sm">
+  <Text className="text-sm font-medium text-text-primary dark:text-slate-100 mb-cy-sm">
     {children}
   </Text>
 );
@@ -54,8 +58,8 @@ export const Badge = ({ children, variant = 'default', style }: BadgeProps) => (
   <View
     className={[
       'px-cy-md py-cy-xs rounded-full self-start',
-      variant === 'default' ? 'bg-primary' : '',
-      variant === 'secondary' ? 'bg-slate-200' : '',
+      variant === 'default' ? 'bg-primary dark:bg-blue-500' : '',
+      variant === 'secondary' ? 'bg-slate-200 dark:bg-[#2d2d2d]' : '',
       variant === 'destructive' ? 'bg-red-500' : '',
     ].filter(Boolean).join(' ')}
     style={style}
@@ -71,7 +75,7 @@ interface SeparatorProps {
 }
 
 export const Separator = ({ style }: SeparatorProps) => (
-  <View className="h-px bg-border my-cy-md" style={style} />
+  <View className="h-px bg-border dark:bg-[#2d2d2d] my-cy-md" style={style} />
 );
 
 interface CheckboxProps {
@@ -85,7 +89,9 @@ export const Checkbox = ({ value, onValueChange, disabled }: CheckboxProps) => (
     onPress={() => !disabled && onValueChange(!value)}
     className={[
       'w-5 h-5 border rounded-cy-sm justify-center items-center',
-      value ? 'bg-primary border-primary' : 'bg-bg-base border-border',
+      value
+        ? 'bg-primary dark:bg-blue-500 border-primary dark:border-blue-500'
+        : 'bg-bg-base dark:bg-[#1a1a1a] border-border dark:border-[#2d2d2d]',
       disabled ? 'opacity-50' : '',
     ].filter(Boolean).join(' ')}
   >
