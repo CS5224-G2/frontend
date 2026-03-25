@@ -157,9 +157,19 @@ export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
           </View>
           <Text className="mt-2 mb-1 text-[#334155] dark:text-slate-100 font-bold">Points of Interest</Text>
           {routeInfo.checkpoints.map((checkpoint) => (
-            <View key={checkpoint.id} className="flex-row items-center gap-2 mb-[6px]">
-              <MaterialCommunityIcons name="map-marker-radius" size={16} color="#2563eb" />
-              <Text className="text-[#475569] dark:text-slate-400 text-[13px]">{checkpoint.name} — {checkpoint.description}</Text>
+            <View key={checkpoint.id} className="flex-row items-start gap-2 mb-[8px]">
+              <MaterialCommunityIcons
+                name="map-marker-radius"
+                size={16}
+                color="#2563eb"
+                style={{ marginTop: 2 }}
+              />
+              <Text
+                className="flex-1 text-[#475569] dark:text-slate-400 text-[13px] leading-5"
+                style={{ flexShrink: 1 }}
+              >
+                {checkpoint.name} — {checkpoint.description}
+              </Text>
             </View>
           ))}
         </CardContent>

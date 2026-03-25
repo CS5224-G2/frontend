@@ -88,41 +88,49 @@ export default function RideHistoryPage({ navigation }: Props) {
 
     return (
       <Pressable
-        style={({ pressed }) => [
-          { backgroundColor: isDark ? '#111111' : '#fff', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: isDark ? '#2d2d2d' : '#e2e8f0', marginBottom: 10 },
-          pressed && { opacity: 0.8 },
-        ]}
+        style={({ pressed }) => [pressed && { opacity: 0.85 }]}
         onPress={() => navigation.navigate('HistoryDetails', { rideId: item.id })}
       >
-        <View className="flex-row justify-between items-center mb-[6px]">
-          <Text className="text-base font-bold text-[#1e293b] dark:text-slate-100 flex-1 mr-2">{displayName}</Text>
-          <Pressable onPress={() => toggleFavorite(item.routeId, displayName)}>
-            <MaterialCommunityIcons
-              name={isFav ? 'star' : 'star-outline'}
-              size={24}
-              color={isFav ? '#f59e0b' : '#a1a1aa'}
-            />
-          </Pressable>
-        </View>
+        <View
+          className="rounded-[12px] border p-3 bg-[#f8fbff] dark:bg-[#111111] border-[#bfdbfe] dark:border-[#2d2d2d]"
+          style={{
+            shadowColor: '#0f172a',
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: isDark ? 0 : 0.08,
+            shadowRadius: 8,
+            elevation: isDark ? 0 : 2,
+          }}
+        >
+          <View className="flex-row justify-between items-center mb-[6px]">
+            <Text className="text-base font-bold text-[#1e293b] dark:text-slate-100 flex-1 mr-2">{displayName}</Text>
+            <Pressable onPress={() => toggleFavorite(item.routeId, displayName)}>
+              <MaterialCommunityIcons
+                name={isFav ? 'star' : 'star-outline'}
+                size={24}
+                color={isFav ? '#f59e0b' : '#a1a1aa'}
+              />
+            </Pressable>
+          </View>
 
-        <Text className="text-xs text-[#6b7280] dark:text-slate-400 mb-2">{item.completionDate} • {item.completionTime}</Text>
+          <Text className="text-xs text-[#6b7280] dark:text-slate-400 mb-2">{item.completionDate} • {item.completionTime}</Text>
 
-        <View className="flex-row flex-wrap justify-between">
-          <View className="flex-row items-center gap-1 my-[3px]" style={{ width: '48%' }}>
-            <MaterialCommunityIcons name="map-marker" size={14} color="#6b7280" />
-            <Text className="text-[13px] text-[#334155] dark:text-slate-100 ml-1">{item.distance} km</Text>
-          </View>
-          <View className="flex-row items-center gap-1 my-[3px]" style={{ width: '48%' }}>
-            <MaterialCommunityIcons name="clock" size={14} color="#6b7280" />
-            <Text className="text-[13px] text-[#334155] dark:text-slate-100 ml-1">{formatTime(item.totalTime)}</Text>
-          </View>
-          <View className="flex-row items-center gap-1 my-[3px]" style={{ width: '48%' }}>
-            <MaterialCommunityIcons name="speedometer" size={14} color="#6b7280" />
-            <Text className="text-[13px] text-[#334155] dark:text-slate-100 ml-1">{item.avgSpeed} km/h</Text>
-          </View>
-          <View className="flex-row items-center gap-1 my-[3px]" style={{ width: '48%' }}>
-            <MaterialCommunityIcons name="map-legend" size={14} color="#6b7280" />
-            <Text className="text-[13px] text-[#334155] dark:text-slate-100 ml-1">{item.checkpoints} checkpoints</Text>
+          <View className="flex-row flex-wrap justify-between">
+            <View className="flex-row items-center gap-1 my-[3px]" style={{ width: '48%' }}>
+              <MaterialCommunityIcons name="map-marker" size={14} color="#6b7280" />
+              <Text className="text-[13px] text-[#334155] dark:text-slate-100 ml-1">{item.distance} km</Text>
+            </View>
+            <View className="flex-row items-center gap-1 my-[3px]" style={{ width: '48%' }}>
+              <MaterialCommunityIcons name="clock" size={14} color="#6b7280" />
+              <Text className="text-[13px] text-[#334155] dark:text-slate-100 ml-1">{formatTime(item.totalTime)}</Text>
+            </View>
+            <View className="flex-row items-center gap-1 my-[3px]" style={{ width: '48%' }}>
+              <MaterialCommunityIcons name="speedometer" size={14} color="#6b7280" />
+              <Text className="text-[13px] text-[#334155] dark:text-slate-100 ml-1">{item.avgSpeed} km/h</Text>
+            </View>
+            <View className="flex-row items-center gap-1 my-[3px]" style={{ width: '48%' }}>
+              <MaterialCommunityIcons name="map-legend" size={14} color="#6b7280" />
+              <Text className="text-[13px] text-[#334155] dark:text-slate-100 ml-1">{item.checkpoints} checkpoints</Text>
+            </View>
           </View>
         </View>
       </Pressable>
@@ -210,6 +218,7 @@ export default function RideHistoryPage({ navigation }: Props) {
         data={rideHistory}
         keyExtractor={(item) => item.id}
         renderItem={renderRide}
+        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         scrollEnabled={false}
         contentContainerStyle={{ paddingBottom: 80 }}
       />
