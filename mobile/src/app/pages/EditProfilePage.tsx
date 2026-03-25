@@ -11,11 +11,14 @@ import {
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useColorScheme } from 'nativewind';
+import * as ImagePicker from 'expo-image-picker';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import {
   getUserProfile,
   parseUserProfileParam,
   updateUserProfile,
+  uploadUserProfileAvatar,
   UserProfile,
 } from '@/services/userService';
 import { getProfileAvatarSource } from '@/app/utils/profileAvatar';
@@ -36,6 +39,7 @@ export default function EditProfilePage() {
   const [formState, setFormState] = useState<UserProfile | null>(profileFromParams);
   const [isLoading, setIsLoading] = useState(!profileFromParams);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   useEffect(() => {
     if (profileFromParams) {
@@ -95,6 +99,48 @@ export default function EditProfilePage() {
     setFormState((current) => (current ? { ...current, [key]: value } : current));
   };
 
+  const handleAvatarPress = async () => {
+    if (!formState || isUploadingPhoto || isSaving) {
+      return;
+    }
+
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(
+        'Photo access required',
+        'Allow photo library access to choose a profile picture.'
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.9,
+    });
+
+    if (result.canceled || !result.assets?.[0]?.uri) {
+      return;
+    }
+
+    setIsUploadingPhoto(true);
+
+    try {
+      const avatarUrl = await uploadUserProfileAvatar(result.assets[0].uri);
+      updateField('avatarUrl', avatarUrl);
+    } catch (uploadError) {
+      Alert.alert(
+        'Upload failed',
+        uploadError instanceof Error
+          ? uploadError.message
+          : 'Profile picture could not be uploaded.'
+      );
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!formState) {
       return;
@@ -142,23 +188,45 @@ export default function EditProfilePage() {
   return (
     <ScrollView className="flex-1 bg-[#F3F4F6] dark:bg-black" contentContainerStyle={{ padding: 20, gap: 16 }}>
       <View className="bg-white dark:bg-[#111111] rounded-[24px] p-cy-xl items-center border border-border dark:border-[#2d2d2d]">
-        {avatarSource ? (
-          <Image
-            source={avatarSource}
-            className="mb-4 rounded-full"
-            style={{ width: 82, height: 82 }}
-          />
-        ) : (
-          <View
-            className="justify-center items-center mb-4 rounded-full"
-            style={{ width: 82, height: 82, backgroundColor: formState.avatarColor }}
-          >
-            <Text className="text-white text-[28px] font-extrabold">{initials}</Text>
+        <Pressable
+          testID="edit-profile-avatar-button"
+          className="mb-4"
+          onPress={handleAvatarPress}
+          disabled={isUploadingPhoto || isSaving}
+        >
+          <View>
+            {avatarSource ? (
+              <Image
+                source={avatarSource}
+                className="rounded-full"
+                style={{ width: 82, height: 82 }}
+              />
+            ) : (
+              <View
+                className="justify-center items-center rounded-full"
+                style={{ width: 82, height: 82, backgroundColor: formState.avatarColor }}
+              >
+                <Text className="text-white text-[28px] font-extrabold">{initials}</Text>
+              </View>
+            )}
+            <View
+              className="absolute right-0 bottom-0 justify-center items-center rounded-full bg-primary-dark dark:bg-blue-600 border-2 border-white dark:border-[#111111]"
+              style={{ width: 28, height: 28 }}
+            >
+              <MaterialCommunityIcons
+                name={isUploadingPhoto ? 'image-sync' : 'camera-outline'}
+                size={15}
+                color="#ffffff"
+              />
+            </View>
           </View>
-        )}
+        </Pressable>
         <Text className="text-[28px] font-extrabold text-slate-900 dark:text-slate-100">Edit profile</Text>
         <Text className="mt-2 text-[15px] leading-[22px] text-text-secondary dark:text-slate-400 text-center">
-          Update your public details, riding preference, weekly goal, and profile photo from the profile screen.
+          Update your public details, riding preference, weekly goal, and tap your profile photo to change it.
+        </Text>
+        <Text className="mt-2 text-[13px] font-semibold text-[#1D4ED8] dark:text-blue-400">
+          {isUploadingPhoto ? 'Uploading photo...' : 'Tap the avatar to change photo'}
         </Text>
       </View>
 

@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react-nativ
 import EditProfilePage from './EditProfilePage';
 import { AuthContext } from '../AuthContext';
 import * as userService from '../../services/userService';
+import * as ImagePicker from 'expo-image-picker';
 
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
@@ -32,8 +33,22 @@ jest.mock('@react-navigation/native', () => ({
 jest.mock('../../services/userService', () => ({
   getUserProfile: jest.fn(),
   updateUserProfile: jest.fn(),
+  uploadUserProfileAvatar: jest.fn(),
   parseUserProfileParam: jest.requireActual('../../services/userService').parseUserProfileParam,
 }));
+
+jest.mock('expo-image-picker', () => ({
+  requestMediaLibraryPermissionsAsync: jest.fn(),
+  launchImageLibraryAsync: jest.fn(),
+}));
+
+jest.mock('@expo/vector-icons', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    MaterialCommunityIcons: (props: any) => React.createElement(View, props),
+  };
+});
 
 describe('EditProfilePage', () => {
   const renderWithAuth = (component: React.ReactElement) => {
@@ -74,5 +89,31 @@ describe('EditProfilePage', () => {
     fireEvent.press(cancelButton);
 
     expect(mockGoBack).toHaveBeenCalled();
+  });
+
+  it('uploads a selected image from the avatar button', async () => {
+    (ImagePicker.requestMediaLibraryPermissionsAsync as jest.Mock).mockResolvedValue({
+      granted: true,
+    });
+    (ImagePicker.launchImageLibraryAsync as jest.Mock).mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'file:///picked-avatar.jpg' }],
+    });
+    (userService.uploadUserProfileAvatar as jest.Mock).mockResolvedValue(
+      'https://cdn.cyclelink.example.com/profile/rider_1024/avatar.jpg'
+    );
+
+    renderWithAuth(<EditProfilePage />);
+
+    const avatarButton = await screen.findByTestId('edit-profile-avatar-button');
+    fireEvent.press(avatarButton);
+
+    await waitFor(() => {
+      expect(ImagePicker.requestMediaLibraryPermissionsAsync).toHaveBeenCalled();
+      expect(ImagePicker.launchImageLibraryAsync).toHaveBeenCalled();
+      expect(userService.uploadUserProfileAvatar).toHaveBeenCalledWith(
+        'file:///picked-avatar.jpg'
+      );
+    });
   });
 });

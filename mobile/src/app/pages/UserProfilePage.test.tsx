@@ -1,9 +1,8 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import UserProfilePage from './UserProfilePage';
 import * as userService from '../../services/userService';
-import * as ImagePicker from 'expo-image-picker';
 
 const mockNavigate = jest.fn();
 
@@ -27,15 +26,9 @@ jest.mock('../ThemeContext', () => ({
   }),
 }));
 
-jest.mock('expo-image-picker', () => ({
-  requestMediaLibraryPermissionsAsync: jest.fn(),
-  launchImageLibraryAsync: jest.fn(),
-}));
-
 jest.mock('../../services/userService', () => ({
   getUserProfile: jest.fn(),
   serializeUserProfile: jest.fn(() => 'profile-param'),
-  uploadUserProfileAvatar: jest.fn(),
 }));
 
 describe('UserProfilePage', () => {
@@ -61,29 +54,13 @@ describe('UserProfilePage', () => {
     });
   });
 
-  it('uploads a selected image from the profile screen', async () => {
-    (ImagePicker.requestMediaLibraryPermissionsAsync as jest.Mock).mockResolvedValue({
-      granted: true,
-    });
-    (ImagePicker.launchImageLibraryAsync as jest.Mock).mockResolvedValue({
-      canceled: false,
-      assets: [{ uri: 'file:///picked-avatar.jpg' }],
-    });
-    (userService.uploadUserProfileAvatar as jest.Mock).mockResolvedValue(
-      'https://cdn.cyclelink.example.com/profile/rider_1024/avatar.jpg'
-    );
-
+  it('navigates to edit profile and does not show an upload action', async () => {
     render(<UserProfilePage />);
 
-    const uploadButton = await screen.findByText('Upload photo');
-    fireEvent.press(uploadButton);
+    expect(await screen.findByText('Edit profile')).toBeTruthy();
+    expect(screen.queryByText('Upload photo')).toBeNull();
 
-    await waitFor(() => {
-      expect(ImagePicker.requestMediaLibraryPermissionsAsync).toHaveBeenCalled();
-      expect(ImagePicker.launchImageLibraryAsync).toHaveBeenCalled();
-      expect(userService.uploadUserProfileAvatar).toHaveBeenCalledWith(
-        'file:///picked-avatar.jpg'
-      );
-    });
+    fireEvent.press(screen.getByText('Edit profile'));
+    expect(mockNavigate).toHaveBeenCalledWith('EditProfile', { profile: 'profile-param' });
   });
 });

@@ -11,13 +11,10 @@ import {
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useColorScheme } from 'nativewind';
-import * as ImagePicker from 'expo-image-picker';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import {
   getUserProfile,
   serializeUserProfile,
-  uploadUserProfileAvatar,
   UserProfile,
 } from '@/services/userService';
 import { getProfileAvatarSource } from '@/app/utils/profileAvatar';
@@ -53,7 +50,6 @@ export default function UserProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadProfile = useCallback(async (mode: 'initial' | 'refresh' = 'initial') => {
@@ -104,48 +100,6 @@ export default function UserProfilePage() {
   }, [profile]);
 
   const avatarSource = useMemo(() => getProfileAvatarSource(profile?.avatarUrl), [profile?.avatarUrl]);
-
-  const handleUploadPhoto = useCallback(async () => {
-    if (!profile || isUploadingPhoto) {
-      return;
-    }
-
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert(
-        'Photo access required',
-        'Allow photo library access to choose a profile picture.'
-      );
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.9,
-    });
-
-    if (result.canceled || !result.assets?.[0]?.uri) {
-      return;
-    }
-
-    setIsUploadingPhoto(true);
-
-    try {
-      const avatarUrl = await uploadUserProfileAvatar(result.assets[0].uri);
-      setProfile((current) => (current ? { ...current, avatarUrl } : current));
-    } catch (uploadError) {
-      Alert.alert(
-        'Upload failed',
-        uploadError instanceof Error
-          ? uploadError.message
-          : 'Profile picture could not be uploaded.'
-      );
-    } finally {
-      setIsUploadingPhoto(false);
-    }
-  }, [isUploadingPhoto, profile]);
 
   if (isLoading) {
     return (
@@ -199,20 +153,6 @@ export default function UserProfilePage() {
             <Text className="text-[14px] text-text-secondary dark:text-slate-400">{profile.location}</Text>
             <Text className="text-[14px] text-text-secondary dark:text-slate-400">Member since {profile.memberSince}</Text>
           </View>
-          <Pressable
-            className="self-start mt-1 flex-row items-center gap-2 border border-border dark:border-[#2d2d2d] px-[18px] py-cy-md rounded-[14px] bg-[#F8FAFC] dark:bg-[#1a1a1a]"
-            onPress={handleUploadPhoto}
-            disabled={isUploadingPhoto}
-          >
-            <MaterialCommunityIcons
-              name={isUploadingPhoto ? 'image-sync' : 'image-plus'}
-              size={18}
-              color={colorScheme === 'dark' ? '#93c5fd' : '#1D4ED8'}
-            />
-            <Text className="text-[15px] font-bold text-slate-900 dark:text-slate-100">
-              {isUploadingPhoto ? 'Uploading...' : 'Upload photo'}
-            </Text>
-          </Pressable>
           <Pressable
             className="self-start mt-2 bg-primary-dark dark:bg-blue-600 px-[18px] py-cy-md rounded-[14px]"
             onPress={() =>
