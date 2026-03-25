@@ -11,14 +11,14 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 import { useColorScheme } from 'nativewind';
 import { AuthContext } from '../AuthContext';
 
 import { registerUser } from '../../services/authService';
 
 export default function RegisterPage() {
-  const navigation = useNavigation<any>();
+  const router = useRouter();
   const { login } = useContext(AuthContext);
   const { colorScheme } = useColorScheme();
   const [firstName, setFirstName] = useState('');
@@ -264,7 +264,7 @@ export default function RegisterPage() {
 
             <View className="flex-row justify-center items-center">
               <Text className="text-text-secondary text-[13px]">Already have an account? </Text>
-              <Pressable onPress={() => navigation.navigate('Login')}>
+              <Pressable onPress={() => router.push('/login')}>
                 <Text className="text-[#2563eb] dark:text-blue-400 text-[13px] font-bold">Sign in</Text>
               </Pressable>
             </View>
