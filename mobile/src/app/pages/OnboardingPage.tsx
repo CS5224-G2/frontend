@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Bike, Trees, Mountain, Route, Wind, Info } from 'lucide-react-native';
 import Slider from '@react-native-community/slider';
@@ -33,45 +33,45 @@ export default function OnboardingPage({ navigation }: Props) {
   ];
 
   const handleConfirm = () => {
-    // In a real app, you'd save to AsyncStorage or a state management solution
     console.log('User preferences:', preferences);
-    login(); // This triggers navigation to AppNavigator
+    login();
   };
 
   const CyclistTypeButton = ({ type, label, icon: Icon, description, isSelected }: any) => (
     <TouchableOpacity
-      style={[styles.cyclistTypeButton, isSelected && styles.cyclistTypeButtonSelected]}
+      className={`flex-1 p-cy-lg rounded-cy-md border-2 items-center ${isSelected ? 'border-[#3b82f6] bg-[#eff6ff]' : 'border-[#d1d5db] bg-white'}`}
+      style={{ minWidth: '45%' }}
       onPress={() => setPreferences({ ...preferences, cyclistType: type })}
     >
       <Icon size={24} color={isSelected ? '#3b82f6' : '#6b7280'} />
-      <Text style={[styles.cyclistTypeLabel, isSelected && styles.cyclistTypeLabelSelected]}>{label}</Text>
-      <Text style={styles.cyclistTypeDescription}>{description}</Text>
+      <Text className={`text-base font-semibold mt-2 mb-1 ${isSelected ? 'text-[#3b82f6]' : 'text-[#1e293b]'}`}>{label}</Text>
+      <Text className="text-sm text-[#6b7280] text-center">{description}</Text>
     </TouchableOpacity>
   );
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.content}>
+    <ScrollView className="flex-1 bg-[#dbeafe]">
+      <View className="flex-1 p-cy-xl pt-[60px]">
         {/* Info Button */}
         <TouchableOpacity
-          style={styles.infoButton}
+          className="absolute top-10 right-6 flex-row items-center bg-white px-cy-md py-cy-sm rounded-cy-md border border-[#d1d5db]"
           onPress={() => navigation.navigate('UserJourneyPage')}
         >
           <Info size={16} color="#6b7280" />
-          <Text style={styles.infoButtonText}>View Journey</Text>
+          <Text className="ml-2 text-sm text-[#6b7280]">View Journey</Text>
         </TouchableOpacity>
 
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.title}>Welcome to CycleLink</Text>
-            <Text style={styles.subtitle}>Let's personalize your cycling experience</Text>
+        <View className="bg-white rounded-cy-lg" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4 }}>
+          <View className="items-center p-cy-xl">
+            <Text className="text-[28px] font-bold text-[#1e293b] text-center">Welcome to CycleLink</Text>
+            <Text className="text-base text-[#64748b] mt-2 text-center">Let's personalize your cycling experience</Text>
           </View>
 
-          <View style={styles.cardContent}>
+          <View className="p-cy-xl">
             {/* Cyclist Type Selection */}
-            <View style={styles.section}>
-              <Text style={styles.sectionLabel}>What type of cyclist are you?</Text>
-              <View style={styles.cyclistTypeGrid}>
+            <View className="mb-[24px]">
+              <Text className="text-lg font-semibold text-[#1e293b] mb-cy-lg">What type of cyclist are you?</Text>
+              <View className="flex-row flex-wrap gap-cy-md">
                 {cyclistTypes.map(({ type, label, icon, description }) => (
                   <CyclistTypeButton
                     key={type}
@@ -86,13 +86,13 @@ export default function OnboardingPage({ navigation }: Props) {
             </View>
 
             {/* Preferred Shade */}
-            <View style={styles.sliderSection}>
-              <View style={styles.sliderHeader}>
+            <View className="mb-[24px]">
+              <View className="flex-row items-center mb-cy-md">
                 <Trees size={20} color="#6b7280" />
-                <Text style={styles.sliderLabel}>Preferred Shade: {preferences.preferredShade}%</Text>
+                <Text className="text-base font-semibold text-[#1e293b] ml-2">Preferred Shade: {preferences.preferredShade}%</Text>
               </View>
               <Slider
-                style={styles.slider}
+                style={{ width: '100%', height: 40 }}
                 minimumValue={0}
                 maximumValue={100}
                 step={10}
@@ -102,20 +102,20 @@ export default function OnboardingPage({ navigation }: Props) {
                 maximumTrackTintColor="#d1d5db"
                 thumbTintColor="#3b82f6"
               />
-              <View style={styles.sliderLabels}>
-                <Text style={styles.sliderLabelText}>Full Sun</Text>
-                <Text style={styles.sliderLabelText}>Full Shade</Text>
+              <View className="flex-row justify-between mt-2">
+                <Text className="text-xs text-[#6b7280]">Full Sun</Text>
+                <Text className="text-xs text-[#6b7280]">Full Shade</Text>
               </View>
             </View>
 
             {/* Elevation Preference */}
-            <View style={styles.sliderSection}>
-              <View style={styles.sliderHeader}>
+            <View className="mb-[24px]">
+              <View className="flex-row items-center mb-cy-md">
                 <Mountain size={20} color="#6b7280" />
-                <Text style={styles.sliderLabel}>Elevation Challenge: {preferences.elevation}%</Text>
+                <Text className="text-base font-semibold text-[#1e293b] ml-2">Elevation Challenge: {preferences.elevation}%</Text>
               </View>
               <Slider
-                style={styles.slider}
+                style={{ width: '100%', height: 40 }}
                 minimumValue={0}
                 maximumValue={100}
                 step={10}
@@ -125,20 +125,20 @@ export default function OnboardingPage({ navigation }: Props) {
                 maximumTrackTintColor="#d1d5db"
                 thumbTintColor="#3b82f6"
               />
-              <View style={styles.sliderLabels}>
-                <Text style={styles.sliderLabelText}>Flat</Text>
-                <Text style={styles.sliderLabelText}>Hilly</Text>
+              <View className="flex-row justify-between mt-2">
+                <Text className="text-xs text-[#6b7280]">Flat</Text>
+                <Text className="text-xs text-[#6b7280]">Hilly</Text>
               </View>
             </View>
 
             {/* Distance */}
-            <View style={styles.sliderSection}>
-              <View style={styles.sliderHeader}>
+            <View className="mb-[24px]">
+              <View className="flex-row items-center mb-cy-md">
                 <Route size={20} color="#6b7280" />
-                <Text style={styles.sliderLabel}>Preferred Distance: {preferences.distance} km</Text>
+                <Text className="text-base font-semibold text-[#1e293b] ml-2">Preferred Distance: {preferences.distance} km</Text>
               </View>
               <Slider
-                style={styles.slider}
+                style={{ width: '100%', height: 40 }}
                 minimumValue={5}
                 maximumValue={50}
                 step={5}
@@ -148,20 +148,20 @@ export default function OnboardingPage({ navigation }: Props) {
                 maximumTrackTintColor="#d1d5db"
                 thumbTintColor="#3b82f6"
               />
-              <View style={styles.sliderLabels}>
-                <Text style={styles.sliderLabelText}>5 km</Text>
-                <Text style={styles.sliderLabelText}>50 km</Text>
+              <View className="flex-row justify-between mt-2">
+                <Text className="text-xs text-[#6b7280]">5 km</Text>
+                <Text className="text-xs text-[#6b7280]">50 km</Text>
               </View>
             </View>
 
             {/* Air Quality */}
-            <View style={styles.sliderSection}>
-              <View style={styles.sliderHeader}>
+            <View className="mb-[24px]">
+              <View className="flex-row items-center mb-cy-md">
                 <Wind size={20} color="#6b7280" />
-                <Text style={styles.sliderLabel}>Minimum Air Quality: {preferences.airQuality}%</Text>
+                <Text className="text-base font-semibold text-[#1e293b] ml-2">Minimum Air Quality: {preferences.airQuality}%</Text>
               </View>
               <Slider
-                style={styles.slider}
+                style={{ width: '100%', height: 40 }}
                 minimumValue={0}
                 maximumValue={100}
                 step={10}
@@ -171,14 +171,14 @@ export default function OnboardingPage({ navigation }: Props) {
                 maximumTrackTintColor="#d1d5db"
                 thumbTintColor="#3b82f6"
               />
-              <View style={styles.sliderLabels}>
-                <Text style={styles.sliderLabelText}>Any</Text>
-                <Text style={styles.sliderLabelText}>Pristine</Text>
+              <View className="flex-row justify-between mt-2">
+                <Text className="text-xs text-[#6b7280]">Any</Text>
+                <Text className="text-xs text-[#6b7280]">Pristine</Text>
               </View>
             </View>
 
-            <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm}>
-              <Text style={styles.confirmButtonText}>Confirm & Continue</Text>
+            <TouchableOpacity className="bg-[#3b82f6] py-cy-lg px-cy-xl rounded-cy-md items-center mt-[24px]" onPress={handleConfirm}>
+              <Text className="text-white text-lg font-semibold">Confirm & Continue</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -186,149 +186,3 @@ export default function OnboardingPage({ navigation }: Props) {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#dbeafe',
-  },
-  content: {
-    flex: 1,
-    padding: 24,
-    paddingTop: 60,
-  },
-  infoButton: {
-    position: 'absolute',
-    top: 40,
-    right: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'white',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-  },
-  infoButtonText: {
-    marginLeft: 8,
-    fontSize: 14,
-    color: '#6b7280',
-  },
-  card: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  cardHeader: {
-    alignItems: 'center',
-    padding: 24,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1e293b',
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#64748b',
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  cardContent: {
-    padding: 24,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionLabel: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1e293b',
-    marginBottom: 16,
-  },
-  cyclistTypeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  cyclistTypeButton: {
-    flex: 1,
-    minWidth: '45%',
-    padding: 16,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#d1d5db',
-    backgroundColor: 'white',
-    alignItems: 'center',
-  },
-  cyclistTypeButtonSelected: {
-    borderColor: '#3b82f6',
-    backgroundColor: '#eff6ff',
-  },
-  cyclistTypeLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1e293b',
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  cyclistTypeLabelSelected: {
-    color: '#3b82f6',
-  },
-  cyclistTypeDescription: {
-    fontSize: 14,
-    color: '#6b7280',
-    textAlign: 'center',
-  },
-  sliderSection: {
-    marginBottom: 24,
-  },
-  sliderHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  sliderLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1e293b',
-    marginLeft: 8,
-  },
-  slider: {
-    width: '100%',
-    height: 40,
-  },
-  sliderThumb: {
-    width: 20,
-    height: 20,
-    backgroundColor: '#3b82f6',
-  },
-  sliderLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 8,
-  },
-  sliderLabelText: {
-    fontSize: 12,
-    color: '#6b7280',
-  },
-  confirmButton: {
-    backgroundColor: '#3b82f6',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 24,
-  },
-  confirmButtonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-});
