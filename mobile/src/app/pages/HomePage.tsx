@@ -7,10 +7,13 @@ import { type Route, type UserPreferences } from '../../../../shared/types/index
 import { getRoutes, getRouteRecommendations } from '../../services/routeService';
 import { FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useColorScheme } from 'nativewind';
 
 type Props = NativeStackScreenProps<any, 'HomePage'>;
 
 export default function HomeScreen({ navigation }: Props) {
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [allRoutes, setAllRoutes] = useState<Route[]>([]);
@@ -86,7 +89,7 @@ export default function HomeScreen({ navigation }: Props) {
 
   const RouteCard = ({ route, isFavorite, matchScore, showMatchBadge, onPress }: any) => (
     <Pressable onPress={onPress} className="mb-0">
-      <View className={`bg-white rounded-cy-md p-cy-md border-2 ${isFavorite ? 'border-[#fcd34d]' : 'border-[#e5e7eb]'}`}>
+      <View className={`bg-white dark:bg-[#111111] rounded-cy-md p-cy-md border-2 ${isFavorite ? 'border-[#fcd34d]' : 'border-[#e5e7eb] dark:border-[#2d2d2d]'}`}>
         {isFavorite && (
           <View className="absolute top-2 right-2 z-10">
             <MaterialCommunityIcons name="star" size={20} color="#f59e0b" />
@@ -95,64 +98,64 @@ export default function HomeScreen({ navigation }: Props) {
 
         {showMatchBadge && (
           <View className="absolute top-2 right-2 z-10">
-            <LinearGradient colors={['#a855f7', '#ec4899']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} className="px-cy-sm py-1 rounded-cy-sm">
+            <LinearGradient colors={isDark ? ['#0f172a', '#1e293b'] : ['#a855f7', '#ec4899']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} className="px-cy-sm py-1 rounded-cy-sm">
               <Text className="text-white text-xs font-semibold">{getMatchPercentage(matchScore)}% Match</Text>
             </LinearGradient>
           </View>
         )}
 
         <View className="mb-2 pr-[60px]">
-          <Text className="text-base font-semibold text-[#1f2937]" numberOfLines={2}>{route.name}</Text>
+          <Text className="text-base font-semibold text-[#1f2937] dark:text-slate-100" numberOfLines={2}>{route.name}</Text>
         </View>
 
-        <Text className="text-xs text-[#6b7280] mb-2" numberOfLines={2}>{route.description}</Text>
+        <Text className="text-xs text-[#6b7280] dark:text-slate-400 mb-2" numberOfLines={2}>{route.description}</Text>
 
-        <View className="flex-row items-center bg-[#fef3c7] px-cy-sm py-[6px] rounded-cy-sm mb-2 gap-1">
+        <View className="flex-row items-center bg-[#fef3c7] dark:bg-[#1a1a1a] px-cy-sm py-[6px] rounded-cy-sm mb-2 gap-1">
           <MaterialCommunityIcons name="star" size={16} color="#f59e0b" />
-          <Text className="text-base font-bold text-[#1f2937]">{route.rating}</Text>
-          <Text className="text-xs text-[#6b7280]">({route.reviewCount} reviews)</Text>
+          <Text className="text-base font-bold text-[#1f2937] dark:text-slate-100">{route.rating}</Text>
+          <Text className="text-xs text-[#6b7280] dark:text-slate-400">({route.reviewCount} reviews)</Text>
         </View>
 
         <View className="flex-row flex-wrap gap-cy-sm mb-2">
           <View className="flex-row items-center gap-1 flex-1" style={{ minWidth: '45%' }}>
             <MaterialCommunityIcons name="map-marker" size={14} color="#6b7280" />
-            <Text className="text-xs text-[#6b7280]">{route.distance} km</Text>
+            <Text className="text-xs text-[#6b7280] dark:text-slate-400">{route.distance} km</Text>
           </View>
           <View className="flex-row items-center gap-1 flex-1" style={{ minWidth: '45%' }}>
             <MaterialCommunityIcons name="clock" size={14} color="#6b7280" />
-            <Text className="text-xs text-[#6b7280]">{route.estimatedTime} min</Text>
+            <Text className="text-xs text-[#6b7280] dark:text-slate-400">{route.estimatedTime} min</Text>
           </View>
           <View className="flex-row items-center gap-1 flex-1" style={{ minWidth: '45%' }}>
             <FontAwesome5 name="mountain" size={14} color="#6b7280" />
-            <Text className="text-xs text-[#6b7280]">{route.elevation}m</Text>
+            <Text className="text-xs text-[#6b7280] dark:text-slate-400">{route.elevation}m</Text>
           </View>
-          <View className="flex-row items-center gap-1 flex-1 bg-[#e5e7eb] px-cy-sm py-1 rounded" style={{ minWidth: '45%' }}>
+          <View className="flex-row items-center gap-1 flex-1 bg-[#e5e7eb] dark:bg-[#1a1a1a] px-cy-sm py-1 rounded" style={{ minWidth: '45%' }}>
             <Text className="text-xs text-[#4f46e5] capitalize">{route.cyclistType}</Text>
           </View>
         </View>
 
         {showMatchBadge && (
-          <View className="pt-2 border-t border-[#e5e7eb]">
-            <Text className="text-[11px] text-[#6b7280] font-semibold mb-1">Why this route:</Text>
+          <View className="pt-2 border-t border-[#e5e7eb] dark:border-[#2d2d2d]">
+            <Text className="text-[11px] text-[#6b7280] dark:text-slate-400 font-semibold mb-1">Why this route:</Text>
             <View className="flex-row flex-wrap gap-1">
               {route.rating >= 4.7 && (
-                <View className="border border-[#d1d5db] px-[6px] py-[2px] rounded">
-                  <Text className="text-[11px] text-[#6b7280]">Highly rated</Text>
+                <View className="border border-[#d1d5db] dark:border-[#2d2d2d] px-[6px] py-[2px] rounded">
+                  <Text className="text-[11px] text-[#6b7280] dark:text-slate-400">Highly rated</Text>
                 </View>
               )}
               {route.reviewCount > 400 && (
-                <View className="border border-[#d1d5db] px-[6px] py-[2px] rounded">
-                  <Text className="text-[11px] text-[#6b7280]">Popular</Text>
+                <View className="border border-[#d1d5db] dark:border-[#2d2d2d] px-[6px] py-[2px] rounded">
+                  <Text className="text-[11px] text-[#6b7280] dark:text-slate-400">Popular</Text>
                 </View>
               )}
               {route.cyclistType === preferences?.cyclistType && (
-                <View className="border border-[#d1d5db] px-[6px] py-[2px] rounded">
-                  <Text className="text-[11px] text-[#6b7280]">Your style</Text>
+                <View className="border border-[#d1d5db] dark:border-[#2d2d2d] px-[6px] py-[2px] rounded">
+                  <Text className="text-[11px] text-[#6b7280] dark:text-slate-400">Your style</Text>
                 </View>
               )}
               {preferences && Math.abs(route.distance - preferences.distance) < 3 && (
-                <View className="border border-[#d1d5db] px-[6px] py-[2px] rounded">
-                  <Text className="text-[11px] text-[#6b7280]">Perfect distance</Text>
+                <View className="border border-[#d1d5db] dark:border-[#2d2d2d] px-[6px] py-[2px] rounded">
+                  <Text className="text-[11px] text-[#6b7280] dark:text-slate-400">Perfect distance</Text>
                 </View>
               )}
             </View>
@@ -164,16 +167,16 @@ export default function HomeScreen({ navigation }: Props) {
 
   if (isLoading) {
     return (
-      <View className="flex-1 justify-center items-center bg-[#f3f4f6]">
+      <View className="flex-1 justify-center items-center bg-[#f3f4f6] dark:bg-black">
         <ActivityIndicator size="large" color="#3b82f6" />
       </View>
     );
   }
 
   return (
-    <ScrollView className="flex-1 bg-[#f3f4f6]" scrollIndicatorInsets={{ right: 1 }}>
+    <ScrollView className="flex-1 bg-[#f3f4f6] dark:bg-black" scrollIndicatorInsets={{ right: 1 }}>
       {/* Header */}
-      <View className="bg-white px-cy-lg py-cy-md flex-row justify-between items-center border-b border-[#e5e7eb]">
+      <View className="bg-white dark:bg-[#111111] px-cy-lg py-cy-md flex-row justify-between items-center border-b border-[#e5e7eb] dark:border-[#2d2d2d]">
         <Text className="text-2xl font-bold text-[#2563eb]">CycleLink</Text>
         <View className="flex-row items-center gap-cy-sm">
           {/* <Pressable onPress={() => navigation.navigate('UserJourneyPage')} className="flex-row items-center gap-1 px-cy-sm py-1">
@@ -189,8 +192,8 @@ export default function HomeScreen({ navigation }: Props) {
       {/* Main Content */}
       <View className="p-cy-lg pb-[100px]">
         <View className="mb-cy-lg">
-          <Text className="text-[32px] font-bold text-[#1f2937] mb-1">Discover Routes</Text>
-          <Text className="text-sm text-[#6b7280]">Highly rated routes recommended for you</Text>
+          <Text className="text-[32px] font-bold text-[#1f2937] dark:text-slate-100 mb-1">Discover Routes</Text>
+          <Text className="text-sm text-[#6b7280] dark:text-slate-400">Highly rated routes recommended for you</Text>
         </View>
 
         {/* Info Banner */}
@@ -219,12 +222,12 @@ export default function HomeScreen({ navigation }: Props) {
         {favoriteRoutes.length > 0 && (
           <View className="mb-[24px]">
             <View className="flex-row items-center gap-cy-md mb-cy-lg">
-              <LinearGradient colors={['#fbbf24', '#f97316']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ width: 40, height: 40, borderRadius: 8, justifyContent: 'center', alignItems: 'center' }}>
+              <LinearGradient colors={isDark ? ['#0f172a', '#1e293b'] : ['#fbbf24', '#f97316']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ width: 40, height: 40, borderRadius: 8, justifyContent: 'center', alignItems: 'center' }}>
                 <MaterialCommunityIcons name="star" size={20} color="white" />
               </LinearGradient>
               <View>
-                <Text className="text-2xl font-bold text-[#1f2937]">Starred Routes</Text>
-                <Text className="text-xs text-[#6b7280] mt-[2px]">Your favorite routes ready to ride again</Text>
+                <Text className="text-2xl font-bold text-[#1f2937] dark:text-slate-100">Starred Routes</Text>
+                <Text className="text-xs text-[#6b7280] dark:text-slate-400 mt-[2px]">Your favorite routes ready to ride again</Text>
               </View>
             </View>
 
@@ -245,12 +248,12 @@ export default function HomeScreen({ navigation }: Props) {
         {preferences && (
           <View className="mb-[24px]">
             <View className="flex-row items-center gap-cy-md mb-cy-lg">
-              <LinearGradient colors={['#a855f7', '#ec4899']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ width: 40, height: 40, borderRadius: 8, justifyContent: 'center', alignItems: 'center' }}>
+              <LinearGradient colors={isDark ? ['#0f172a', '#1e293b'] : ['#a855f7', '#ec4899']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ width: 40, height: 40, borderRadius: 8, justifyContent: 'center', alignItems: 'center' }}>
                 <Ionicons name="sparkles" size={20} color="white" />
               </LinearGradient>
               <View>
-                <Text className="text-2xl font-bold text-[#1f2937]">Suggested for You</Text>
-                <Text className="text-xs text-[#6b7280] mt-[2px]">Personalized routes based on your preferences</Text>
+                <Text className="text-2xl font-bold text-[#1f2937] dark:text-slate-100">Suggested for You</Text>
+                <Text className="text-xs text-[#6b7280] dark:text-slate-400 mt-[2px]">Personalized routes based on your preferences</Text>
               </View>
             </View>
 
@@ -271,7 +274,7 @@ export default function HomeScreen({ navigation }: Props) {
 
         {/* All Recommended Routes */}
         <View className="mb-[24px]">
-          <Text className="text-2xl font-bold text-[#1f2937]">All Recommended Routes</Text>
+          <Text className="text-2xl font-bold text-[#1f2937] dark:text-slate-100">All Recommended Routes</Text>
 
           <View className="gap-cy-md">
             {recommendedRoutes.slice(0, 3).map((route) => (
