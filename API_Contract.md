@@ -1,6 +1,6 @@
 # CycleLink API Contract
 
-> **Revision**: 1.0 · **Date**: 2026-03-25  
+> **Revision**: 1.1 · **Date**: 2026-03-26  
 > **Status**: Design by Contract — Defines the idealised JSON shapes the frontend adapters expect.  
 > Both the Mobile (Expo/React Native) and Web App (Vite/React) frontends are written against this contract.  
 > The backend team MUST conform to these exactly; the adapter layer maps backend → frontend types and will break if shapes deviate.
@@ -14,7 +14,7 @@
 | Production | `https://api.cyclelink.example.com` |
 | Staging | `https://staging-api.cyclelink.example.com` |
 
-All requests require `Content-Type: application/json`.  
+All requests require `Content-Type: application/json` unless explicitly marked as multipart upload.  
 Authenticated endpoints require `Authorization: Bearer <access_token>`.
 
 ---
@@ -136,6 +136,7 @@ Authenticated endpoints require `Authorization: Bearer <access_token>`.
   "cycling_preference": "Leisure",
   "weekly_goal_km": 80,
   "bio_text": "Weekend rider focused on scenic waterfront routes.",
+  "avatar_url": "https://cdn.cyclelink.example.com/profile/rider_1024/avatar.jpg",
   "avatar_color": "#1D4ED8",
   "ride_stats": {
     "total_rides": 47,
@@ -146,6 +147,7 @@ Authenticated endpoints require `Authorization: Bearer <access_token>`.
 ```
 
 > `cycling_preference` must be one of: `"Leisure"` | `"Commuter"` | `"Performance"`
+> `avatar_url` may be `null` if the user has not uploaded a profile photo yet.
 
 ---
 
@@ -171,6 +173,36 @@ Authenticated endpoints require `Authorization: Bearer <access_token>`.
 #### Ideal JSON Response — `200 OK`
 
 Same shape as `GET /user/profile`.
+
+---
+
+### `POST /user/profile/avatar`
+
+**Purpose**: Upload or replace the authenticated user's profile photo.  
+**Client(s)**: Mobile  
+**Auth**: Bearer token required  
+**Content-Type**: `multipart/form-data`
+
+#### Multipart Body
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `avatar` | file | Yes | Image file, square crop preferred; accept `image/jpeg`, `image/png`, `image/webp`, `image/heic` |
+
+#### Ideal JSON Response — `201 Created`
+
+```json
+{
+  "avatar_url": "https://cdn.cyclelink.example.com/profile/rider_1024/avatar.jpg"
+}
+```
+
+#### Error Responses
+
+| Status | Condition |
+|---|---|
+| `400` | Missing file or unsupported media type |
+| `413` | File too large |
 
 ---
 

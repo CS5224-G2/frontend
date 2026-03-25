@@ -57,6 +57,7 @@ export type UserProfile = {
   cyclingPreference: CyclingPreference;
   weeklyGoalKm: number;
   bio: string;
+  avatarUrl: string | null;
   avatarColor: string;
   stats: {
     totalRides: number;

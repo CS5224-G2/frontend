@@ -175,7 +175,7 @@ export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
         </CardContent>
       </Card>
 
-      <Button onPress={() => navigation.navigate('RouteDetails', { routeId: routeInfo.id })} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#2563eb', borderRadius: 10, paddingVertical: 12, marginTop: 12, gap: 8 }}>
+      <Button onPress={() => navigation.navigate('HomeTab', { screen: 'RouteDetails', params: { routeId: routeInfo.id } })} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#2563eb', borderRadius: 10, paddingVertical: 12, marginTop: 12, gap: 8 }}>
         <MaterialCommunityIcons name="play" size={18} color="#fff" />
         <Text className="text-white text-sm font-bold">Ride This Route Again</Text>
       </Button>

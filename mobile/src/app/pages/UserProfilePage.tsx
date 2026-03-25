@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
+  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -9,8 +11,16 @@ import {
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useColorScheme } from 'nativewind';
+import * as ImagePicker from 'expo-image-picker';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-import { getUserProfile, serializeUserProfile, UserProfile } from '@/services/userService';
+import {
+  getUserProfile,
+  serializeUserProfile,
+  uploadUserProfileAvatar,
+  UserProfile,
+} from '@/services/userService';
+import { getProfileAvatarSource } from '@/app/utils/profileAvatar';
 import { useTheme } from '../ThemeContext';
 
 const statCards = [
@@ -43,6 +53,7 @@ export default function UserProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadProfile = useCallback(async (mode: 'initial' | 'refresh' = 'initial') => {
@@ -92,6 +103,50 @@ export default function UserProfilePage() {
       .toUpperCase();
   }, [profile]);
 
+  const avatarSource = useMemo(() => getProfileAvatarSource(profile?.avatarUrl), [profile?.avatarUrl]);
+
+  const handleUploadPhoto = useCallback(async () => {
+    if (!profile || isUploadingPhoto) {
+      return;
+    }
+
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(
+        'Photo access required',
+        'Allow photo library access to choose a profile picture.'
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.9,
+    });
+
+    if (result.canceled || !result.assets?.[0]?.uri) {
+      return;
+    }
+
+    setIsUploadingPhoto(true);
+
+    try {
+      const avatarUrl = await uploadUserProfileAvatar(result.assets[0].uri);
+      setProfile((current) => (current ? { ...current, avatarUrl } : current));
+    } catch (uploadError) {
+      Alert.alert(
+        'Upload failed',
+        uploadError instanceof Error
+          ? uploadError.message
+          : 'Profile picture could not be uploaded.'
+      );
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  }, [isUploadingPhoto, profile]);
+
   if (isLoading) {
     return (
       <View className="flex-1 justify-center items-center px-cy-xl bg-[#F3F4F6] dark:bg-black">
@@ -123,12 +178,20 @@ export default function UserProfilePage() {
       }
     >
       <View className="bg-white dark:bg-[#111111] rounded-[24px] p-5 border border-border dark:border-[#2d2d2d]">
-        <View
-          className="justify-center items-center mb-[18px]"
-          style={{ width: 82, height: 82, borderRadius: 41, backgroundColor: profile.avatarColor }}
-        >
-          <Text className="text-white text-[28px] font-extrabold">{initials}</Text>
-        </View>
+        {avatarSource ? (
+          <Image
+            source={avatarSource}
+            className="mb-[18px]"
+            style={{ width: 82, height: 82, borderRadius: 41 }}
+          />
+        ) : (
+          <View
+            className="justify-center items-center mb-[18px]"
+            style={{ width: 82, height: 82, borderRadius: 41, backgroundColor: profile.avatarColor }}
+          >
+            <Text className="text-white text-[28px] font-extrabold">{initials}</Text>
+          </View>
+        )}
         <View style={{ gap: 16 }}>
           <View style={{ gap: 4 }}>
             <Text className="text-[28px] font-extrabold text-slate-900 dark:text-slate-100">{profile.fullName}</Text>
@@ -136,6 +199,20 @@ export default function UserProfilePage() {
             <Text className="text-[14px] text-text-secondary dark:text-slate-400">{profile.location}</Text>
             <Text className="text-[14px] text-text-secondary dark:text-slate-400">Member since {profile.memberSince}</Text>
           </View>
+          <Pressable
+            className="self-start mt-1 flex-row items-center gap-2 border border-border dark:border-[#2d2d2d] px-[18px] py-cy-md rounded-[14px] bg-[#F8FAFC] dark:bg-[#1a1a1a]"
+            onPress={handleUploadPhoto}
+            disabled={isUploadingPhoto}
+          >
+            <MaterialCommunityIcons
+              name={isUploadingPhoto ? 'image-sync' : 'image-plus'}
+              size={18}
+              color={colorScheme === 'dark' ? '#93c5fd' : '#1D4ED8'}
+            />
+            <Text className="text-[15px] font-bold text-slate-900 dark:text-slate-100">
+              {isUploadingPhoto ? 'Uploading...' : 'Upload photo'}
+            </Text>
+          </Pressable>
           <Pressable
             className="self-start mt-2 bg-primary-dark dark:bg-blue-600 px-[18px] py-cy-md rounded-[14px]"
             onPress={() =>

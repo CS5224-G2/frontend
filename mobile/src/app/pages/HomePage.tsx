@@ -29,7 +29,7 @@ export default function HomeScreen({ navigation }: Props) {
         setPreferences(prefs);
 
         const [routes, suggested] = await Promise.all([
-          getRoutes(prefs ?? undefined),
+          getRoutes(),
           prefs ? getRouteRecommendations(prefs, 3) : Promise.resolve([]),
         ]);
 
@@ -274,18 +274,28 @@ export default function HomeScreen({ navigation }: Props) {
 
         {/* All Recommended Routes */}
         <View className="mb-[24px]">
-          <Text className="text-2xl font-bold text-[#1f2937] dark:text-slate-100">All Recommended Routes</Text>
+          <Text className="text-2xl font-bold text-[#1f2937] dark:text-slate-100">
+            All Recommended Routes
+          </Text>
 
-          <View className="gap-cy-md">
-            {recommendedRoutes.slice(0, 3).map((route) => (
-              <RouteCard
-                key={route.id}
-                route={route}
-                isFavorite={favorites.includes(route.id)}
-                onPress={() => navigation.navigate('RouteDetails', { routeId: route.id })}
-              />
-            ))}
-          </View>
+          {recommendedRoutes.length > 0 ? (
+            <View className="gap-cy-md">
+              {recommendedRoutes.slice(0, 3).map((route) => (
+                <RouteCard
+                  key={route.id}
+                  route={route}
+                  isFavorite={favorites.includes(route.id)}
+                  onPress={() =>
+                    navigation.navigate('RouteDetails', { routeId: route.id })
+                  }
+                />
+              ))}
+            </View>
+          ) : (
+            <Text className="mt-4 text-base text-gray-500 dark:text-slate-400">
+              Start your journey by using the App!
+            </Text>
+          )}
         </View>
       </View>
     </ScrollView>

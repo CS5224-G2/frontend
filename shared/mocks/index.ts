@@ -76,6 +76,8 @@ export function getMockAuthResult(email: string): AuthResult {
 // User Profile Mocks
 // ---------------------------------------------------------------------------
 
+export const mockProfileAvatarUrl = 'mock://profile-avatar';
+
 export let mockUserProfile: UserProfile = {
   userId: 'rider_1024',
   fullName: 'Alex Johnson',
@@ -85,6 +87,7 @@ export let mockUserProfile: UserProfile = {
   cyclingPreference: 'Leisure',
   weeklyGoalKm: 80,
   bio: 'Weekend rider focused on scenic waterfront routes, coffee stops, and low-stress climbs.',
+  avatarUrl: mockProfileAvatarUrl,
   avatarColor: '#1D4ED8',
   stats: {
     totalRides: 47,

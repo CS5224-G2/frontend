@@ -24,12 +24,17 @@ type BackendUserProfileResponse = {
   cycling_preference: 'Leisure' | 'Commuter' | 'Performance';
   weekly_goal_km: number;
   bio_text: string;
+  avatar_url: string | null;
   avatar_color: string;
   ride_stats: {
     total_rides: number;
     total_distance_km: number;
     favorite_trails_count: number;
   };
+};
+
+type BackendAvatarUploadResponse = {
+  avatar_url: string;
 };
 
 type BackendUserProfileUpdatePayload = {
@@ -54,6 +59,7 @@ const toFrontendProfile = (payload: BackendUserProfileResponse): UserProfile => 
   cyclingPreference: payload.cycling_preference,
   weeklyGoalKm: payload.weekly_goal_km,
   bio: payload.bio_text,
+  avatarUrl: payload.avatar_url,
   avatarColor: payload.avatar_color,
   stats: {
     totalRides: payload.ride_stats.total_rides,
@@ -77,6 +83,14 @@ const toBackendUpdatePayload = (profile: UserProfile): BackendUserProfileUpdateP
 
 let _mockProfile = { ...mockUserProfile };
 const wait = async (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+const getMimeType = (imageUri: string): string => {
+  const normalised = imageUri.toLowerCase();
+  if (normalised.endsWith('.png')) return 'image/png';
+  if (normalised.endsWith('.heic')) return 'image/heic';
+  if (normalised.endsWith('.webp')) return 'image/webp';
+  return 'image/jpeg';
+};
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -111,6 +125,36 @@ export async function updateUserProfile(
     token,
   );
   return toFrontendProfile(response);
+}
+
+export async function uploadUserProfileAvatar(
+  imageUri: string,
+  token?: string,
+): Promise<string> {
+  if (USE_MOCKS) {
+    await wait(350);
+    _mockProfile = { ..._mockProfile, avatarUrl: imageUri };
+    return imageUri;
+  }
+
+  const fileName = imageUri.split('/').pop() || 'profile-avatar.jpg';
+  const formData = new FormData();
+  formData.append(
+    'avatar',
+    {
+      uri: imageUri,
+      name: fileName,
+      type: getMimeType(imageUri),
+    } as any,
+  );
+
+  const { httpClient } = await import('./httpClient');
+  const response = await httpClient.post<BackendAvatarUploadResponse>(
+    '/user/profile/avatar',
+    formData,
+    token,
+  );
+  return response.avatar_url;
 }
 
 // Utility: serialise profile for navigation params

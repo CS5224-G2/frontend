@@ -19,9 +19,11 @@ jest.mock('@react-navigation/native', () => ({
       fullName: 'John Doe',
       email: 'john@example.com',
       location: 'Singapore',
+      memberSince: 'January 2025',
       bio: 'Loves cycling',
       cyclingPreference: 'Leisure',
       weeklyGoalKm: 50,
+      avatarUrl: null,
       avatarColor: '#000000'
     })},
   }),

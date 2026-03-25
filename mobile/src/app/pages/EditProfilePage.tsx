@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Pressable,
   ScrollView,
   Text,
@@ -17,6 +18,7 @@ import {
   updateUserProfile,
   UserProfile,
 } from '@/services/userService';
+import { getProfileAvatarSource } from '@/app/utils/profileAvatar';
 
 const preferenceOptions: Array<UserProfile['cyclingPreference']> = [
   'Leisure',
@@ -84,6 +86,11 @@ export default function EditProfilePage() {
       .toUpperCase();
   }, [formState]);
 
+  const avatarSource = useMemo(
+    () => getProfileAvatarSource(formState?.avatarUrl),
+    [formState?.avatarUrl]
+  );
+
   const updateField = <Key extends keyof UserProfile>(key: Key, value: UserProfile[Key]) => {
     setFormState((current) => (current ? { ...current, [key]: value } : current));
   };
@@ -135,15 +142,23 @@ export default function EditProfilePage() {
   return (
     <ScrollView className="flex-1 bg-[#F3F4F6] dark:bg-black" contentContainerStyle={{ padding: 20, gap: 16 }}>
       <View className="bg-white dark:bg-[#111111] rounded-[24px] p-cy-xl items-center border border-border dark:border-[#2d2d2d]">
-        <View
-          className="justify-center items-center mb-4 rounded-full"
-          style={{ width: 82, height: 82, backgroundColor: formState.avatarColor }}
-        >
-          <Text className="text-white text-[28px] font-extrabold">{initials}</Text>
-        </View>
+        {avatarSource ? (
+          <Image
+            source={avatarSource}
+            className="mb-4 rounded-full"
+            style={{ width: 82, height: 82 }}
+          />
+        ) : (
+          <View
+            className="justify-center items-center mb-4 rounded-full"
+            style={{ width: 82, height: 82, backgroundColor: formState.avatarColor }}
+          >
+            <Text className="text-white text-[28px] font-extrabold">{initials}</Text>
+          </View>
+        )}
         <Text className="text-[28px] font-extrabold text-slate-900 dark:text-slate-100">Edit profile</Text>
         <Text className="mt-2 text-[15px] leading-[22px] text-text-secondary dark:text-slate-400 text-center">
-          Update your public details, riding preference, and weekly goal.
+          Update your public details, riding preference, weekly goal, and profile photo from the profile screen.
         </Text>
       </View>
 

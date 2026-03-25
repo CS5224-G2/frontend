@@ -29,19 +29,23 @@ export class ApiError extends Error {
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = 'GET', body, token } = options;
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
+  const headers: Record<string, string> = {};
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
+  if (body !== undefined && !isFormData) {
+    headers['Content-Type'] = 'application/json';
+  }
+
   const response = await fetch(`${BASE_URL}${path}`, {
     method,
     headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body:
+      body === undefined ? undefined : isFormData ? (body as FormData) : JSON.stringify(body),
   });
 
   if (!response.ok) {
