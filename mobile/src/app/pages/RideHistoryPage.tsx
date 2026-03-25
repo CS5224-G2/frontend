@@ -3,6 +3,7 @@ import { View, Text, ScrollView, FlatList, Pressable, Alert, ActivityIndicator }
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useColorScheme } from 'nativewind';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button } from '../components/native/Common';
 import { type RideHistory, type GraphDataPoint, type GraphPeriod } from '../../../../shared/types/index';
 import { getRideHistory, getDistanceStats } from '../../services/rideService';
@@ -15,6 +16,8 @@ export default function RideHistoryPage({ navigation }: Props) {
   const [rideHistory, setRideHistory] = useState<RideHistory[]>([]);
   const [graphData, setGraphData] = useState<GraphDataPoint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
   useEffect(() => {
     const loadData = async () => {
@@ -70,11 +73,11 @@ export default function RideHistoryPage({ navigation }: Props) {
 
     return (
       <View key={item.id} className="flex-row items-center mb-[6px]">
-        <Text className="text-xs text-slate-500" style={{ width: 50 }}>{period === 'week' ? item.day : item.week}</Text>
-        <View className="flex-1 rounded-full bg-[#e2e8f0] mx-2" style={{ height: 8 }}>
+        <Text className="text-xs text-slate-500 dark:text-slate-400" style={{ width: 50 }}>{period === 'week' ? item.day : item.week}</Text>
+        <View className="flex-1 rounded-full bg-[#e2e8f0] dark:bg-[#2d2d2d] mx-2" style={{ height: 8 }}>
           <View className="rounded-full bg-[#3b82f6]" style={{ height: 8, width: barWidth as any }} />
         </View>
-        <Text className="text-[11px] text-slate-500 text-right" style={{ width: 60 }}>{item.distance.toFixed(1)} km</Text>
+        <Text className="text-[11px] text-slate-500 dark:text-slate-400 text-right" style={{ width: 60 }}>{item.distance.toFixed(1)} km</Text>
       </View>
     );
   };
@@ -86,13 +89,13 @@ export default function RideHistoryPage({ navigation }: Props) {
     return (
       <Pressable
         style={({ pressed }) => [
-          { backgroundColor: '#fff', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#e2e8f0', marginBottom: 10 },
+          { backgroundColor: isDark ? '#111111' : '#fff', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: isDark ? '#2d2d2d' : '#e2e8f0', marginBottom: 10 },
           pressed && { opacity: 0.8 },
         ]}
         onPress={() => navigation.navigate('HistoryDetails', { rideId: item.id })}
       >
         <View className="flex-row justify-between items-center mb-[6px]">
-          <Text className="text-base font-bold text-[#1e293b] flex-1 mr-2">{displayName}</Text>
+          <Text className="text-base font-bold text-[#1e293b] dark:text-slate-100 flex-1 mr-2">{displayName}</Text>
           <Pressable onPress={() => toggleFavorite(item.routeId, displayName)}>
             <MaterialCommunityIcons
               name={isFav ? 'star' : 'star-outline'}
@@ -102,24 +105,24 @@ export default function RideHistoryPage({ navigation }: Props) {
           </Pressable>
         </View>
 
-        <Text className="text-xs text-[#6b7280] mb-2">{item.completionDate} • {item.completionTime}</Text>
+        <Text className="text-xs text-[#6b7280] dark:text-slate-400 mb-2">{item.completionDate} • {item.completionTime}</Text>
 
         <View className="flex-row flex-wrap justify-between">
           <View className="flex-row items-center gap-1 my-[3px]" style={{ width: '48%' }}>
             <MaterialCommunityIcons name="map-marker" size={14} color="#6b7280" />
-            <Text className="text-[13px] text-[#334155] ml-1">{item.distance} km</Text>
+            <Text className="text-[13px] text-[#334155] dark:text-slate-100 ml-1">{item.distance} km</Text>
           </View>
           <View className="flex-row items-center gap-1 my-[3px]" style={{ width: '48%' }}>
             <MaterialCommunityIcons name="clock" size={14} color="#6b7280" />
-            <Text className="text-[13px] text-[#334155] ml-1">{formatTime(item.totalTime)}</Text>
+            <Text className="text-[13px] text-[#334155] dark:text-slate-100 ml-1">{formatTime(item.totalTime)}</Text>
           </View>
           <View className="flex-row items-center gap-1 my-[3px]" style={{ width: '48%' }}>
             <MaterialCommunityIcons name="speedometer" size={14} color="#6b7280" />
-            <Text className="text-[13px] text-[#334155] ml-1">{item.avgSpeed} km/h</Text>
+            <Text className="text-[13px] text-[#334155] dark:text-slate-100 ml-1">{item.avgSpeed} km/h</Text>
           </View>
           <View className="flex-row items-center gap-1 my-[3px]" style={{ width: '48%' }}>
             <MaterialCommunityIcons name="map-legend" size={14} color="#6b7280" />
-            <Text className="text-[13px] text-[#334155] ml-1">{item.checkpoints} checkpoints</Text>
+            <Text className="text-[13px] text-[#334155] dark:text-slate-100 ml-1">{item.checkpoints} checkpoints</Text>
           </View>
         </View>
       </Pressable>
@@ -128,42 +131,42 @@ export default function RideHistoryPage({ navigation }: Props) {
 
   if (isLoading) {
     return (
-      <View className="flex-1 justify-center items-center bg-slate-50">
-        <ActivityIndicator size="large" color="#3b82f6" />
+      <View className="flex-1 justify-center items-center bg-slate-50 dark:bg-black">
+        <ActivityIndicator size="large" color={isDark ? '#3b82f6' : '#1D4ED8'} />
       </View>
     );
   }
 
   return (
-    <ScrollView className="flex-1 bg-slate-50" contentContainerStyle={{ padding: 16, paddingBottom: 36 }}>
+    <ScrollView className="flex-1 bg-slate-50 dark:bg-black" contentContainerStyle={{ padding: 16, paddingBottom: 36 }}>
       <View className="mb-[12px]">
-        <Text className="text-[28px] font-bold text-[#1e293b]">Ride History</Text>
-        <Text className="text-sm text-[#64748b] mt-1">Track progress & achievements</Text>
+        <Text className="text-[28px] font-bold text-[#1e293b] dark:text-slate-100">Ride History</Text>
+        <Text className="text-sm text-[#64748b] dark:text-slate-400 mt-1">Track progress & achievements</Text>
       </View>
 
       <View className="flex-row flex-wrap justify-between mb-[12px]">
         <Card style={{ width: '48%', padding: 10, borderRadius: 12 }}>
           <CardContent>
-            <Text className="text-xs text-[#64748b]">Total Rides</Text>
-            <Text className="text-xl font-bold text-[#1e293b] mt-[6px]">{rideHistory.length}</Text>
+            <Text className="text-xs text-[#64748b] dark:text-slate-400">Total Rides</Text>
+            <Text className="text-xl font-bold text-[#1e293b] dark:text-slate-100 mt-[6px]">{rideHistory.length}</Text>
           </CardContent>
         </Card>
         <Card style={{ width: '48%', padding: 10, borderRadius: 12 }}>
           <CardContent>
-            <Text className="text-xs text-[#64748b]">Distance</Text>
-            <Text className="text-xl font-bold text-[#1e293b] mt-[6px]">{graphData.reduce((sum, item) => sum + item.distance, 0).toFixed(1)} km</Text>
+            <Text className="text-xs text-[#64748b] dark:text-slate-400">Distance</Text>
+            <Text className="text-xl font-bold text-[#1e293b] dark:text-slate-100 mt-[6px]">{graphData.reduce((sum, item) => sum + item.distance, 0).toFixed(1)} km</Text>
           </CardContent>
         </Card>
         <Card style={{ width: '48%', padding: 10, borderRadius: 12 }}>
           <CardContent>
-            <Text className="text-xs text-[#64748b]">Total Time</Text>
-            <Text className="text-xl font-bold text-[#1e293b] mt-[6px]">{formatTime(totalTime)}</Text>
+            <Text className="text-xs text-[#64748b] dark:text-slate-400">Total Time</Text>
+            <Text className="text-xl font-bold text-[#1e293b] dark:text-slate-100 mt-[6px]">{formatTime(totalTime)}</Text>
           </CardContent>
         </Card>
         <Card style={{ width: '48%', padding: 10, borderRadius: 12 }}>
           <CardContent>
-            <Text className="text-xs text-[#64748b]">Checkpoints</Text>
-            <Text className="text-xl font-bold text-[#1e293b] mt-[6px]">{totalCheckpoints}</Text>
+            <Text className="text-xs text-[#64748b] dark:text-slate-400">Checkpoints</Text>
+            <Text className="text-xl font-bold text-[#1e293b] dark:text-slate-100 mt-[6px]">{totalCheckpoints}</Text>
           </CardContent>
         </Card>
       </View>
@@ -199,8 +202,8 @@ export default function RideHistoryPage({ navigation }: Props) {
       </Card>
 
       <View className="my-[10px]">
-        <Text className="text-xl font-bold text-[#1e293b]">Recent Rides</Text>
-        <Text className="text-xs text-[#64748b]">Tap a ride for details</Text>
+        <Text className="text-xl font-bold text-[#1e293b] dark:text-slate-100">Recent Rides</Text>
+        <Text className="text-xs text-[#64748b] dark:text-slate-400">Tap a ride for details</Text>
       </View>
 
       <FlatList
