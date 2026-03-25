@@ -14,6 +14,7 @@
   "include": [
     "**/*.ts",
     "**/*.tsx",
+    "../shared/**/*.ts",
     "nativewind-env.d.ts"
   ]
 }

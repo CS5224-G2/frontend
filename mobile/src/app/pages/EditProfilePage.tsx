@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
+import { useColorScheme } from 'nativewind';
 
 import {
   getUserProfile,
