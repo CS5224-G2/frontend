@@ -35,7 +35,7 @@ export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
 
   if (isLoading) {
     return (
-      <View className="flex-1 justify-center items-center">
+      <View className="flex-1 justify-center items-center bg-slate-50 dark:bg-black">
         <ActivityIndicator size="large" color={isDark ? '#3b82f6' : '#1D4ED8'} />
       </View>
     );
@@ -43,7 +43,7 @@ export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
 
   if (!ride || !routeInfo) {
     return (
-      <View className="flex-1 justify-center items-center p-cy-lg">
+      <View className="flex-1 justify-center items-center p-cy-lg bg-slate-50 dark:bg-black">
         <Text className="text-[26px] font-bold text-[#1e293b] dark:text-slate-100 mb-2">Ride not found</Text>
         <Text className="text-sm text-[#64748b] dark:text-slate-400 mb-[12px]">Please select a valid ride from history.</Text>
         <Button onPress={() => navigation.goBack()}>Go Back</Button>
