@@ -39,38 +39,38 @@ export default function OnboardingPage({ navigation }: Props) {
 
   const CyclistTypeButton = ({ type, label, icon: Icon, description, isSelected }: any) => (
     <TouchableOpacity
-      className={`flex-1 p-cy-lg rounded-cy-md border-2 items-center ${isSelected ? 'border-[#3b82f6] bg-[#eff6ff]' : 'border-[#d1d5db] bg-white'}`}
+      className={`flex-1 p-cy-lg rounded-cy-md border-2 items-center ${isSelected ? 'border-[#3b82f6] bg-[#eff6ff] dark:bg-[#1e293b]' : 'border-[#d1d5db] bg-white dark:bg-[#111111]'}`}
       style={{ minWidth: '45%' }}
       onPress={() => setPreferences({ ...preferences, cyclistType: type })}
     >
       <Icon size={24} color={isSelected ? '#3b82f6' : '#6b7280'} />
-      <Text className={`text-base font-semibold mt-2 mb-1 ${isSelected ? 'text-[#3b82f6]' : 'text-[#1e293b]'}`}>{label}</Text>
-      <Text className="text-sm text-[#6b7280] text-center">{description}</Text>
+      <Text className={`text-base font-semibold mt-2 mb-1 ${isSelected ? 'text-[#3b82f6] dark:text-blue-400' : 'text-[#1e293b] dark:text-slate-100'}`}>{label}</Text>
+      <Text className="text-sm text-[#6b7280] dark:text-slate-400 text-center">{description}</Text>
     </TouchableOpacity>
   );
 
   return (
-    <ScrollView className="flex-1 bg-[#dbeafe]">
+    <ScrollView className="flex-1 bg-[#DBEAFE] dark:bg-[#1e293b]">
       <View className="flex-1 p-cy-xl pt-[60px]">
         {/* Info Button */}
         <TouchableOpacity
-          className="absolute top-10 right-6 flex-row items-center bg-white px-cy-md py-cy-sm rounded-cy-md border border-[#d1d5db]"
+          className="absolute top-10 right-6 flex-row items-center bg-white dark:bg-[#111111] px-cy-md py-cy-sm rounded-cy-md border border-[#d1d5db] dark:border-[#2d2d2d]"
           onPress={() => navigation.navigate('UserJourneyPage')}
         >
           <Info size={16} color="#6b7280" />
-          <Text className="ml-2 text-sm text-[#6b7280]">View Journey</Text>
+          <Text className="ml-2 text-sm text-[#6b7280] dark:text-slate-400">View Journey</Text>
         </TouchableOpacity>
 
-        <View className="bg-white rounded-cy-lg" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4 }}>
+        <View className="bg-white dark:bg-[#111111] rounded-cy-lg" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4 }}>
           <View className="items-center p-cy-xl">
-            <Text className="text-[28px] font-bold text-[#1e293b] text-center">Welcome to CycleLink</Text>
-            <Text className="text-base text-[#64748b] mt-2 text-center">Let's personalize your cycling experience</Text>
+            <Text className="text-[28px] font-bold text-[#1e293b] dark:text-slate-100 text-center">Welcome to CycleLink</Text>
+            <Text className="text-base text-[#64748b] dark:text-slate-400 mt-2 text-center">Let's personalize your cycling experience</Text>
           </View>
 
           <View className="p-cy-xl">
             {/* Cyclist Type Selection */}
             <View className="mb-[24px]">
-              <Text className="text-lg font-semibold text-[#1e293b] mb-cy-lg">What type of cyclist are you?</Text>
+              <Text className="text-lg font-semibold text-[#1e293b] dark:text-slate-100 mb-cy-lg">What type of cyclist are you?</Text>
               <View className="flex-row flex-wrap gap-cy-md">
                 {cyclistTypes.map(({ type, label, icon, description }) => (
                   <CyclistTypeButton
@@ -89,7 +89,7 @@ export default function OnboardingPage({ navigation }: Props) {
             <View className="mb-[24px]">
               <View className="flex-row items-center mb-cy-md">
                 <Trees size={20} color="#6b7280" />
-                <Text className="text-base font-semibold text-[#1e293b] ml-2">Preferred Shade: {preferences.preferredShade}%</Text>
+                <Text className="text-base font-semibold text-[#1e293b] dark:text-slate-100 ml-2">Preferred Shade: {preferences.preferredShade}%</Text>
               </View>
               <Slider
                 style={{ width: '100%', height: 40 }}
@@ -103,8 +103,8 @@ export default function OnboardingPage({ navigation }: Props) {
                 thumbTintColor="#3b82f6"
               />
               <View className="flex-row justify-between mt-2">
-                <Text className="text-xs text-[#6b7280]">Full Sun</Text>
-                <Text className="text-xs text-[#6b7280]">Full Shade</Text>
+                <Text className="text-xs text-[#6b7280] dark:text-slate-400">Full Sun</Text>
+                <Text className="text-xs text-[#6b7280] dark:text-slate-400">Full Shade</Text>
               </View>
             </View>
 
@@ -112,7 +112,7 @@ export default function OnboardingPage({ navigation }: Props) {
             <View className="mb-[24px]">
               <View className="flex-row items-center mb-cy-md">
                 <Mountain size={20} color="#6b7280" />
-                <Text className="text-base font-semibold text-[#1e293b] ml-2">Elevation Challenge: {preferences.elevation}%</Text>
+                <Text className="text-base font-semibold text-[#1e293b] dark:text-slate-100 ml-2">Elevation Challenge: {preferences.elevation}%</Text>
               </View>
               <Slider
                 style={{ width: '100%', height: 40 }}
@@ -126,8 +126,8 @@ export default function OnboardingPage({ navigation }: Props) {
                 thumbTintColor="#3b82f6"
               />
               <View className="flex-row justify-between mt-2">
-                <Text className="text-xs text-[#6b7280]">Flat</Text>
-                <Text className="text-xs text-[#6b7280]">Hilly</Text>
+                <Text className="text-xs text-[#6b7280] dark:text-slate-400">Flat</Text>
+                <Text className="text-xs text-[#6b7280] dark:text-slate-400">Hilly</Text>
               </View>
             </View>
 
@@ -135,7 +135,7 @@ export default function OnboardingPage({ navigation }: Props) {
             <View className="mb-[24px]">
               <View className="flex-row items-center mb-cy-md">
                 <Route size={20} color="#6b7280" />
-                <Text className="text-base font-semibold text-[#1e293b] ml-2">Preferred Distance: {preferences.distance} km</Text>
+                <Text className="text-base font-semibold text-[#1e293b] dark:text-slate-100 ml-2">Preferred Distance: {preferences.distance} km</Text>
               </View>
               <Slider
                 style={{ width: '100%', height: 40 }}
@@ -149,8 +149,8 @@ export default function OnboardingPage({ navigation }: Props) {
                 thumbTintColor="#3b82f6"
               />
               <View className="flex-row justify-between mt-2">
-                <Text className="text-xs text-[#6b7280]">5 km</Text>
-                <Text className="text-xs text-[#6b7280]">50 km</Text>
+                <Text className="text-xs text-[#6b7280] dark:text-slate-400">5 km</Text>
+                <Text className="text-xs text-[#6b7280] dark:text-slate-400">50 km</Text>
               </View>
             </View>
 
@@ -158,7 +158,7 @@ export default function OnboardingPage({ navigation }: Props) {
             <View className="mb-[24px]">
               <View className="flex-row items-center mb-cy-md">
                 <Wind size={20} color="#6b7280" />
-                <Text className="text-base font-semibold text-[#1e293b] ml-2">Minimum Air Quality: {preferences.airQuality}%</Text>
+                <Text className="text-base font-semibold text-[#1e293b] dark:text-slate-100 ml-2">Minimum Air Quality: {preferences.airQuality}%</Text>
               </View>
               <Slider
                 style={{ width: '100%', height: 40 }}
@@ -172,12 +172,12 @@ export default function OnboardingPage({ navigation }: Props) {
                 thumbTintColor="#3b82f6"
               />
               <View className="flex-row justify-between mt-2">
-                <Text className="text-xs text-[#6b7280]">Any</Text>
-                <Text className="text-xs text-[#6b7280]">Pristine</Text>
+                <Text className="text-xs text-[#6b7280] dark:text-slate-400">Any</Text>
+                <Text className="text-xs text-[#6b7280] dark:text-slate-400">Pristine</Text>
               </View>
             </View>
 
-            <TouchableOpacity className="bg-[#3b82f6] py-cy-lg px-cy-xl rounded-cy-md items-center mt-[24px]" onPress={handleConfirm}>
+            <TouchableOpacity className="bg-[#3b82f6] dark:bg-blue-500 py-cy-lg px-cy-xl rounded-cy-md items-center mt-[24px]" onPress={handleConfirm}>
               <Text className="text-white text-lg font-semibold">Confirm & Continue</Text>
             </TouchableOpacity>
           </View>

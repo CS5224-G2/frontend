@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Slider from '@react-native-community/slider';
 import { Card, CardHeader, CardTitle, CardContent, Button } from '../components/native/Common';
 import { UserPreferences, CyclistType } from '../types';
+import { useColorScheme } from 'nativewind';
 
 type Props = NativeStackScreenProps<any, 'RouteConfig'>;
 
@@ -16,6 +17,8 @@ const cyclistTypes: { type: CyclistType; label: string }[] = [
 ];
 
 export default function RouteConfigPage({ navigation }: Props) {
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
   const [preferences, setPreferences] = useState<UserPreferences>({
     cyclistType: 'general',
     preferredShade: 50,
@@ -56,38 +59,40 @@ export default function RouteConfigPage({ navigation }: Props) {
   };
 
   return (
-    <ScrollView className="flex-1 bg-slate-50" contentContainerStyle={{ padding: 16, paddingBottom: 36 }}>
+    <ScrollView className="flex-1 bg-[#F8FAFC] dark:bg-[#1a1a1a]" contentContainerStyle={{ padding: 16, paddingBottom: 36 }}>
       <Card>
         <CardHeader>
           <CardTitle>Configure Custom Route</CardTitle>
         </CardHeader>
         <CardContent>
           <View className="mb-cy-lg">
-            <Text className="mb-2 text-sm text-slate-500 font-semibold">Start Point</Text>
+            <Text className="mb-2 text-sm text-slate-500 dark:text-slate-400 font-semibold">Start Point</Text>
             <TextInput
-              className="border border-slate-300 rounded-[10px] px-cy-md bg-white"
+              className="border border-slate-300 dark:border-[#2d2d2d] rounded-[10px] px-cy-md bg-white dark:bg-[#111111]"
               style={{ height: 44 }}
               value={startPoint}
               onChangeText={setStartPoint}
               placeholder="Enter start location"
+              placeholderTextColor={isDark ? '#94a3b8' : '#9ca3af'}
               autoCapitalize="words"
             />
           </View>
 
           <View className="mb-cy-lg">
-            <Text className="mb-2 text-sm text-slate-500 font-semibold">End Point</Text>
+            <Text className="mb-2 text-sm text-slate-500 dark:text-slate-400 font-semibold">End Point</Text>
             <TextInput
-              className="border border-slate-300 rounded-[10px] px-cy-md bg-white"
+              className="border border-slate-300 dark:border-[#2d2d2d] rounded-[10px] px-cy-md bg-white dark:bg-[#111111]"
               style={{ height: 44 }}
               value={endPoint}
               onChangeText={setEndPoint}
               placeholder="Enter end location"
+              placeholderTextColor={isDark ? '#94a3b8' : '#9ca3af'}
               autoCapitalize="words"
             />
           </View>
 
           <View className="mb-cy-lg">
-            <Text className="text-base font-bold text-[#1e293b] mb-2">Cyclist Type</Text>
+            <Text className="text-base font-bold text-[#1e293b] dark:text-slate-100 mb-2">Cyclist Type</Text>
             <View className="flex-row flex-wrap gap-cy-sm">
               {cyclistTypes.map((option) => (
                 <Pressable
@@ -95,13 +100,13 @@ export default function RouteConfigPage({ navigation }: Props) {
                   onPress={() => setPreferences({ ...preferences, cyclistType: option.type })}
                   className={`border rounded-[10px] py-2 px-cy-md mr-2 mb-2 ${
                     preferences.cyclistType === option.type
-                      ? 'bg-[#2563eb] border-[#2563eb]'
-                      : 'bg-white border-slate-300'
+                      ? 'bg-[#2563eb] dark:bg-blue-500 border-[#2563eb] dark:border-blue-500'
+                      : 'bg-white dark:bg-[#111111] border-slate-300 dark:border-[#2d2d2d]'
                   }`}
                 >
                   <Text
                     className={`text-[13px] ${
-                      preferences.cyclistType === option.type ? 'text-white' : 'text-slate-700'
+                      preferences.cyclistType === option.type ? 'text-white' : 'text-slate-700 dark:text-slate-100'
                     }`}
                   >
                     {option.label}
@@ -112,7 +117,7 @@ export default function RouteConfigPage({ navigation }: Props) {
           </View>
 
           <View className="mb-cy-lg">
-            <Text className="mb-2 text-sm text-slate-500 font-semibold">Preferred Shade: {preferences.preferredShade}%</Text>
+            <Text className="mb-2 text-sm text-slate-500 dark:text-slate-400 font-semibold">Preferred Shade: {preferences.preferredShade}%</Text>
             <Slider
               style={{ width: '100%', height: 40 }}
               value={preferences.preferredShade}
@@ -126,7 +131,7 @@ export default function RouteConfigPage({ navigation }: Props) {
           </View>
 
           <View className="mb-cy-lg">
-            <Text className="mb-2 text-sm text-slate-500 font-semibold">Elevation Challenge: {preferences.elevation}%</Text>
+            <Text className="mb-2 text-sm text-slate-500 dark:text-slate-400 font-semibold">Elevation Challenge: {preferences.elevation}%</Text>
             <Slider
               style={{ width: '100%', height: 40 }}
               value={preferences.elevation}
@@ -140,7 +145,7 @@ export default function RouteConfigPage({ navigation }: Props) {
           </View>
 
           <View className="mb-cy-lg">
-            <Text className="mb-2 text-sm text-slate-500 font-semibold">Preferred Distance: {preferences.distance} km</Text>
+            <Text className="mb-2 text-sm text-slate-500 dark:text-slate-400 font-semibold">Preferred Distance: {preferences.distance} km</Text>
             <Slider
               style={{ width: '100%', height: 40 }}
               value={preferences.distance}
@@ -154,7 +159,7 @@ export default function RouteConfigPage({ navigation }: Props) {
           </View>
 
           <View className="mb-cy-lg">
-            <Text className="mb-2 text-sm text-slate-500 font-semibold">Minimum Air Quality: {preferences.airQuality}%</Text>
+            <Text className="mb-2 text-sm text-slate-500 dark:text-slate-400 font-semibold">Minimum Air Quality: {preferences.airQuality}%</Text>
             <Slider
               style={{ width: '100%', height: 40 }}
               value={preferences.airQuality}
@@ -172,7 +177,7 @@ export default function RouteConfigPage({ navigation }: Props) {
       </Card>
 
       <Pressable onPress={() => navigation.goBack()} className="mt-[14px] items-center">
-        <Text className="text-[#2563eb] font-bold">Back</Text>
+        <Text className="text-[#2563eb] dark:text-blue-400 font-bold">Back</Text>
       </Pressable>
     </ScrollView>
   );
