@@ -98,13 +98,37 @@ export default function HomeScreen({ navigation }: Props) {
 
         {showMatchBadge && (
           <View className="absolute top-2 right-2 z-10">
-            <LinearGradient colors={isDark ? ['#0f172a', '#1e293b'] : ['#a855f7', '#ec4899']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} className="px-cy-sm py-1 rounded-cy-sm">
-              <Text className="text-white text-xs font-semibold">{getMatchPercentage(matchScore)}% Match</Text>
+            <LinearGradient
+              colors={isDark ? ['#0f172a', '#1e293b'] : ['#a855f7', '#ec4899']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={{
+                minWidth: 74,
+                height: 24,
+                paddingHorizontal: 10,
+                borderRadius: 999,
+                justifyContent: 'center',
+              }}
+            >
+              <View
+                style={{
+                  flex: 1,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text
+                  className="text-white text-[11px] font-semibold"
+                  style={{ textAlign: 'center', includeFontPadding: false }}
+                >
+                  {getMatchPercentage(matchScore)}% Match
+                </Text>
+              </View>
             </LinearGradient>
           </View>
         )}
 
-        <View className="mb-2 pr-[60px]">
+        <View className="mb-2 pr-[76px]">
           <Text className="text-base font-semibold text-[#1f2937] dark:text-slate-100" numberOfLines={2}>{route.name}</Text>
         </View>
 
