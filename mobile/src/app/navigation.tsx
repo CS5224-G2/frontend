@@ -1,9 +1,10 @@
 import React, { useContext } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { AuthContext, AuthProvider } from './AuthContext';
+import { useColorScheme } from 'nativewind';
 
 // Import pages
 import HomeScreen from './pages/HomePage';
@@ -90,6 +91,9 @@ function ProfileNavigator() {
 }
 
 function AppNavigator() {
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
   return (
     <Tab.Navigator
       initialRouteName="HomeTab"
@@ -101,13 +105,14 @@ function AppNavigator() {
             iconName = focused ? 'home' : 'home-outline';
           } else if (route.name === 'HistoryTab') {
             iconName = focused ? 'history' : 'history';
-          }  else if (route.name === 'ProfileTab') {
+          } else if (route.name === 'ProfileTab') {
             iconName = focused ? 'account' : 'account-outline';
           }
           return <MaterialCommunityIcons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: '#2563eb',
+        tabBarActiveTintColor: isDark ? '#3b82f6' : '#2563eb',
         tabBarInactiveTintColor: '#6b7280',
+        tabBarStyle: isDark ? { backgroundColor: '#111111' } : undefined,
       })}
     >
       <Tab.Screen name="HistoryTab" component={HistoryNavigator} options={{ tabBarLabel: 'History' }} />
@@ -119,15 +124,34 @@ function AppNavigator() {
 
 
 export function RootNavigator() {
-  const { isLoggedIn, role } = useContext(AuthContext);
+  const { isLoggedIn } = useContext(AuthContext);
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
+  const navTheme = isDark
+    ? {
+        ...DarkTheme,
+        colors: {
+          ...DarkTheme.colors,
+          background: '#000000',
+          card: '#111111',
+          text: '#f1f5f9',
+          border: '#2d2d2d',
+          primary: '#3b82f6',
+          notification: '#3b82f6',
+        },
+      }
+    : {
+        ...DefaultTheme,
+        colors: {
+          ...DefaultTheme.colors,
+          primary: '#2563eb',
+        },
+      };
 
   return (
-    <NavigationContainer>
-      {!isLoggedIn ? (
-        <AuthNavigator />
-      ) : (
-        <AppNavigator />
-      )}
+    <NavigationContainer theme={navTheme}>
+      {!isLoggedIn ? <AuthNavigator /> : <AppNavigator />}
     </NavigationContainer>
   );
 }
