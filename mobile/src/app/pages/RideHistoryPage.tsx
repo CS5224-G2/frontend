@@ -8,8 +8,10 @@ import {
   Pressable,
   Alert,
   ActivityIndicator,
+  LayoutAnimation,
   Platform,
   StyleSheet,
+  UIManager,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -171,6 +173,12 @@ export default function RideHistoryPage({ navigation }: Props) {
   const periodIndicator = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+      UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+  }, []);
+
+  useEffect(() => {
     const loadData = async () => {
       try {
         setIsLoading(true);
@@ -210,6 +218,21 @@ export default function RideHistoryPage({ navigation }: Props) {
     if (nextPeriod === period) {
       return;
     }
+
+    LayoutAnimation.configureNext({
+      duration: 320,
+      create: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+        property: LayoutAnimation.Properties.opacity,
+      },
+      update: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+      },
+      delete: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+        property: LayoutAnimation.Properties.opacity,
+      },
+    });
 
     setPeriod(nextPeriod);
   };
