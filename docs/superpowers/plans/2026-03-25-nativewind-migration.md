@@ -201,11 +201,13 @@ cd mobile && git add tailwind.config.js global.css metro.config.js nativewind-en
 module.exports = function(api) {
   api.cache(true);
   return {
-    presets: ['babel-preset-expo'],
-    plugins: ['nativewind/babel', 'react-native-reanimated/plugin'],
+    presets: ['babel-preset-expo', 'nativewind/babel'],
+    plugins: ['react-native-reanimated/plugin'],
   };
 };
 ```
+
+Note: `nativewind/babel` is a preset-shaped export, not a plugin — it must go in `presets`, not `plugins`. Reanimated stays as the sole plugin (plugins run after presets in Babel, so Reanimated remains last).
 
 - [ ] **Step 2: Add CSS import to `mobile/app/_layout.tsx`**
 
