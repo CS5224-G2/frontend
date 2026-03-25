@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, ScrollView } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Button } from '../components/native/Common';
 
@@ -7,33 +7,12 @@ type Props = NativeStackScreenProps<any, any>;
 
 export default function Screen({ navigation }: Props) {
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.title}>Route Details</Text>
-        <Text style={styles.subtitle}>Page content</Text>
+    <ScrollView className="flex-1 bg-slate-50 dark:bg-black">
+      <View className="p-cy-lg pt-10">
+        <Text className="text-[28px] font-bold text-text-primary dark:text-slate-100">Route Details</Text>
+        <Text className="text-sm text-text-secondary dark:text-slate-400 mt-cy-sm">Page content</Text>
         <Button onPress={() => navigation.navigate("RouteFeedback")}>Route Feedback</Button>
       </View>
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-  },
-  content: {
-    padding: 16,
-    paddingTop: 40,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1e293b',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#64748b',
-    marginTop: 8,
-  },
-});

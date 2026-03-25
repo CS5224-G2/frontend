@@ -1,26 +1,47 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
+import { View, Text, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { mockRoutes, type Route, type UserPreferences } from '../types';
+import { type Route, type UserPreferences } from '../../../../shared/types/index';
+import { getRoutes, getRouteRecommendations } from '../../services/routeService';
 import { FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useColorScheme } from 'nativewind';
 
 type Props = NativeStackScreenProps<any, 'HomePage'>;
 
 export default function HomeScreen({ navigation }: Props) {
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [allRoutes, setAllRoutes] = useState<Route[]>([]);
+  const [suggestedRoutes, setSuggestedRoutes] = useState<(Route & { matchScore: number })[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const loadPreferences = async () => {
-      const savedPrefs = await AsyncStorage.getItem('userPreferences');
-      if (savedPrefs) {
-        setPreferences(JSON.parse(savedPrefs));
+    const loadData = async () => {
+      try {
+        setIsLoading(true);
+        const savedPrefs = await AsyncStorage.getItem('userPreferences');
+        const prefs: UserPreferences | null = savedPrefs ? JSON.parse(savedPrefs) : null;
+        setPreferences(prefs);
+
+        const [routes, suggested] = await Promise.all([
+          getRoutes(),
+          prefs ? getRouteRecommendations(prefs, 3) : Promise.resolve([]),
+        ]);
+
+        setAllRoutes(routes);
+        setSuggestedRoutes(
+          suggested.map((r) => ({ ...r, matchScore: calculateMatchScore(r, prefs) })),
+        );
+      } finally {
+        setIsLoading(false);
       }
     };
-    loadPreferences();
+    loadData();
   }, []);
 
   useFocusEffect(
@@ -37,56 +58,21 @@ export default function HomeScreen({ navigation }: Props) {
     }, [])
   );
 
-  // Calculate match score for personalized recommendations
-  const calculateMatchScore = (route: Route): number => {
-    if (!preferences) return route.rating * 20;
-    
-    let score = 0;
-    score += route.rating * 10;
-    score += Math.min(route.reviewCount / 100, 10);
-    
-    if (route.cyclistType === preferences.cyclistType) {
-      score += 20;
-    }
-    
-    const distanceDiff = Math.abs(route.distance - preferences.distance);
-    score += Math.max(10 - distanceDiff / 2, 0);
-    
-    const elevationDiff = Math.abs(route.elevation - preferences.elevation * 3);
-    score += Math.max(10 - elevationDiff / 30, 0);
-    
-    const shadeDiff = Math.abs(route.shade - preferences.preferredShade);
-    score += Math.max(10 - shadeDiff / 10, 0);
-    
-    const airQualityDiff = Math.abs(route.airQuality - preferences.airQuality);
-    score += Math.max(10 - airQualityDiff / 10, 0);
-    
+  // Match score helper (mirrors routeService logic, for badge display)
+  const calculateMatchScore = (route: Route, prefs: UserPreferences | null): number => {
+    if (!prefs) return route.rating * 20;
+    let score = route.rating * 10 + Math.min(route.reviewCount / 100, 10);
+    if (route.cyclistType === prefs.cyclistType) score += 20;
+    score += Math.max(10 - Math.abs(route.distance - prefs.distance) / 2, 0);
+    score += Math.max(10 - Math.abs(route.elevation - prefs.elevation * 3) / 30, 0);
+    score += Math.max(10 - Math.abs(route.shade - prefs.preferredShade) / 10, 0);
+    score += Math.max(10 - Math.abs(route.airQuality - prefs.airQuality) / 10, 0);
     return score;
   };
 
-  // Get favorite routes
-  const favoriteRoutes = mockRoutes.filter((route) => favorites.includes(route.id));
-
-  // Get personalized suggestions
-  const suggestedRoutes = [...mockRoutes]
-    .map(route => ({
-      ...route,
-      matchScore: calculateMatchScore(route)
-    }))
-    .sort((a, b) => b.matchScore - a.matchScore)
-    .slice(0, 3);
-
-  // Filter routes based on user preferences
-  const recommendedRoutes = mockRoutes
-    .filter((route) => {
-      if (!preferences) return true;
-      return (
-        route.cyclistType === preferences.cyclistType &&
-        route.distance <= preferences.distance * 1.5 &&
-        route.airQuality >= preferences.airQuality - 20
-      );
-    })
-    .slice(0, 6);
+  // Derived state from service data
+  const favoriteRoutes = allRoutes.filter((route) => favorites.includes(route.id));
+  const recommendedRoutes = allRoutes.slice(0, 6);
 
   const getMatchPercentage = (score: number): number => {
     return Math.min(Math.round(score), 100);
@@ -102,74 +88,74 @@ export default function HomeScreen({ navigation }: Props) {
   };
 
   const RouteCard = ({ route, isFavorite, matchScore, showMatchBadge, onPress }: any) => (
-    <Pressable onPress={onPress} style={styles.routeCardContainer}>
-      <View style={[styles.routeCard, isFavorite && styles.routeCardFavorite]}>
+    <Pressable onPress={onPress} className="mb-0">
+      <View className={`bg-white dark:bg-[#111111] rounded-cy-md p-cy-md border-2 ${isFavorite ? 'border-[#fcd34d]' : 'border-[#e5e7eb] dark:border-[#2d2d2d]'}`}>
         {isFavorite && (
-          <View style={styles.favoriteBadge}>
+          <View className="absolute top-2 right-2 z-10">
             <MaterialCommunityIcons name="star" size={20} color="#f59e0b" />
           </View>
         )}
 
         {showMatchBadge && (
-          <View style={styles.matchBadgeContainer}>
-            <LinearGradient colors={['#a855f7', '#ec4899']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.matchBadge}>
-              <Text style={styles.matchBadgeText}>{getMatchPercentage(matchScore)}% Match</Text>
+          <View className="absolute top-2 right-2 z-10">
+            <LinearGradient colors={isDark ? ['#0f172a', '#1e293b'] : ['#a855f7', '#ec4899']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} className="px-cy-sm py-1 rounded-cy-sm">
+              <Text className="text-white text-xs font-semibold">{getMatchPercentage(matchScore)}% Match</Text>
             </LinearGradient>
           </View>
         )}
 
-        <View style={styles.cardHeader}>
-          <Text style={styles.routeName} numberOfLines={2}>{route.name}</Text>
+        <View className="mb-2 pr-[60px]">
+          <Text className="text-base font-semibold text-[#1f2937] dark:text-slate-100" numberOfLines={2}>{route.name}</Text>
         </View>
 
-        <Text style={styles.routeDescription} numberOfLines={2}>{route.description}</Text>
+        <Text className="text-xs text-[#6b7280] dark:text-slate-400 mb-2" numberOfLines={2}>{route.description}</Text>
 
-        <View style={styles.ratingContainer}>
+        <View className="flex-row items-center bg-[#fef3c7] dark:bg-[#1a1a1a] px-cy-sm py-[6px] rounded-cy-sm mb-2 gap-1">
           <MaterialCommunityIcons name="star" size={16} color="#f59e0b" />
-          <Text style={styles.ratingText}>{route.rating}</Text>
-          <Text style={styles.reviewCount}>({route.reviewCount} reviews)</Text>
+          <Text className="text-base font-bold text-[#1f2937] dark:text-slate-100">{route.rating}</Text>
+          <Text className="text-xs text-[#6b7280] dark:text-slate-400">({route.reviewCount} reviews)</Text>
         </View>
 
-        <View style={styles.detailsGrid}>
-          <View style={styles.detailItem}>
+        <View className="flex-row flex-wrap gap-cy-sm mb-2">
+          <View className="flex-row items-center gap-1 flex-1" style={{ minWidth: '45%' }}>
             <MaterialCommunityIcons name="map-marker" size={14} color="#6b7280" />
-            <Text style={styles.detailText}>{route.distance} km</Text>
+            <Text className="text-xs text-[#6b7280] dark:text-slate-400">{route.distance} km</Text>
           </View>
-          <View style={styles.detailItem}>
+          <View className="flex-row items-center gap-1 flex-1" style={{ minWidth: '45%' }}>
             <MaterialCommunityIcons name="clock" size={14} color="#6b7280" />
-            <Text style={styles.detailText}>{route.estimatedTime} min</Text>
+            <Text className="text-xs text-[#6b7280] dark:text-slate-400">{route.estimatedTime} min</Text>
           </View>
-          <View style={styles.detailItem}>
+          <View className="flex-row items-center gap-1 flex-1" style={{ minWidth: '45%' }}>
             <FontAwesome5 name="mountain" size={14} color="#6b7280" />
-            <Text style={styles.detailText}>{route.elevation}m</Text>
+            <Text className="text-xs text-[#6b7280] dark:text-slate-400">{route.elevation}m</Text>
           </View>
-          <View style={[styles.detailItem, styles.badgeItem]}>
-            <Text style={styles.badgeText}>{route.cyclistType}</Text>
+          <View className="flex-row items-center gap-1 flex-1 bg-[#e5e7eb] dark:bg-[#1a1a1a] px-cy-sm py-1 rounded" style={{ minWidth: '45%' }}>
+            <Text className="text-xs text-[#4f46e5] capitalize">{route.cyclistType}</Text>
           </View>
         </View>
 
         {showMatchBadge && (
-          <View style={styles.whyThisRoute}>
-            <Text style={styles.whyText}>Why this route:</Text>
-            <View style={styles.reasonBadges}>
+          <View className="pt-2 border-t border-[#e5e7eb] dark:border-[#2d2d2d]">
+            <Text className="text-[11px] text-[#6b7280] dark:text-slate-400 font-semibold mb-1">Why this route:</Text>
+            <View className="flex-row flex-wrap gap-1">
               {route.rating >= 4.7 && (
-                <View style={styles.reasonBadge}>
-                  <Text style={styles.reasonText}>Highly rated</Text>
+                <View className="border border-[#d1d5db] dark:border-[#2d2d2d] px-[6px] py-[2px] rounded">
+                  <Text className="text-[11px] text-[#6b7280] dark:text-slate-400">Highly rated</Text>
                 </View>
               )}
               {route.reviewCount > 400 && (
-                <View style={styles.reasonBadge}>
-                  <Text style={styles.reasonText}>Popular</Text>
+                <View className="border border-[#d1d5db] dark:border-[#2d2d2d] px-[6px] py-[2px] rounded">
+                  <Text className="text-[11px] text-[#6b7280] dark:text-slate-400">Popular</Text>
                 </View>
               )}
               {route.cyclistType === preferences?.cyclistType && (
-                <View style={styles.reasonBadge}>
-                  <Text style={styles.reasonText}>Your style</Text>
+                <View className="border border-[#d1d5db] dark:border-[#2d2d2d] px-[6px] py-[2px] rounded">
+                  <Text className="text-[11px] text-[#6b7280] dark:text-slate-400">Your style</Text>
                 </View>
               )}
               {preferences && Math.abs(route.distance - preferences.distance) < 3 && (
-                <View style={styles.reasonBadge}>
-                  <Text style={styles.reasonText}>Perfect distance</Text>
+                <View className="border border-[#d1d5db] dark:border-[#2d2d2d] px-[6px] py-[2px] rounded">
+                  <Text className="text-[11px] text-[#6b7280] dark:text-slate-400">Perfect distance</Text>
                 </View>
               )}
             </View>
@@ -179,65 +165,73 @@ export default function HomeScreen({ navigation }: Props) {
     </Pressable>
   );
 
+  if (isLoading) {
+    return (
+      <View className="flex-1 justify-center items-center bg-[#f3f4f6] dark:bg-black">
+        <ActivityIndicator size="large" color="#3b82f6" />
+      </View>
+    );
+  }
+
   return (
-    <ScrollView style={styles.container} scrollIndicatorInsets={{ right: 1 }}>
+    <ScrollView className="flex-1 bg-[#f3f4f6] dark:bg-black" scrollIndicatorInsets={{ right: 1 }}>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>CycleLink</Text>
-        <View style={styles.headerRight}>
-          {/* <Pressable onPress={() => navigation.navigate('UserJourneyPage')} style={styles.infoButton}>
+      <View className="bg-white dark:bg-[#111111] px-cy-lg py-cy-md flex-row justify-between items-center border-b border-[#e5e7eb] dark:border-[#2d2d2d]">
+        <Text className="text-2xl font-bold text-[#2563eb]">CycleLink</Text>
+        <View className="flex-row items-center gap-cy-sm">
+          {/* <Pressable onPress={() => navigation.navigate('UserJourneyPage')} className="flex-row items-center gap-1 px-cy-sm py-1">
             <MaterialCommunityIcons name="information" size={16} color="#6b7280" />
-            <Text style={styles.infoButtonText}>User Journey</Text>
+            <Text className="text-xs text-[#6b7280]">User Journey</Text>
           </Pressable> */}
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{preferences?.cyclistType || 'General'}</Text>
+          <View className="bg-[#e0e7ff] px-cy-sm py-1 rounded">
+            <Text className="text-xs text-[#4f46e5] capitalize">{preferences?.cyclistType || 'General'}</Text>
           </View>
         </View>
       </View>
 
       {/* Main Content */}
-      <View style={styles.mainContent}>
-        <View style={styles.titleSection}>
-          <Text style={styles.mainTitle}>Discover Routes</Text>
-          <Text style={styles.mainSubtitle}>Highly rated routes recommended for you</Text>
+      <View className="p-cy-lg pb-[100px]">
+        <View className="mb-cy-lg">
+          <Text className="text-[32px] font-bold text-[#1f2937] dark:text-slate-100 mb-1">Discover Routes</Text>
+          <Text className="text-sm text-[#6b7280] dark:text-slate-400">Highly rated routes recommended for you</Text>
         </View>
 
         {/* Info Banner */}
-        {/* <LinearGradient colors={['#eff6ff', '#f3e8ff']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.infoBanner}>
-          <View style={styles.infoBannerContent}>
-            <View style={styles.infoBannerIcon}>
+        {/* <LinearGradient colors={['#eff6ff', '#f3e8ff']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} className="flex-row items-center justify-between p-cy-md rounded-cy-md mb-cy-lg border border-[#bfdbfe]">
+          <View className="flex-row items-start flex-1 gap-cy-md">
+            <View className="w-10 h-10 bg-[#3b82f6] rounded-full justify-center items-center">
               <MaterialCommunityIcons name="information" size={20} color="white" />
             </View>
-            <View style={styles.infoBannerText}>
-              <Text style={styles.infoBannerTitle}>New to CycleLink?</Text>
-              <Text style={styles.infoBannerDescription}>Explore the complete user journey timeline</Text>
+            <View className="flex-1">
+              <Text className="text-sm font-semibold text-[#1f2937] mb-[2px]">New to CycleLink?</Text>
+              <Text className="text-xs text-[#6b7280]">Explore the complete user journey timeline</Text>
             </View>
           </View>
-          <Pressable onPress={() => navigation.navigate('UserJourneyPage')} style={styles.infoBannerButton}>
-            <Text style={styles.infoBannerButtonText}>View Timeline</Text>
+          <Pressable onPress={() => navigation.navigate('UserJourneyPage')} className="px-cy-md py-[6px] rounded-cy-sm border border-[#d1d5db]">
+            <Text className="text-xs text-[#6b7280]">View Timeline</Text>
           </Pressable>
         </LinearGradient> */}
 
         {/* Create Custom Route Button */}
-        <Pressable onPress={() => navigation.navigate('RouteConfig')} style={styles.createRouteButton}>
+        <Pressable onPress={() => navigation.navigate('RouteConfig')} className="bg-[#3b82f6] flex-row items-center justify-center py-cy-md px-cy-lg rounded-cy-md mb-[24px] gap-cy-sm">
           <MaterialCommunityIcons name="plus" size={20} color="white" />
-          <Text style={styles.createRouteButtonText}>Create Custom Route</Text>
+          <Text className="text-white text-base font-semibold">Create Custom Route</Text>
         </Pressable>
 
         {/* Favorite Routes Section */}
         {favoriteRoutes.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <LinearGradient colors={['#fbbf24', '#f97316']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.sectionIcon}>
+          <View className="mb-[24px]">
+            <View className="flex-row items-center gap-cy-md mb-cy-lg">
+              <LinearGradient colors={isDark ? ['#0f172a', '#1e293b'] : ['#fbbf24', '#f97316']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ width: 40, height: 40, borderRadius: 8, justifyContent: 'center', alignItems: 'center' }}>
                 <MaterialCommunityIcons name="star" size={20} color="white" />
               </LinearGradient>
               <View>
-                <Text style={styles.sectionTitle}>Starred Routes</Text>
-                <Text style={styles.sectionDescription}>Your favorite routes ready to ride again</Text>
+                <Text className="text-2xl font-bold text-[#1f2937] dark:text-slate-100">Starred Routes</Text>
+                <Text className="text-xs text-[#6b7280] dark:text-slate-400 mt-[2px]">Your favorite routes ready to ride again</Text>
               </View>
             </View>
 
-            <View style={styles.routesContainer}>
+            <View className="gap-cy-md">
               {favoriteRoutes.slice(0, 3).map((route) => (
                 <RouteCard
                   key={route.id}
@@ -252,18 +246,18 @@ export default function HomeScreen({ navigation }: Props) {
 
         {/* Suggested for You Section */}
         {preferences && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <LinearGradient colors={['#a855f7', '#ec4899']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.sectionIcon}>
+          <View className="mb-[24px]">
+            <View className="flex-row items-center gap-cy-md mb-cy-lg">
+              <LinearGradient colors={isDark ? ['#0f172a', '#1e293b'] : ['#a855f7', '#ec4899']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ width: 40, height: 40, borderRadius: 8, justifyContent: 'center', alignItems: 'center' }}>
                 <Ionicons name="sparkles" size={20} color="white" />
               </LinearGradient>
               <View>
-                <Text style={styles.sectionTitle}>Suggested for You</Text>
-                <Text style={styles.sectionDescription}>Personalized routes based on your preferences</Text>
+                <Text className="text-2xl font-bold text-[#1f2937] dark:text-slate-100">Suggested for You</Text>
+                <Text className="text-xs text-[#6b7280] dark:text-slate-400 mt-[2px]">Personalized routes based on your preferences</Text>
               </View>
             </View>
 
-            <View style={styles.routesContainer}>
+            <View className="gap-cy-md">
               {suggestedRoutes.map((route, index) => (
                 <RouteCard
                   key={route.id}
@@ -279,299 +273,31 @@ export default function HomeScreen({ navigation }: Props) {
         )}
 
         {/* All Recommended Routes */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>All Recommended Routes</Text>
+        <View className="mb-[24px]">
+          <Text className="text-2xl font-bold text-[#1f2937] dark:text-slate-100">
+            All Recommended Routes
+          </Text>
 
-          <View style={styles.routesContainer}>
-            {recommendedRoutes.slice(0, 3).map((route) => (
-              <RouteCard
-                key={route.id}
-                route={route}
-                isFavorite={favorites.includes(route.id)}
-                onPress={() => navigation.navigate('RouteDetails', { routeId: route.id })}
-              />
-            ))}
-          </View>
+          {recommendedRoutes.length > 0 ? (
+            <View className="gap-cy-md">
+              {recommendedRoutes.slice(0, 3).map((route) => (
+                <RouteCard
+                  key={route.id}
+                  route={route}
+                  isFavorite={favorites.includes(route.id)}
+                  onPress={() =>
+                    navigation.navigate('RouteDetails', { routeId: route.id })
+                  }
+                />
+              ))}
+            </View>
+          ) : (
+            <Text className="mt-4 text-base text-gray-500 dark:text-slate-400">
+              Start your journey by using the App!
+            </Text>
+          )}
         </View>
       </View>
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f3f4f6',
-  },
-  header: {
-    backgroundColor: 'white',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#2563eb',
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  infoButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  infoButtonText: {
-    fontSize: 12,
-    color: '#6b7280',
-  },
-  badge: {
-    backgroundColor: '#e0e7ff',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  badgeText: {
-    fontSize: 12,
-    color: '#4f46e5',
-    textTransform: 'capitalize',
-  },
-  mainContent: {
-    padding: 16,
-    paddingBottom: 100,
-  },
-  titleSection: {
-    marginBottom: 16,
-  },
-  mainTitle: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: 4,
-  },
-  mainSubtitle: {
-    fontSize: 14,
-    color: '#6b7280',
-  },
-  infoBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
-  },
-  infoBannerContent: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    flex: 1,
-    gap: 12,
-  },
-  infoBannerIcon: {
-    width: 40,
-    height: 40,
-    backgroundColor: '#3b82f6',
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  infoBannerText: {
-    flex: 1,
-  },
-  infoBannerTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: 2,
-  },
-  infoBannerDescription: {
-    fontSize: 12,
-    color: '#6b7280',
-  },
-  infoBannerButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-  },
-  infoBannerButtonText: {
-    fontSize: 12,
-    color: '#6b7280',
-  },
-  createRouteButton: {
-    backgroundColor: '#3b82f6',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginBottom: 24,
-    gap: 8,
-  },
-  createRouteButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 16,
-  },
-  sectionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1f2937',
-  },
-  sectionDescription: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginTop: 2,
-  },
-  routesContainer: {
-    gap: 12,
-  },
-  routeCardContainer: {
-    marginBottom: 0,
-  },
-  routeCard: {
-    backgroundColor: 'white',
-    borderRadius: 8,
-    padding: 12,
-    borderWidth: 2,
-    borderColor: '#e5e7eb',
-  },
-  routeCardFavorite: {
-    borderColor: '#fcd34d',
-    borderWidth: 2,
-  },
-  favoriteBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    zIndex: 10,
-  },
-  matchBadgeContainer: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    zIndex: 10,
-  },
-  matchBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  matchBadgeText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  cardHeader: {
-    marginBottom: 8,
-    paddingRight: 60,
-  },
-  routeName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1f2937',
-  },
-  routeDescription: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginBottom: 8,
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fef3c7',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 6,
-    marginBottom: 8,
-    gap: 4,
-  },
-  ratingText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1f2937',
-  },
-  reviewCount: {
-    fontSize: 12,
-    color: '#6b7280',
-  },
-  detailsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 8,
-  },
-  detailItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    flex: 1,
-    minWidth: '45%',
-  },
-  detailText: {
-    fontSize: 12,
-    color: '#6b7280',
-  },
-  badgeItem: {
-    backgroundColor: '#e5e7eb',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  whyThisRoute: {
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-  },
-  whyText: {
-    fontSize: 11,
-    color: '#6b7280',
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  reasonBadges: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 4,
-  },
-  reasonBadge: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  reasonText: {
-    fontSize: 11,
-    color: '#6b7280',
-  },
-});

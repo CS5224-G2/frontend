@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, TextInput, Pressable, ActivityIndicator } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { mockRoutes } from '../types';
+import { useColorScheme } from 'nativewind';
+import { type Route } from '../../../../shared/types/index';
+import { getRouteById } from '../../services/routeService';
+import { submitRideFeedback } from '../../services/rideService';
 
 type Props = NativeStackScreenProps<any, any>;
 
@@ -12,27 +15,41 @@ export default function RouteFeedbackPage({ navigation, route }: Props) {
   const [hoveredRating, setHoveredRating] = useState(0);
   const [feedback, setFeedback] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [routeData, setRouteData] = useState<Route | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
-  const routeData = mockRoutes.find((r) => r.id === routeId);
+  useEffect(() => {
+    getRouteById(routeId).then((r) => {
+      setRouteData(r);
+      setIsLoading(false);
+    });
+  }, [routeId]);
 
-  const handleSubmit = () => {
-    // In production, this would send the feedback to the backend
-    console.log('Feedback submitted:', { routeId, rating, feedback });
+  const handleSubmit = async () => {
+    await submitRideFeedback({ routeId, rating, review: feedback });
     setSubmitted(true);
-
-    // Redirect to home after showing success message
-    setTimeout(() => {
-      navigation.navigate('HomePage');
-    }, 2000);
+    setTimeout(() => { navigation.navigate('HomePage'); }, 2000);
   };
+
+  if (isLoading) {
+    return (
+      <ScrollView className="flex-1 bg-[#f9fafb] dark:bg-black">
+        <View className="flex-1 justify-center items-center p-[32px]">
+          <ActivityIndicator size="large" color={isDark ? '#3b82f6' : '#1D4ED8'} />
+        </View>
+      </ScrollView>
+    );
+  }
 
   if (!routeData) {
     return (
-      <ScrollView style={styles.container}>
-        <View style={styles.content}>
-          <Text style={styles.title}>Route not found</Text>
-          <Pressable style={styles.button} onPress={() => navigation.navigate('HomePage')}>
-            <Text style={styles.buttonText}>Back to Home</Text>
+      <ScrollView className="flex-1 bg-[#f9fafb] dark:bg-black">
+        <View className="p-cy-lg pt-10">
+          <Text className="text-[28px] font-bold text-[#1e293b] dark:text-slate-100 text-center">Route not found</Text>
+          <Pressable className="bg-[#3b82f6] rounded-cy-md p-cy-md items-center mt-cy-lg" onPress={() => navigation.navigate('HomePage')}>
+            <Text className="text-white text-base">Back to Home</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -41,35 +58,35 @@ export default function RouteFeedbackPage({ navigation, route }: Props) {
 
   if (submitted) {
     return (
-      <ScrollView style={styles.container}>
-        <View style={styles.successContent}>
-          <View style={styles.checkIcon}>
+      <ScrollView className="flex-1 bg-[#f9fafb] dark:bg-black">
+        <View className="flex-1 justify-center items-center p-[32px]">
+          <View className="mb-[24px]">
             <MaterialCommunityIcons name="check-circle" size={48} color="#10b981" />
           </View>
-          <Text style={styles.successTitle}>Thank You!</Text>
-          <Text style={styles.successText}>Your feedback has been submitted successfully.</Text>
+          <Text className="text-2xl font-bold text-[#1e293b] dark:text-slate-100 mb-2">Thank You!</Text>
+          <Text className="text-base text-[#6b7280] dark:text-slate-400 text-center">Your feedback has been submitted successfully.</Text>
         </View>
       </ScrollView>
     );
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.title}>Rate Your Experience</Text>
-        <Text style={styles.subtitle}>How was your ride on {routeData.name}?</Text>
+    <ScrollView className="flex-1 bg-[#f9fafb] dark:bg-black">
+      <View className="p-cy-lg pt-10">
+        <Text className="text-[28px] font-bold text-[#1e293b] dark:text-slate-100 text-center">Rate Your Experience</Text>
+        <Text className="text-sm text-[#64748b] dark:text-slate-400 mt-2 text-center">How was your ride on {routeData.name}?</Text>
 
         {/* Star Rating */}
-        <View style={styles.ratingSection}>
-          <Text style={styles.sectionTitle}>Your Rating</Text>
-          <View style={styles.starsContainer}>
+        <View className="mt-[32px] items-center">
+          <Text className="text-lg font-semibold text-[#374151] dark:text-slate-100 mb-cy-lg">Your Rating</Text>
+          <View className="flex-row justify-center gap-cy-sm">
             {[1, 2, 3, 4, 5].map((star) => (
               <Pressable
                 key={star}
                 onPress={() => setRating(star)}
                 onPressIn={() => setHoveredRating(star)}
                 onPressOut={() => setHoveredRating(0)}
-                style={styles.starButton}
+                className="p-1"
               >
                 <MaterialCommunityIcons
                   name="star"
@@ -80,7 +97,7 @@ export default function RouteFeedbackPage({ navigation, route }: Props) {
             ))}
           </View>
           {rating > 0 && (
-            <Text style={styles.ratingText}>
+            <Text className="mt-2 text-sm text-[#6b7280] dark:text-slate-400">
               {rating === 5 && 'Excellent!'}
               {rating === 4 && 'Very Good!'}
               {rating === 3 && 'Good'}
@@ -91,181 +108,55 @@ export default function RouteFeedbackPage({ navigation, route }: Props) {
         </View>
 
         {/* Written Feedback */}
-        <View style={styles.feedbackSection}>
-          <Text style={styles.sectionTitle}>Additional Comments (Optional)</Text>
+        <View className="mt-[32px]">
+          <Text className="text-lg font-semibold text-[#374151] dark:text-slate-100 mb-cy-lg">Additional Comments (Optional)</Text>
           <TextInput
             value={feedback}
             onChangeText={setFeedback}
             placeholder="Tell us about your experience on this route..."
+            placeholderTextColor={isDark ? '#64748b' : '#94a3b8'}
             multiline
             numberOfLines={5}
-            style={styles.textInput}
+            className="border border-[#d1d5db] rounded-cy-md p-cy-md text-base bg-white dark:bg-[#111111] dark:text-slate-100"
+            style={{ minHeight: 120 }}
             textAlignVertical="top"
           />
         </View>
 
         {/* Route Summary */}
-        <View style={styles.summaryCard}>
-          <Text style={styles.sectionTitle}>Route Summary</Text>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Route:</Text>
-            <Text style={styles.summaryValue}>{routeData.name}</Text>
+        <View className="bg-[#f3f4f6] dark:bg-black rounded-cy-md p-cy-lg mt-[32px]">
+          <Text className="text-lg font-semibold text-[#374151] dark:text-slate-100 mb-cy-lg">Route Summary</Text>
+          <View className="flex-row justify-between mb-2">
+            <Text className="font-medium text-[#374151] dark:text-slate-100">Route:</Text>
+            <Text className="text-[#6b7280] dark:text-slate-400">{routeData.name}</Text>
           </View>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Distance:</Text>
-            <Text style={styles.summaryValue}>{routeData.distance} km</Text>
+          <View className="flex-row justify-between mb-2">
+            <Text className="font-medium text-[#374151] dark:text-slate-100">Distance:</Text>
+            <Text className="text-[#6b7280] dark:text-slate-400">{routeData.distance} km</Text>
           </View>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Time:</Text>
-            <Text style={styles.summaryValue}>{routeData.estimatedTime} minutes</Text>
+          <View className="flex-row justify-between mb-2">
+            <Text className="font-medium text-[#374151] dark:text-slate-100">Time:</Text>
+            <Text className="text-[#6b7280] dark:text-slate-400">{routeData.estimatedTime} minutes</Text>
           </View>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Checkpoints Visited:</Text>
-            <Text style={styles.summaryValue}>{routeData.checkpoints.length}</Text>
+          <View className="flex-row justify-between mb-2">
+            <Text className="font-medium text-[#374151] dark:text-slate-100">Checkpoints Visited:</Text>
+            <Text className="text-[#6b7280] dark:text-slate-400">{routeData.checkpoints.length}</Text>
           </View>
         </View>
 
         {/* Submit Button */}
         <Pressable
-          style={[styles.submitButton, rating === 0 && styles.disabledButton]}
+          className={`rounded-cy-md p-cy-lg items-center mt-[32px] ${rating === 0 ? 'bg-[#d1d5db]' : 'bg-[#3b82f6]'}`}
           onPress={handleSubmit}
           disabled={rating === 0}
         >
-          <Text style={styles.submitButtonText}>Submit Feedback</Text>
+          <Text className="text-white text-base font-semibold">Submit Feedback</Text>
         </Pressable>
 
         {rating === 0 && (
-          <Text style={styles.hintText}>Please select a rating to continue</Text>
+          <Text className="text-center text-sm text-[#9ca3af] dark:text-slate-400 mt-2">Please select a rating to continue</Text>
         )}
       </View>
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f9fafb',
-  },
-  content: {
-    padding: 16,
-    paddingTop: 40,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1e293b',
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#64748b',
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  ratingSection: {
-    marginTop: 32,
-    alignItems: 'center',
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 16,
-  },
-  starsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  starButton: {
-    padding: 4,
-  },
-  ratingText: {
-    marginTop: 8,
-    fontSize: 14,
-    color: '#6b7280',
-  },
-  feedbackSection: {
-    marginTop: 32,
-  },
-  textInput: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: '#ffffff',
-    minHeight: 120,
-  },
-  summaryCard: {
-    backgroundColor: '#f3f4f6',
-    borderRadius: 8,
-    padding: 16,
-    marginTop: 32,
-  },
-  summaryItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  summaryLabel: {
-    fontWeight: '500',
-    color: '#374151',
-  },
-  summaryValue: {
-    color: '#6b7280',
-  },
-  submitButton: {
-    backgroundColor: '#3b82f6',
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 32,
-  },
-  disabledButton: {
-    backgroundColor: '#d1d5db',
-  },
-  submitButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  hintText: {
-    textAlign: 'center',
-    fontSize: 14,
-    color: '#9ca3af',
-    marginTop: 8,
-  },
-  successContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 32,
-  },
-  checkIcon: {
-    marginBottom: 24,
-  },
-  successTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1e293b',
-    marginBottom: 8,
-  },
-  successText: {
-    fontSize: 16,
-    color: '#6b7280',
-    textAlign: 'center',
-  },
-  button: {
-    backgroundColor: '#3b82f6',
-    borderRadius: 8,
-    padding: 12,
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  buttonText: {
-    color: '#ffffff',
-    fontSize: 16,
-  },
-});

@@ -1,0 +1,205 @@
+// =============================================================================
+// SHARED CANONICAL TYPES — CycleLink
+// Single source of truth for all data shapes consumed by mobile and web-app.
+// Both the Adapter layer AND the Mock layer must conform to these interfaces.
+// =============================================================================
+
+// ---------------------------------------------------------------------------
+// Auth
+// ---------------------------------------------------------------------------
+
+export type UserRole = 'user' | 'admin' | 'business';
+
+export type LoginFormValues = {
+  email: string;
+  password: string;
+  rememberMe?: boolean;
+};
+
+export type RegisterFormValues = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+  agreedToTerms: boolean;
+};
+
+export type AuthUser = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  email: string;
+  onboardingComplete: boolean;
+  role: UserRole;
+};
+
+export type AuthResult = {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+  user: AuthUser;
+};
+
+// ---------------------------------------------------------------------------
+// User Profile
+// ---------------------------------------------------------------------------
+
+export type CyclingPreference = 'Leisure' | 'Commuter' | 'Performance';
+
+export type UserProfile = {
+  userId: string;
+  fullName: string;
+  email: string;
+  location: string;
+  memberSince: string;
+  cyclingPreference: CyclingPreference;
+  weeklyGoalKm: number;
+  bio: string;
+  avatarUrl: string | null;
+  avatarColor: string;
+  stats: {
+    totalRides: number;
+    totalDistanceKm: number;
+    favoriteTrails: number;
+  };
+};
+
+// ---------------------------------------------------------------------------
+// Settings
+// ---------------------------------------------------------------------------
+
+export type ChangePasswordInput = {
+  currentPassword: string;
+  newPassword: string;
+  confirmNewPassword: string;
+};
+
+export type PasswordUpdateResult = {
+  status: 'ok';
+  message: string;
+  updatedAt: string;
+};
+
+export type PrivacySecuritySettings = {
+  noThirdPartyAds: boolean;
+  noDataImprovement: boolean;
+  notificationsManagedInDeviceSettings: boolean;
+};
+
+// ---------------------------------------------------------------------------
+// Routes (Mobile)
+// ---------------------------------------------------------------------------
+
+export type CyclistType = 'recreational' | 'commuter' | 'fitness' | 'general';
+
+export type UserPreferences = {
+  cyclistType: CyclistType;
+  preferredShade: number;   // 0–100
+  elevation: number;        // 0–100 (preference scale)
+  distance: number;         // km
+  airQuality: number;       // 0–100
+};
+
+export type Checkpoint = {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  description: string;
+};
+
+export type Route = {
+  id: string;
+  name: string;
+  description: string;
+  distance: number;         // km
+  elevation: number;        // meters
+  estimatedTime: number;    // minutes
+  rating: number;
+  reviewCount: number;
+  startPoint: { lat: number; lng: number; name: string };
+  endPoint: { lat: number; lng: number; name: string };
+  checkpoints: Checkpoint[];
+  cyclistType: CyclistType;
+  shade: number;            // 0–100
+  airQuality: number;       // 0–100
+};
+
+export type RouteRecommendationRequest = {
+  startPoint: string;
+  endPoint: string;
+  preferences: UserPreferences;
+};
+
+export type RouteFeedbackPayload = {
+  routeId: string;
+  rating: number;           // 1–5
+  review: string;
+};
+
+// ---------------------------------------------------------------------------
+// Ride History (Mobile)
+// ---------------------------------------------------------------------------
+
+export type RideHistory = {
+  id: string;
+  routeId: string;
+  routeName: string;
+  completionDate: string;
+  completionTime: string;
+  startTime?: string;
+  endTime?: string;
+  totalTime: number;        // minutes
+  distance: number;         // km
+  avgSpeed: number;         // km/h
+  checkpoints: number;
+  userRating?: number;
+  userReview?: string;
+};
+
+export type GraphPeriod = 'week' | 'month';
+
+export type GraphDataPoint =
+  | { id: string; day: string; distance: number }   // weekly
+  | { id: string; week: string; distance: number };  // monthly
+
+// ---------------------------------------------------------------------------
+// Admin Dashboard (Web)
+// ---------------------------------------------------------------------------
+
+export type AdminStats = {
+  totalRides: number;
+  activeUsers: number;
+  revenueFormatted: string;
+  openReports: number;
+};
+
+export type AdminUser = {
+  id: string;
+  email: string;
+  role: UserRole;
+  status: 'Active' | 'Inactive';
+  joinedFormatted: string;
+};
+
+// ---------------------------------------------------------------------------
+// Business Dashboard (Web)
+// ---------------------------------------------------------------------------
+
+export type BusinessStats = {
+  activeSponsors: number;
+  dataPoints: string;
+  totalSpentFormatted: string;
+  userReach: string;
+};
+
+export type SponsoredLocation = {
+  id: string;
+  venue: string;
+  location: string;
+  views: string;
+  clicks: string;
+  status: 'Live' | 'Pending';
+};

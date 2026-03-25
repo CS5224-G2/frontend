@@ -5,29 +5,19 @@ import {
   Linking,
   Pressable,
   ScrollView,
-  StyleSheet,
   Switch,
   Text,
   View,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useColorScheme } from 'nativewind';
+import { useTheme } from '../ThemeContext';
 
 import {
   getPrivacySecuritySettings,
   PrivacySecuritySettings,
   updatePrivacySecuritySettings,
 } from '@/services/settingsService';
-
-const theme = {
-  background: '#F3F4F6',
-  surface: '#FFFFFF',
-  surfaceMuted: '#F8FAFC',
-  primary: '#1D4ED8',
-  primarySoft: '#DBEAFE',
-  text: '#0F172A',
-  textMuted: '#64748B',
-  border: '#E2E8F0',
-};
 
 const defaultSettings: PrivacySecuritySettings = {
   noThirdPartyAds: false,
@@ -43,17 +33,19 @@ type ToggleRowProps = {
 };
 
 function ToggleRow({ title, description, value, onValueChange }: ToggleRowProps) {
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
   return (
-    <View style={styles.toggleRow}>
-      <View style={styles.toggleTextBlock}>
-        <Text style={styles.toggleTitle}>{title}</Text>
-        <Text style={styles.toggleDescription}>{description}</Text>
+    <View className="flex-row items-start" style={{ gap: 16 }}>
+      <View className="flex-1" style={{ gap: 6 }}>
+        <Text className="text-[15px] font-bold leading-[22px] text-slate-900 dark:text-slate-100">{title}</Text>
+        <Text className="text-[14px] leading-[21px] text-text-secondary dark:text-slate-400">{description}</Text>
       </View>
       <Switch
         value={value}
         onValueChange={onValueChange}
-        trackColor={{ false: '#CBD5E1', true: '#93C5FD' }}
-        thumbColor={value ? theme.primary : '#F8FAFC'}
+        trackColor={{ false: '#CBD5E1', true: isDark ? '#1D4ED8' : '#93C5FD' }}
+        thumbColor={value ? (isDark ? '#60A5FA' : '#1D4ED8') : '#F8FAFC'}
       />
     </View>
   );
@@ -64,6 +56,9 @@ export default function PrivacySecurityPage() {
   const [settings, setSettings] = useState<PrivacySecuritySettings>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const { preference, setPreference } = useTheme();
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
   useEffect(() => {
     let isMounted = true;
@@ -139,40 +134,40 @@ export default function PrivacySecurityPage() {
 
   if (isLoading) {
     return (
-      <View style={styles.centeredState}>
-        <ActivityIndicator size="large" color={theme.primary} />
-        <Text style={styles.stateTitle}>Loading security preferences</Text>
+      <View className="flex-1 justify-center items-center bg-[#F3F4F6] dark:bg-black">
+        <ActivityIndicator size="large" color={isDark ? '#3b82f6' : '#1D4ED8'} />
+        <Text className="mt-4 text-[20px] font-bold text-slate-900 dark:text-slate-100">Loading security preferences</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.contentContainer}>
-      <View style={styles.heroCard}>
-        <Text style={styles.heroEyebrow}>Privacy and device</Text>
-        <Text style={styles.heroTitle}>Privacy & security</Text>
-        <Text style={styles.heroSubtitle}>
+    <ScrollView className="flex-1 bg-[#F3F4F6] dark:bg-black" contentContainerStyle={{ padding: 20, gap: 16 }}>
+      <View className="bg-white dark:bg-[#111111] rounded-[24px] p-[22px] border border-border dark:border-[#2d2d2d]">
+        <Text className="text-[13px] font-bold tracking-[0.6px] uppercase text-primary-dark mb-2">Privacy and device</Text>
+        <Text className="text-[28px] font-extrabold text-slate-900 dark:text-slate-100">Privacy & security</Text>
+        <Text className="mt-[10px] text-[15px] leading-[22px] text-text-secondary dark:text-slate-400">
           Control how CycleLink uses your data and manage device-level permissions.
         </Text>
       </View>
 
-      <View style={styles.infoCard}>
-        <Text style={styles.infoTitle}>Your privacy matters</Text>
-        <Text style={styles.infoBody}>
+      <View className="bg-[#DBEAFE] dark:bg-[#1e293b] rounded-[20px] p-[18px]">
+        <Text className="text-[15px] font-extrabold text-slate-900 dark:text-slate-100 mb-1.5">Your privacy matters</Text>
+        <Text className="text-[14px] leading-[21px] text-text-secondary dark:text-slate-400">
           These controls are stored locally in a mock service for now, but they mirror the backend
           contract the app will use later.
         </Text>
       </View>
 
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Privacy controls</Text>
+      <View className="bg-white dark:bg-[#111111] rounded-[24px] p-5 border border-border dark:border-[#2d2d2d]">
+        <Text className="text-[18px] font-extrabold text-slate-900 dark:text-slate-100 mb-4">Privacy controls</Text>
         <ToggleRow
           title="Do not share my personal information for third-party targeted advertising"
           description="When enabled, CycleLink will opt you out of advertiser data sharing."
           value={settings.noThirdPartyAds}
           onValueChange={(value) => handleToggle('noThirdPartyAds', value)}
         />
-        <View style={styles.divider} />
+        <View className="h-px bg-border dark:bg-[#2d2d2d] my-[18px]" />
         <ToggleRow
           title="Do not use personal data to improve application"
           description="Turn this on if you do not want account and ride data used for product improvements."
@@ -181,212 +176,78 @@ export default function PrivacySecurityPage() {
         />
       </View>
 
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Device permissions</Text>
+      <View className="bg-white dark:bg-[#111111] rounded-[24px] p-5 border border-border dark:border-[#2d2d2d]">
+        <Text className="text-[18px] font-extrabold text-slate-900 dark:text-slate-100 mb-4">Device permissions</Text>
         <Pressable
           testID="notifications-settings-button"
-          style={styles.deviceRow}
+          className="flex-row justify-between items-center rounded-[18px] bg-[#F8FAFC] dark:bg-[#1a1a1a] border border-border dark:border-[#2d2d2d] p-cy-lg"
+          style={{ gap: 12 }}
           onPress={handleOpenNotificationSettings}
         >
-          <View style={styles.deviceTextBlock}>
-            <Text style={styles.deviceTitle}>Notifications</Text>
-            <Text style={styles.deviceDescription}>
+          <View className="flex-1" style={{ gap: 6 }}>
+            <Text className="text-[16px] font-bold text-slate-900 dark:text-slate-100">Notifications</Text>
+            <Text className="text-[14px] leading-[21px] text-text-secondary dark:text-slate-400">
               Manage push permissions in your native phone settings.
             </Text>
           </View>
-          <Text style={styles.deviceAction}>Open settings</Text>
+          <Text className="text-[14px] font-extrabold text-primary-dark">Open settings</Text>
         </Pressable>
       </View>
 
-      <View style={styles.actionRow}>
+      <View className="bg-white dark:bg-[#111111] rounded-[24px] p-5 border border-border dark:border-[#2d2d2d]">
+        <Text className="text-[18px] font-extrabold text-slate-900 dark:text-slate-100 mb-4">Appearance</Text>
+        <View className="flex-row" style={{ gap: 8 }}>
+          {(['system', 'light', 'dark'] as const).map((pref) => (
+            <Pressable
+              key={pref}
+              testID={`appearance-${pref}`}
+              className={[
+                'flex-1 items-center py-2 rounded-md',
+                preference === pref
+                  ? 'bg-primary dark:bg-blue-500'
+                  : 'bg-bg-light dark:bg-[#1a1a1a]',
+              ].join(' ')}
+              onPress={() => setPreference(pref)}
+            >
+              <Text
+                className={[
+                  'text-[14px] font-semibold',
+                  preference === pref
+                    ? 'text-white'
+                    : 'text-text-secondary dark:text-slate-400',
+                ].join(' ')}
+              >
+                {pref.charAt(0).toUpperCase() + pref.slice(1)}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      </View>
+
+      <View className="flex-row mt-1 mb-6" style={{ gap: 12 }}>
         <Pressable
           testID="privacy-security-cancel-button"
-          style={styles.secondaryButton}
+          className="flex-1 justify-center items-center border border-border dark:border-[#2d2d2d] bg-white dark:bg-[#111111] rounded-[18px]"
+          style={{ minHeight: 54 }}
           onPress={() => navigation.goBack()}
           disabled={isSaving}
         >
-          <Text style={styles.secondaryButtonText}>Cancel</Text>
+          <Text className="text-[15px] font-bold text-slate-900 dark:text-slate-100">Cancel</Text>
         </Pressable>
         <Pressable
           testID="privacy-security-save-button"
-          style={styles.primaryButton}
+          className="justify-center items-center bg-primary-dark rounded-[18px]"
+          style={{ flex: 1.15, minHeight: 54 }}
           onPress={handleSave}
           disabled={isSaving}
         >
           {isSaving ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
-            <Text style={styles.primaryButtonText}>Save settings</Text>
+            <Text className="text-[15px] font-extrabold text-white">Save settings</Text>
           )}
         </Pressable>
       </View>
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: theme.background,
-  },
-  contentContainer: {
-    padding: 20,
-    gap: 16,
-  },
-  centeredState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: theme.background,
-  },
-  stateTitle: {
-    marginTop: 16,
-    fontSize: 20,
-    fontWeight: '700',
-    color: theme.text,
-  },
-  heroCard: {
-    backgroundColor: theme.surface,
-    borderRadius: 24,
-    padding: 22,
-    borderWidth: 1,
-    borderColor: theme.border,
-  },
-  heroEyebrow: {
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    color: theme.primary,
-    marginBottom: 8,
-  },
-  heroTitle: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: theme.text,
-  },
-  heroSubtitle: {
-    marginTop: 10,
-    fontSize: 15,
-    lineHeight: 22,
-    color: theme.textMuted,
-  },
-  infoCard: {
-    backgroundColor: theme.primarySoft,
-    borderRadius: 20,
-    padding: 18,
-  },
-  infoTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: theme.text,
-    marginBottom: 6,
-  },
-  infoBody: {
-    fontSize: 14,
-    lineHeight: 21,
-    color: theme.textMuted,
-  },
-  sectionCard: {
-    backgroundColor: theme.surface,
-    borderRadius: 24,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: theme.border,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: theme.text,
-    marginBottom: 16,
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    gap: 16,
-    alignItems: 'flex-start',
-  },
-  toggleTextBlock: {
-    flex: 1,
-    gap: 6,
-  },
-  toggleTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    lineHeight: 22,
-    color: theme.text,
-  },
-  toggleDescription: {
-    fontSize: 14,
-    lineHeight: 21,
-    color: theme.textMuted,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: theme.border,
-    marginVertical: 18,
-  },
-  deviceRow: {
-    borderRadius: 18,
-    backgroundColor: theme.surfaceMuted,
-    borderWidth: 1,
-    borderColor: theme.border,
-    padding: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 12,
-  },
-  deviceTextBlock: {
-    flex: 1,
-    gap: 6,
-  },
-  deviceTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: theme.text,
-  },
-  deviceDescription: {
-    fontSize: 14,
-    lineHeight: 21,
-    color: theme.textMuted,
-  },
-  deviceAction: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: theme.primary,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 4,
-    marginBottom: 24,
-  },
-  secondaryButton: {
-    flex: 1,
-    minHeight: 54,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: theme.border,
-    backgroundColor: theme.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  secondaryButtonText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: theme.text,
-  },
-  primaryButton: {
-    flex: 1.15,
-    minHeight: 54,
-    borderRadius: 18,
-    backgroundColor: theme.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  primaryButtonText: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-});

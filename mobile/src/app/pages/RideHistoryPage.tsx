@@ -1,30 +1,149 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, FlatList, Pressable, Alert } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  FlatList,
+  Pressable,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useColorScheme } from 'nativewind';
+import Animated, {
+  FadeInDown,
+  FadeInRight,
+  FadeOutLeft,
+  FadeOutUp,
+  LinearTransition,
+} from 'react-native-reanimated';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button } from '../components/native/Common';
-import { RideHistory, mockRideHistory, weeklyData, monthlyData, mockRoutes } from '../types';
+import { type RideHistory, type GraphDataPoint, type GraphPeriod } from '../../../../shared/types/index';
+import { getRideHistory, getDistanceStats } from '../../services/rideService';
 
 type Props = NativeStackScreenProps<any, 'RideHistory'>;
+type DistanceStatsByPeriod = Record<GraphPeriod, GraphDataPoint[]>;
+
+const emptyDistanceStats: DistanceStatsByPeriod = {
+  week: [],
+  month: [],
+};
+
+const cardLayoutTransition = LinearTransition.springify().damping(18).stiffness(220);
+const graphLayoutTransition = LinearTransition.springify().damping(20).stiffness(240);
+
+function getGraphLabel(item: GraphDataPoint) {
+  return 'day' in item ? item.day : item.week;
+}
+
+function AnimatedValueText({
+  value,
+  transitionKey,
+  className,
+}: {
+  value: string;
+  transitionKey: string;
+  className: string;
+}) {
+  return (
+    <View style={{ minHeight: 28, overflow: 'hidden', justifyContent: 'center' }}>
+      <Animated.Text
+        key={transitionKey}
+        entering={FadeInDown.duration(220)}
+        exiting={FadeOutUp.duration(160)}
+        className={className}
+      >
+        {value}
+      </Animated.Text>
+    </View>
+  );
+}
+
+function GraphBar({
+  item,
+  maxDistance,
+  index,
+}: {
+  item: GraphDataPoint;
+  maxDistance: number;
+  index: number;
+}) {
+  const barWidth = `${maxDistance > 0 ? (item.distance / maxDistance) * 100 : 0}%`;
+
+  return (
+    <Animated.View
+      entering={FadeInRight.duration(220).delay(index * 36)}
+      exiting={FadeOutLeft.duration(140)}
+      layout={graphLayoutTransition}
+      className="flex-row items-center mb-[6px]"
+    >
+      <Text className="text-xs text-slate-500 dark:text-slate-400" style={{ width: 50 }}>{getGraphLabel(item)}</Text>
+      <View className="flex-1 rounded-full bg-[#e2e8f0] dark:bg-[#2d2d2d] mx-2" style={{ height: 8 }}>
+        <Animated.View
+          layout={graphLayoutTransition}
+          className="rounded-full bg-[#3b82f6]"
+          style={{
+            height: 8,
+            width: barWidth,
+          }}
+        />
+      </View>
+      <Text className="text-[11px] text-slate-500 dark:text-slate-400 text-right" style={{ width: 60 }}>{item.distance.toFixed(1)} km</Text>
+    </Animated.View>
+  );
+}
 
 export default function RideHistoryPage({ navigation }: Props) {
-  const [period, setPeriod] = useState<'week' | 'month'>('week');
+  const [period, setPeriod] = useState<GraphPeriod>('week');
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [rideHistory, setRideHistory] = useState<RideHistory[]>([]);
+  const [distanceStats, setDistanceStats] = useState<DistanceStatsByPeriod>(emptyDistanceStats);
+  const [isLoading, setIsLoading] = useState(true);
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
   useEffect(() => {
-    const loadFavorites = async () => {
+    const loadData = async () => {
       try {
-        const saved = await AsyncStorage.getItem('favoriteRoutes');
-        if (saved) {
-          setFavorites(JSON.parse(saved));
-        }
+        setIsLoading(true);
+        const [history, weeklyStats, monthlyStats, saved] = await Promise.all([
+          getRideHistory(),
+          getDistanceStats('week'),
+          getDistanceStats('month'),
+          AsyncStorage.getItem('favoriteRoutes'),
+        ]);
+        setRideHistory(history);
+        setDistanceStats({
+          week: weeklyStats,
+          month: monthlyStats,
+        });
+        if (saved) setFavorites(JSON.parse(saved));
       } catch (error) {
-        console.warn('Error loading favorites', error);
+        console.warn('Error loading ride data', error);
+      } finally {
+        setIsLoading(false);
       }
     };
-    loadFavorites();
+    loadData();
   }, []);
+
+  const graphData = distanceStats[period];
+
+  const handlePeriodChange = (nextPeriod: GraphPeriod) => {
+    if (nextPeriod === period) {
+      return;
+    }
+
+    setPeriod(nextPeriod);
+  };
+
+  const totalGraphDistance = graphData.reduce((sum, item) => sum + item.distance, 0);
+  const totalTime = rideHistory.reduce((sum, ride) => sum + ride.totalTime, 0);
+  const totalCheckpoints = rideHistory.reduce((sum, ride) => sum + ride.checkpoints, 0);
+  const totalDistance = graphData.reduce((sum, item) => sum + item.distance, 0);
+  const maxDistance = Math.max(...graphData.map((item) => item.distance), 1);
 
   const toggleFavorite = async (routeId: string, routeName: string) => {
     const isFav = favorites.includes(routeId);
@@ -43,190 +162,186 @@ export default function RideHistoryPage({ navigation }: Props) {
     }
   };
 
-  const graphData = period === 'week' ? weeklyData : monthlyData;
-  const totalGraphDistance = graphData.reduce((sum, item) => sum + item.distance, 0);
-  const totalTime = mockRideHistory.reduce((sum, ride) => sum + ride.totalTime, 0);
-  const totalCheckpoints = mockRideHistory.reduce((sum, ride) => sum + ride.checkpoints, 0);
-
   const formatTime = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
   };
 
-  const renderGraphBar = (item: any) => {
-    const maxDistance = Math.max(...graphData.map((d) => d.distance), 1);
-    const width = `${(item.distance / maxDistance) * 100}%`;
-
-    return (
-      <View key={item.id} style={styles.graphBarRow}>
-        <Text style={styles.graphBarLabel}>{period === 'week' ? item.day : item.week}</Text>
-        <View style={styles.graphBarTrack}>
-          <View style={[styles.graphBarFill, { width: width as any }]} />
-        </View>
-        <Text style={styles.graphBarValue}>{item.distance.toFixed(1)} km</Text>
-      </View>
-    );
-  };
-
   const renderRide = ({ item }: { item: RideHistory }) => {
     const isFav = favorites.includes(item.routeId);
-    const route = mockRoutes.find((routeItem) => routeItem.id === item.routeId);
-    const displayName = route?.name ?? item.routeName;
+    const displayName = item.routeName;
 
     return (
       <Pressable
-        style={({ pressed }) => [styles.rideCard, pressed && styles.rideCardPressed]}
+        style={({ pressed }) => [pressed && { opacity: 0.85 }]}
         onPress={() => navigation.navigate('HistoryDetails', { rideId: item.id })}
       >
-        <View style={styles.rideCardHeader}>
-          <Text style={styles.rideName}>{displayName}</Text>
-          <Pressable onPress={() => toggleFavorite(item.routeId, displayName)}>
-            <MaterialCommunityIcons
-              name={isFav ? 'star' : 'star-outline'}
-              size={24}
-              color={isFav ? '#f59e0b' : '#a1a1aa'}
-            />
-          </Pressable>
-        </View>
+        <View
+          className="rounded-[12px] border p-3 bg-[#f8fbff] dark:bg-[#111111] border-[#bfdbfe] dark:border-[#2d2d2d]"
+          style={{
+            shadowColor: '#0f172a',
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: isDark ? 0 : 0.08,
+            shadowRadius: 8,
+            elevation: isDark ? 0 : 2,
+          }}
+        >
+          <View className="flex-row justify-between items-center mb-[6px]">
+            <Text className="text-base font-bold text-[#1e293b] dark:text-slate-100 flex-1 mr-2">{displayName}</Text>
+            <Pressable onPress={() => toggleFavorite(item.routeId, displayName)}>
+              <MaterialCommunityIcons
+                name={isFav ? 'star' : 'star-outline'}
+                size={24}
+                color={isFav ? '#f59e0b' : '#a1a1aa'}
+              />
+            </Pressable>
+          </View>
 
-        <Text style={styles.rideMeta}>{item.completionDate} • {item.completionTime}</Text>
+          <Text className="text-xs text-[#6b7280] dark:text-slate-400 mb-2">{item.completionDate} • {item.completionTime}</Text>
 
-        <View style={styles.statsGrid}>
-          <View style={styles.statItem}>
-            <MaterialCommunityIcons name="map-marker" size={14} color="#6b7280" />
-            <Text style={styles.statText}>{item.distance} km</Text>
-          </View>
-          <View style={styles.statItem}>
-            <MaterialCommunityIcons name="clock" size={14} color="#6b7280" />
-            <Text style={styles.statText}>{formatTime(item.totalTime)}</Text>
-          </View>
-          <View style={styles.statItem}>
-            <MaterialCommunityIcons name="speedometer" size={14} color="#6b7280" />
-            <Text style={styles.statText}>{item.avgSpeed} km/h</Text>
-          </View>
-          <View style={styles.statItem}>
-            <MaterialCommunityIcons name="map-legend" size={14} color="#6b7280" />
-            <Text style={styles.statText}>{item.checkpoints} checkpoints</Text>
+          <View className="flex-row flex-wrap justify-between">
+            <View className="flex-row items-center gap-1 my-[3px]" style={{ width: '48%' }}>
+              <MaterialCommunityIcons name="map-marker" size={14} color="#6b7280" />
+              <Text className="text-[13px] text-[#334155] dark:text-slate-100 ml-1">{item.distance} km</Text>
+            </View>
+            <View className="flex-row items-center gap-1 my-[3px]" style={{ width: '48%' }}>
+              <MaterialCommunityIcons name="clock" size={14} color="#6b7280" />
+              <Text className="text-[13px] text-[#334155] dark:text-slate-100 ml-1">{formatTime(item.totalTime)}</Text>
+            </View>
+            <View className="flex-row items-center gap-1 my-[3px]" style={{ width: '48%' }}>
+              <MaterialCommunityIcons name="speedometer" size={14} color="#6b7280" />
+              <Text className="text-[13px] text-[#334155] dark:text-slate-100 ml-1">{item.avgSpeed} km/h</Text>
+            </View>
+            <View className="flex-row items-center gap-1 my-[3px]" style={{ width: '48%' }}>
+              <MaterialCommunityIcons name="map-legend" size={14} color="#6b7280" />
+              <Text className="text-[13px] text-[#334155] dark:text-slate-100 ml-1">{item.checkpoints} checkpoints</Text>
+            </View>
           </View>
         </View>
       </Pressable>
     );
   };
 
+  if (isLoading) {
+    return (
+      <View className="flex-1 justify-center items-center bg-slate-50 dark:bg-black">
+        <ActivityIndicator testID="ride-history-loading" size="large" color={isDark ? '#3b82f6' : '#1D4ED8'} />
+      </View>
+    );
+  }
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Ride History</Text>
-        <Text style={styles.headerSubTitle}>Track progress & achievements</Text>
+    <ScrollView className="flex-1 bg-slate-50 dark:bg-black" contentContainerStyle={{ padding: 16, paddingBottom: 36 }}>
+      <View className="mb-[12px]">
+        <Text className="text-[28px] font-bold text-[#1e293b] dark:text-slate-100">Ride History</Text>
+        <Text className="text-sm text-[#64748b] dark:text-slate-400 mt-1">Track progress & achievements</Text>
       </View>
 
-      <View style={styles.summaryGrid}>
-        <Card style={styles.cardSmall}>
-          <CardContent>
-            <Text style={styles.summaryLabel}>Total Rides</Text>
-            <Text style={styles.summaryValue}>{mockRideHistory.length}</Text>
-          </CardContent>
+      <View className="flex-row flex-wrap justify-between mb-[12px]">
+        <Card style={{ width: '48%', padding: 10, borderRadius: 12 }}>
+          <Animated.View layout={cardLayoutTransition}>
+            <CardContent>
+              <Text className="text-xs text-[#64748b] dark:text-slate-400">Total Rides</Text>
+              <AnimatedValueText
+                value={String(rideHistory.length)}
+                transitionKey={`rides-${period}-${rideHistory.length}`}
+                className="text-xl font-bold text-[#1e293b] dark:text-slate-100 mt-[6px]"
+              />
+            </CardContent>
+          </Animated.View>
         </Card>
-        <Card style={styles.cardSmall}>
-          <CardContent>
-            <Text style={styles.summaryLabel}>Distance</Text>
-            <Text style={styles.summaryValue}>{graphData.reduce((sum, item) => sum + item.distance, 0).toFixed(1)} km</Text>
-          </CardContent>
+        <Card style={{ width: '48%', padding: 10, borderRadius: 12 }}>
+          <Animated.View layout={cardLayoutTransition}>
+            <CardContent>
+              <Text className="text-xs text-[#64748b] dark:text-slate-400">Distance</Text>
+              <AnimatedValueText
+                value={`${totalDistance.toFixed(1)} km`}
+                transitionKey={`distance-${period}-${totalDistance.toFixed(1)}`}
+                className="text-xl font-bold text-[#1e293b] dark:text-slate-100 mt-[6px]"
+              />
+            </CardContent>
+          </Animated.View>
         </Card>
-        <Card style={styles.cardSmall}>
-          <CardContent>
-            <Text style={styles.summaryLabel}>Total Time</Text>
-            <Text style={styles.summaryValue}>{formatTime(totalTime)}</Text>
-          </CardContent>
+        <Card style={{ width: '48%', padding: 10, borderRadius: 12 }}>
+          <Animated.View layout={cardLayoutTransition}>
+            <CardContent>
+              <Text className="text-xs text-[#64748b] dark:text-slate-400">Total Time</Text>
+              <AnimatedValueText
+                value={formatTime(totalTime)}
+                transitionKey={`time-${period}-${totalTime}`}
+                className="text-xl font-bold text-[#1e293b] dark:text-slate-100 mt-[6px]"
+              />
+            </CardContent>
+          </Animated.View>
         </Card>
-        <Card style={styles.cardSmall}>
-          <CardContent>
-            <Text style={styles.summaryLabel}>Checkpoints</Text>
-            <Text style={styles.summaryValue}>{totalCheckpoints}</Text>
-          </CardContent>
+        <Card style={{ width: '48%', padding: 10, borderRadius: 12 }}>
+          <Animated.View layout={cardLayoutTransition}>
+            <CardContent>
+              <Text className="text-xs text-[#64748b] dark:text-slate-400">Checkpoints</Text>
+              <AnimatedValueText
+                value={String(totalCheckpoints)}
+                transitionKey={`checkpoints-${period}-${totalCheckpoints}`}
+                className="text-xl font-bold text-[#1e293b] dark:text-slate-100 mt-[6px]"
+              />
+            </CardContent>
+          </Animated.View>
         </Card>
       </View>
 
       <Card>
         <CardHeader>
-          <View style={styles.chartHeader}>
+          <View className="flex-row justify-between items-center">
             <View>
               <CardTitle>Distance Over Time</CardTitle>
-              <CardDescription>{`Total ${period === 'week' ? 'this week' : 'this month'}: ${totalGraphDistance.toFixed(1)} km`}</CardDescription>
+              <View style={{ minHeight: 20, overflow: 'hidden' }}>
+                <Animated.View
+                  key={`graph-total-${period}-${totalGraphDistance.toFixed(1)}`}
+                  entering={FadeInDown.duration(220)}
+                  exiting={FadeOutUp.duration(160)}
+                >
+                  <CardDescription>{`Total ${period === 'week' ? 'this week' : 'this month'}: ${totalGraphDistance.toFixed(1)} km`}</CardDescription>
+                </Animated.View>
+              </View>
             </View>
-            <View style={styles.rangeButtons}>
+            <View className="flex-row gap-2">
               <Button
-                style={[styles.rangeButton, period === 'week' && styles.rangeButtonActive]}
-                onPress={() => setPeriod('week')}
+                style={[{ backgroundColor: '#e2e8f0', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 8 }, period === 'week' && { backgroundColor: '#2563eb' }]}
+                onPress={() => handlePeriodChange('week')}
               >
-                <Text style={[styles.rangeButtonText, period === 'week' && styles.rangeButtonTextActive]}>Week</Text>
+                <Text style={[{ color: '#1e293b', fontSize: 13, fontWeight: '600' }, period === 'week' && { color: '#fff' }]}>Week</Text>
               </Button>
               <Button
-                style={[styles.rangeButton, period === 'month' && styles.rangeButtonActive]}
-                onPress={() => setPeriod('month')}
+                style={[{ backgroundColor: '#e2e8f0', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 8 }, period === 'month' && { backgroundColor: '#2563eb' }]}
+                onPress={() => handlePeriodChange('month')}
               >
-                <Text style={[styles.rangeButtonText, period === 'month' && styles.rangeButtonTextActive]}>Month</Text>
+                <Text style={[{ color: '#1e293b', fontSize: 13, fontWeight: '600' }, period === 'month' && { color: '#fff' }]}>Month</Text>
               </Button>
             </View>
           </View>
         </CardHeader>
         <CardContent>
-          <View style={styles.graphContainer}>
-            {graphData.map((item) => renderGraphBar(item))}
+          <View className="mt-2 py-1">
+            {graphData.map((item, index) => (
+              <GraphBar key={`${period}-${item.id}`} item={item} maxDistance={maxDistance} index={index} />
+            ))}
           </View>
         </CardContent>
       </Card>
 
-      <View style={styles.sectionHeader}
-      >
-        <Text style={styles.sectionTitle}>Recent Rides</Text>
-        <Text style={styles.sectionSubTitle}>Tap a ride for details</Text>
+      <View className="my-[10px]">
+        <Text className="text-xl font-bold text-[#1e293b] dark:text-slate-100">Recent Rides</Text>
+        <Text className="text-xs text-[#64748b] dark:text-slate-400">Tap a ride for details</Text>
       </View>
 
       <FlatList
-        data={mockRideHistory}
+        data={rideHistory}
         keyExtractor={(item) => item.id}
         renderItem={renderRide}
+        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         scrollEnabled={false}
-        contentContainerStyle={styles.ridesList}
+        contentContainerStyle={{ paddingBottom: 80 }}
       />
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc' },
-  contentContainer: { padding: 16, paddingBottom: 36 },
-  header: { marginBottom: 12 },
-  headerTitle: { fontSize: 28, fontWeight: 'bold', color: '#1e293b' },
-  headerSubTitle: { fontSize: 14, color: '#64748b', marginTop: 4 },
-  summaryGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 12 },
-  cardSmall: { width: '48%', padding: 10, borderRadius: 12 },
-  summaryLabel: { fontSize: 12, color: '#64748b' },
-  summaryValue: { fontSize: 20, fontWeight: 'bold', color: '#1e293b', marginTop: 6 },
-  chartHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  rangeButtons: { flexDirection: 'row', gap: 8 },
-  rangeButton: { backgroundColor: '#e2e8f0', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 8 },
-  rangeButtonActive: { backgroundColor: '#2563eb' },
-  rangeButtonText: { color: '#1e293b', fontSize: 13, fontWeight: '600' },
-  rangeButtonTextActive: { color: '#fff' },
-  graphContainer: { marginTop: 8, paddingVertical: 4 },
-  graphBarRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
-  graphBarLabel: { width: 50, fontSize: 12, color: '#475569' },
-  graphBarTrack: { flex: 1, height: 8, borderRadius: 999, backgroundColor: '#e2e8f0', marginHorizontal: 8 },
-  graphBarFill: { height: 8, borderRadius: 999, backgroundColor: '#3b82f6' },
-  graphBarValue: { width: 60, fontSize: 11, color: '#475569', textAlign: 'right' },
-  sectionHeader: { marginVertical: 10 },
-  sectionTitle: { fontSize: 20, fontWeight: '700', color: '#1e293b' },
-  sectionSubTitle: { fontSize: 12, color: '#64748b' },
-  ridesList: { paddingBottom: 80 },
-  rideCard: { backgroundColor: '#fff', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#e2e8f0', marginBottom: 10 },
-  rideCardPressed: { opacity: 0.8 },
-  rideCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  rideName: { fontSize: 16, fontWeight: '700', color: '#1e293b', flex: 1, marginRight: 8 },
-  rideMeta: { fontSize: 12, color: '#6b7280', marginBottom: 8 },
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  statItem: { flexDirection: 'row', alignItems: 'center', width: '48%', marginVertical: 3, gap: 4 },
-  statText: { fontSize: 13, color: '#334155', marginLeft: 4 },
-});

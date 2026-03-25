@@ -1,3 +1,27 @@
+// =============================================================================
+// SETTINGS SERVICE — Mobile (Expo/React Native)
+// Adapter pattern: maps between backend snake_case and frontend camelCase.
+// Gated by EXPO_PUBLIC_USE_MOCKS — set to 'true' to skip real network calls.
+// =============================================================================
+
+import type {
+  ChangePasswordInput,
+  PasswordUpdateResult,
+  PrivacySecuritySettings,
+} from '../../../shared/types/index';
+import {
+  mockPrivacySettings,
+  mockStoredPassword,
+} from '../../../shared/mocks/index';
+
+export type { ChangePasswordInput, PasswordUpdateResult, PrivacySecuritySettings };
+
+const USE_MOCKS = process.env.EXPO_PUBLIC_USE_MOCKS === 'true';
+
+// ---------------------------------------------------------------------------
+// Backend shapes (internal)
+// ---------------------------------------------------------------------------
+
 type BackendPasswordUpdatePayload = {
   current_password: string;
   new_password: string;
@@ -10,6 +34,13 @@ type BackendPasswordUpdateResponse = {
   updated_at: string;
 };
 
+type BackendPrivacySecurityPayload = {
+  privacy_controls: {
+    third_party_ads_opt_out: boolean;
+    data_improvement_opt_out: boolean;
+  };
+};
+
 type BackendPrivacySecurityResponse = {
   privacy_controls: {
     third_party_ads_opt_out: boolean;
@@ -20,52 +51,18 @@ type BackendPrivacySecurityResponse = {
   };
 };
 
-type BackendPrivacySecurityUpdatePayload = {
-  privacy_controls: {
-    third_party_ads_opt_out: boolean;
-    data_improvement_opt_out: boolean;
-  };
-};
+// ---------------------------------------------------------------------------
+// Mappers
+// ---------------------------------------------------------------------------
 
-export type ChangePasswordInput = {
-  currentPassword: string;
-  newPassword: string;
-  confirmNewPassword: string;
-};
-
-export type PrivacySecuritySettings = {
-  noThirdPartyAds: boolean;
-  noDataImprovement: boolean;
-  notificationsManagedInDeviceSettings: boolean;
-};
-
-let mockStoredPassword = 'CycleLink123';
-
-let mockPrivacySecuritySettings: BackendPrivacySecurityResponse = {
-  privacy_controls: {
-    third_party_ads_opt_out: false,
-    data_improvement_opt_out: false,
-  },
-  device_permissions: {
-    notifications_managed_in_os: true,
-  },
-};
-
-const wait = async (ms: number) =>
-  new Promise<void>((resolve) => {
-    setTimeout(resolve, ms);
-  });
-
-const toBackendPasswordPayload = (
-  input: ChangePasswordInput
-): BackendPasswordUpdatePayload => ({
+const toBackendPasswordPayload = (input: ChangePasswordInput): BackendPasswordUpdatePayload => ({
   current_password: input.currentPassword.trim(),
   new_password: input.newPassword.trim(),
   confirm_new_password: input.confirmNewPassword.trim(),
 });
 
 const toFrontendPrivacySettings = (
-  payload: BackendPrivacySecurityResponse
+  payload: BackendPrivacySecurityResponse,
 ): PrivacySecuritySettings => ({
   noThirdPartyAds: payload.privacy_controls.third_party_ads_opt_out,
   noDataImprovement: payload.privacy_controls.data_improvement_opt_out,
@@ -73,57 +70,99 @@ const toFrontendPrivacySettings = (
 });
 
 const toBackendPrivacyPayload = (
-  settings: PrivacySecuritySettings
-): BackendPrivacySecurityUpdatePayload => ({
+  settings: PrivacySecuritySettings,
+): BackendPrivacySecurityPayload => ({
   privacy_controls: {
     third_party_ads_opt_out: settings.noThirdPartyAds,
     data_improvement_opt_out: settings.noDataImprovement,
   },
 });
 
+const toPasswordUpdateResult = (r: BackendPasswordUpdateResponse): PasswordUpdateResult => ({
+  status: r.status,
+  message: r.message,
+  updatedAt: r.updated_at,
+});
+
+// ---------------------------------------------------------------------------
+// In-memory mock stores (only used in mock mode)
+// ---------------------------------------------------------------------------
+
+let _mockStoredPassword = mockStoredPassword;
+let _mockPrivacySettings: BackendPrivacySecurityResponse = {
+  privacy_controls: {
+    third_party_ads_opt_out: mockPrivacySettings.noThirdPartyAds,
+    data_improvement_opt_out: mockPrivacySettings.noDataImprovement,
+  },
+  device_permissions: { notifications_managed_in_os: true },
+};
+
+const wait = async (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
 export async function updatePassword(
-  input: ChangePasswordInput
-): Promise<BackendPasswordUpdateResponse> {
-  await wait(600);
+  input: ChangePasswordInput,
+  token?: string,
+): Promise<PasswordUpdateResult> {
+  if (USE_MOCKS) {
+    await wait(600);
+    if (input.newPassword !== input.confirmNewPassword) {
+      throw new Error('New password confirmation does not match.');
+    }
+    if (input.currentPassword !== _mockStoredPassword) {
+      throw new Error('Current password is incorrect.');
+    }
+    _mockStoredPassword = input.newPassword;
+    return { status: 'ok', message: 'Password updated successfully.', updatedAt: new Date().toISOString() };
+  }
 
+  const { httpClient } = await import('./httpClient');
   const payload = toBackendPasswordPayload(input);
-
-  if (payload.new_password !== payload.confirm_new_password) {
-    throw new Error('New password confirmation does not match.');
-  }
-
-  if (payload.current_password !== mockStoredPassword) {
-    throw new Error('Current password is incorrect.');
-  }
-
-  mockStoredPassword = payload.new_password;
-
-  return {
-    status: 'ok',
-    message: 'Password updated successfully.',
-    updated_at: new Date().toISOString(),
-  };
+  const response = await httpClient.post<BackendPasswordUpdateResponse>(
+    '/user/password',
+    payload,
+    token,
+  );
+  return toPasswordUpdateResult(response);
 }
 
-export async function getPrivacySecuritySettings(): Promise<PrivacySecuritySettings> {
-  await wait(300);
-  return toFrontendPrivacySettings(mockPrivacySecuritySettings);
+export async function getPrivacySecuritySettings(token?: string): Promise<PrivacySecuritySettings> {
+  if (USE_MOCKS) {
+    await wait(300);
+    return toFrontendPrivacySettings(_mockPrivacySettings);
+  }
+
+  const { httpClient } = await import('./httpClient');
+  const response = await httpClient.get<BackendPrivacySecurityResponse>('/user/privacy', token);
+  return toFrontendPrivacySettings(response);
 }
 
 export async function updatePrivacySecuritySettings(
-  settings: PrivacySecuritySettings
+  settings: PrivacySecuritySettings,
+  token?: string,
 ): Promise<PrivacySecuritySettings> {
-  await wait(450);
+  if (USE_MOCKS) {
+    await wait(450);
+    const payload = toBackendPrivacyPayload(settings);
+    _mockPrivacySettings = {
+      ..._mockPrivacySettings,
+      privacy_controls: {
+        ..._mockPrivacySettings.privacy_controls,
+        ...payload.privacy_controls,
+      },
+    };
+    return toFrontendPrivacySettings(_mockPrivacySettings);
+  }
 
+  const { httpClient } = await import('./httpClient');
   const payload = toBackendPrivacyPayload(settings);
-
-  mockPrivacySecuritySettings = {
-    ...mockPrivacySecuritySettings,
-    privacy_controls: {
-      ...mockPrivacySecuritySettings.privacy_controls,
-      ...payload.privacy_controls,
-    },
-  };
-
-  return toFrontendPrivacySettings(mockPrivacySecuritySettings);
+  const response = await httpClient.put<BackendPrivacySecurityResponse>(
+    '/user/privacy',
+    payload,
+    token,
+  );
+  return toFrontendPrivacySettings(response);
 }

@@ -6,13 +6,13 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import { useColorScheme } from 'nativewind';
 import { AuthContext } from '../AuthContext';
 
 import { loginUser } from '../../services/authService';
@@ -20,6 +20,7 @@ import { loginUser } from '../../services/authService';
 export default function LoginPage() {
   const navigation = useNavigation<any>();
   const { login } = useContext(AuthContext);
+  const { colorScheme } = useColorScheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
@@ -53,121 +54,167 @@ export default function LoginPage() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView className="flex-1 bg-bg-page dark:bg-black">
       <KeyboardAvoidingView
-        style={styles.flex}
+        className="flex-1"
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingVertical: 32 }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.container}>
-          <View style={styles.backgroundBubbleTop} />
-          <View style={styles.backgroundBubbleBottom} />
+          <View className="flex-1 w-full self-center justify-center" style={{ maxWidth: 480 }}>
+            <View
+              className="absolute rounded-full bg-bubble-top dark:bg-[#1e293b]"
+              style={{ top: 20, right: -40, width: 180, height: 180 }}
+            />
+            <View
+              className="absolute rounded-full bg-bubble-bottom dark:bg-[#0f172a]"
+              style={{ bottom: 40, left: -60, width: 220, height: 220 }}
+            />
 
-          <View style={styles.header}>
-            <View style={styles.logoCircle}>
-              <Text style={styles.logoGlyph}>CL</Text>
-            </View>
-            <Text style={styles.brand}>CycleLink</Text>
-            <Text style={styles.subtitle}>Welcome back. Sign in to continue your next ride.</Text>
-          </View>
-
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Sign In</Text>
-            <Text style={styles.cardDescription}>Choose your preferred sign-in method</Text>
-
-            <Pressable style={styles.socialButton} onPress={() => Alert.alert('Google', 'Mock only')}>
-              <View style={[styles.socialIcon, styles.googleIcon]}>
-                <Text style={styles.socialIconText}>G</Text>
+            <View className="items-center mb-7">
+              <View
+                className="bg-primary dark:bg-blue-500 items-center justify-center mb-cy-lg rounded-full"
+                style={{
+                  width: 72,
+                  height: 72,
+                  shadowColor: '#1d4ed8',
+                  shadowOffset: { width: 0, height: 10 },
+                  shadowOpacity: 0.22,
+                  shadowRadius: 18,
+                  elevation: 8,
+                }}
+              >
+                <Text className="text-white text-[22px] font-extrabold tracking-[1px]">CL</Text>
               </View>
-              <Text style={styles.socialButtonText}>Continue with Google</Text>
-            </Pressable>
+              <Text className="text-[34px] font-extrabold text-primary dark:text-blue-400 mb-2">CycleLink</Text>
+              <Text className="text-[15px] leading-[22px] text-[#475569] dark:text-slate-400 text-center" style={{ maxWidth: 280 }}>
+                Welcome back. Sign in to continue your next ride.
+              </Text>
+            </View>
 
-            <Pressable style={styles.socialButton} onPress={() => Alert.alert('Apple', 'Mock only')}>
-              <View style={[styles.socialIcon, styles.appleIcon]}>
-                <Text style={[styles.socialIconText, styles.appleIconText]}>A</Text>
+            <View
+              className="bg-bg-base dark:bg-[#111111] rounded-cy-2xl px-[22px] py-cy-xl"
+              style={{
+                shadowColor: '#0f172a',
+                shadowOffset: { width: 0, height: 16 },
+                shadowOpacity: 0.08,
+                shadowRadius: 24,
+                elevation: 8,
+              }}
+            >
+              <Text className="text-2xl font-bold text-[#0f172a] dark:text-slate-100 mb-1.5">Sign In</Text>
+              <Text className="text-sm text-text-secondary mb-[18px]">Choose your preferred sign-in method</Text>
+
+              <Pressable
+                className="flex-row items-center justify-center border border-border-light dark:border-[#2d2d2d] rounded-cy-xl py-[14px] px-cy-lg mb-3 bg-bg-base dark:bg-[#111111]"
+                onPress={() => Alert.alert('Google', 'Mock only')}
+              >
+                <View className="w-7 h-7 rounded-full items-center justify-center mr-3 bg-[#f1f5f9] dark:bg-[#1a1a1a]">
+                  <Text className="text-sm font-bold text-[#0f172a] dark:text-slate-100">G</Text>
+                </View>
+                <Text className="text-[15px] font-semibold text-[#0f172a] dark:text-slate-100">Continue with Google</Text>
+              </Pressable>
+
+              <Pressable
+                className="flex-row items-center justify-center border border-border-light dark:border-[#2d2d2d] rounded-cy-xl py-[14px] px-cy-lg mb-3 bg-bg-base dark:bg-[#111111]"
+                onPress={() => Alert.alert('Apple', 'Mock only')}
+              >
+                <View className="w-7 h-7 rounded-full items-center justify-center mr-3 bg-[#111827]">
+                  <Text className="text-sm font-bold text-white">A</Text>
+                </View>
+                <Text className="text-[15px] font-semibold text-[#0f172a] dark:text-slate-100">Continue with Apple</Text>
+              </Pressable>
+
+              <View className="flex-row items-center my-5">
+                <View className="flex-1 h-px bg-border dark:bg-[#2d2d2d]" />
+                <Text className="mx-3 text-[#94a3b8] dark:text-slate-400 text-xs font-semibold">Or continue with email</Text>
+                <View className="flex-1 h-px bg-border dark:bg-[#2d2d2d]" />
               </View>
-              <Text style={styles.socialButtonText}>Continue with Apple</Text>
-            </Pressable>
 
-            <View style={styles.dividerRow}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>Or continue with email</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Email</Text>
-              <TextInput
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="email-address"
-                onChangeText={setEmail}
-                placeholder="you@example.com"
-                placeholderTextColor="#94a3b8"
-                style={styles.input}
-                value={email}
-                returnKeyType="next"
-              />
-            </View>
-
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Password</Text>
-              <View style={styles.passwordRow}>
+              <View className="mb-cy-lg">
+                <Text className="text-sm font-semibold text-[#334155] dark:text-slate-100 mb-2">Email</Text>
                 <TextInput
                   autoCapitalize="none"
                   autoCorrect={false}
-                  onChangeText={setPassword}
-                  placeholder="Enter your password"
-                  placeholderTextColor="#94a3b8"
-                  secureTextEntry={!showPassword}
-                  style={styles.passwordInput}
-                  value={password}
+                  keyboardType="email-address"
+                  onChangeText={setEmail}
+                  placeholder="you@example.com"
+                  placeholderTextColor={colorScheme === 'dark' ? '#64748b' : '#94a3b8'}
+                  className="border border-border-light dark:border-[#2d2d2d] rounded-cy-xl px-cy-lg py-[15px] text-[15px] text-[#0f172a] dark:text-slate-100 bg-bg-light dark:bg-[#1a1a1a]"
+                  value={email}
+                  returnKeyType="next"
                 />
-                <Pressable onPress={() => setShowPassword((current) => !current)}>
-                  <Text style={styles.toggleText}>{showPassword ? 'Hide' : 'Show'}</Text>
+              </View>
+
+              <View className="mb-cy-lg">
+                <Text className="text-sm font-semibold text-[#334155] dark:text-slate-100 mb-2">Password</Text>
+                <View className="flex-row items-center border border-border-light dark:border-[#2d2d2d] rounded-cy-xl px-cy-lg bg-bg-light dark:bg-[#1a1a1a]">
+                  <TextInput
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    onChangeText={setPassword}
+                    placeholder="Enter your password"
+                    placeholderTextColor={colorScheme === 'dark' ? '#64748b' : '#94a3b8'}
+                    secureTextEntry={!showPassword}
+                    className="flex-1 py-[15px] text-[15px] text-[#0f172a] dark:text-slate-100"
+                    value={password}
+                  />
+                  <Pressable onPress={() => setShowPassword((current) => !current)}>
+                    <Text className="text-primary dark:text-blue-400 text-[13px] font-bold">{showPassword ? 'Hide' : 'Show'}</Text>
+                  </Pressable>
+                </View>
+              </View>
+
+              <View className="flex-row items-center justify-between mb-5">
+                <Pressable
+                  className="flex-row items-center"
+                  onPress={() => setRememberMe((current) => !current)}
+                >
+                  <View
+                    className={`w-5 h-5 rounded-md border items-center justify-center mr-2 ${
+                      rememberMe ? 'bg-primary dark:bg-blue-500 border-primary dark:border-blue-500' : 'bg-bg-base dark:bg-[#111111] border-[#cbd5e1] dark:border-[#2d2d2d]'
+                    }`}
+                  >
+                    {rememberMe ? <Text className="text-white text-[11px] font-extrabold">x</Text> : null}
+                  </View>
+                  <Text className="text-[#475569] dark:text-slate-400 text-[13px]">Remember me</Text>
+                </Pressable>
+
+                <Pressable>
+                  <Text className="text-primary dark:text-blue-400 text-[13px] font-bold">Forgot password?</Text>
                 </Pressable>
               </View>
+
+              <Pressable
+                disabled={isSubmitting}
+                onPress={handleLogin}
+                className={`bg-primary dark:bg-blue-500 rounded-[18px] items-center justify-center py-cy-lg mb-[18px]${isSubmitting ? ' opacity-70' : ''}`}
+                style={(state: any) => [
+                  Platform.OS === 'web' && state.hovered && {
+                    backgroundColor: '#1d4ed8',
+                    transform: [{ scale: 1.02 }],
+                  },
+                  state.pressed && {
+                    opacity: 0.8,
+                    transform: [{ scale: 0.98 }],
+                  },
+                ]}
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator color="#ffffff" />
+                ) : (
+                  <Text className="text-white text-base font-bold">Sign In</Text>
+                )}
+              </Pressable>
             </View>
 
-            <View style={styles.metaRow}>
-              <Pressable style={styles.checkboxRow} onPress={() => setRememberMe((current) => !current)}>
-                <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
-                  {rememberMe ? <Text style={styles.checkboxTick}>x</Text> : null}
-                </View>
-                <Text style={styles.metaText}>Remember me</Text>
-              </Pressable>
-
-              <Pressable>
-                <Text style={styles.linkText}>Forgot password?</Text>
-              </Pressable>
-            </View>
-
-            <Pressable
-              disabled={isSubmitting}
-              onPress={handleLogin}
-              style={(state: any) => [
-                styles.primaryButton,
-                isSubmitting && styles.primaryButtonDisabled,
-                Platform.OS === 'web' && state.hovered && styles.primaryButtonHover,
-                state.pressed && styles.primaryButtonPressed
-              ]}
-            >
-              {isSubmitting ? (
-                <ActivityIndicator color="#ffffff" />
-              ) : (
-                <Text style={styles.primaryButtonText}>Sign In</Text>
-              )}
-            </Pressable>
-          </View>
-
-            <View style={styles.footerRow}>
-              <Text style={styles.footerText}>Do not have an account? </Text>
+            <View className="flex-row justify-center items-center mt-4">
+              <Text className="text-text-secondary text-[13px]">Do not have an account? </Text>
               <Pressable onPress={() => navigation.navigate('Register')}>
-                <Text style={styles.linkText}>Sign up</Text>
+                <Text className="text-primary dark:text-blue-400 text-[13px] font-bold">Sign up</Text>
               </Pressable>
             </View>
           </View>
@@ -176,269 +223,3 @@ export default function LoginPage() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#eef4ff',
-  },
-  flex: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingVertical: 32,
-    backgroundColor: '#eef4ff',
-  },
-  container: {
-    flex: 1,
-    width: '100%',
-    maxWidth: 480,
-    alignSelf: 'center',
-    justifyContent: 'center',
-  },
-  backgroundBubbleTop: {
-    position: 'absolute',
-    top: 20,
-    right: -40,
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: '#d8e6ff',
-  },
-  backgroundBubbleBottom: {
-    position: 'absolute',
-    bottom: 40,
-    left: -60,
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: '#dbeafe',
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 28,
-  },
-  logoCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: '#2563eb',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-    shadowColor: '#1d4ed8',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.22,
-    shadowRadius: 18,
-    elevation: 8,
-  },
-  logoGlyph: {
-    color: '#ffffff',
-    fontSize: 22,
-    fontWeight: '800',
-    letterSpacing: 1,
-  },
-  brand: {
-    fontSize: 34,
-    fontWeight: '800',
-    color: '#2563eb',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: '#475569',
-    textAlign: 'center',
-    maxWidth: 280,
-  },
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 28,
-    paddingHorizontal: 22,
-    paddingVertical: 24,
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.08,
-    shadowRadius: 24,
-    elevation: 8,
-  },
-  cardTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#0f172a',
-    marginBottom: 6,
-  },
-  cardDescription: {
-    fontSize: 14,
-    color: '#64748b',
-    marginBottom: 18,
-  },
-  socialButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#dbe3f0',
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    marginBottom: 12,
-    backgroundColor: '#ffffff',
-  },
-  socialIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  googleIcon: {
-    backgroundColor: '#f1f5f9',
-  },
-  appleIcon: {
-    backgroundColor: '#111827',
-  },
-  socialIconText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0f172a',
-  },
-  appleIconText: {
-    color: '#ffffff',
-  },
-  socialButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#0f172a',
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#e2e8f0',
-  },
-  dividerText: {
-    marginHorizontal: 12,
-    color: '#94a3b8',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  fieldGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#334155',
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#dbe3f0',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 15,
-    fontSize: 15,
-    color: '#0f172a',
-    backgroundColor: '#f8fbff',
-  },
-  passwordRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#dbe3f0',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    backgroundColor: '#f8fbff',
-  },
-  passwordInput: {
-    flex: 1,
-    paddingVertical: 15,
-    fontSize: 15,
-    color: '#0f172a',
-  },
-  toggleText: {
-    color: '#2563eb',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  checkboxRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
-    backgroundColor: '#ffffff',
-  },
-  checkboxChecked: {
-    backgroundColor: '#2563eb',
-    borderColor: '#2563eb',
-  },
-  checkboxTick: {
-    color: '#ffffff',
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  metaText: {
-    color: '#475569',
-    fontSize: 13,
-  },
-  linkText: {
-    color: '#2563eb',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  primaryButton: {
-    backgroundColor: '#2563eb',
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    marginBottom: 18,
-  },
-  primaryButtonDisabled: {
-    opacity: 0.7,
-  },
-  primaryButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  primaryButtonHover: {
-    backgroundColor: '#1d4ed8',
-    transform: [{ scale: 1.02 }],
-  },
-  primaryButtonPressed: {
-    opacity: 0.8,
-    transform: [{ scale: 0.98 }],
-  },
-  footerRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  footerText: {
-    color: '#64748b',
-    fontSize: 13,
-  },
-});

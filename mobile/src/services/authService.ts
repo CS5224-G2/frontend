@@ -1,19 +1,27 @@
+// =============================================================================
+// AUTH SERVICE — Mobile (Expo/React Native)
+// Adapter pattern: maps between backend snake_case and frontend camelCase.
+// Gated by EXPO_PUBLIC_USE_MOCKS — set to 'true' to skip real network calls.
+// =============================================================================
+
+import type {
+  LoginFormValues,
+  RegisterFormValues,
+  AuthResult,
+} from '../../../shared/types/index';
+import { getMockAuthResult } from '../../../shared/mocks/index';
+
+export type { LoginFormValues, RegisterFormValues, AuthResult };
+
+// Re-export AuthUser for backwards-compat with existing consumers
+export type { AuthUser } from '../../../shared/types/index';
+
+const USE_MOCKS = process.env.EXPO_PUBLIC_USE_MOCKS === 'true';
 const MOCK_LATENCY_MS = 850;
 
-export type LoginFormValues = {
-  email: string;
-  password: string;
-  rememberMe: boolean;
-};
-
-export type RegisterFormValues = {
-  firstName: string;
-  lastName: string;
-  email: string;
-  password: string;
-  confirmPassword: string;
-  agreedToTerms: boolean;
-};
+// ---------------------------------------------------------------------------
+// Backend shapes (internal — not exported)
+// ---------------------------------------------------------------------------
 
 type BackendLoginPayload = {
   email: string;
@@ -46,32 +54,16 @@ type BackendAuthResponse = {
   };
 };
 
-export type AuthUser = {
-  id: string;
-  firstName: string;
-  lastName: string;
-  fullName: string;
-  email: string;
-  onboardingComplete: boolean;
-  role: 'user' | 'admin' | 'business';
-};
-
-export type AuthResult = {
-  accessToken: string;
-  refreshToken: string;
-  expiresIn: number;
-  user: AuthUser;
-  requestPayload: BackendLoginPayload | BackendRegisterPayload;
-};
-
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+// ---------------------------------------------------------------------------
+// Mappers
+// ---------------------------------------------------------------------------
 
 const normalizeEmail = (value: string) => value.trim().toLowerCase();
 
 const toLoginPayload = (values: LoginFormValues): BackendLoginPayload => ({
   email: normalizeEmail(values.email),
   password: values.password,
-  remember_me: values.rememberMe,
+  remember_me: values.rememberMe ?? false,
   client: 'mobile_app',
 });
 
@@ -85,10 +77,7 @@ const toRegisterPayload = (values: RegisterFormValues): BackendRegisterPayload =
   client: 'mobile_app',
 });
 
-const toAuthResult = (
-  response: BackendAuthResponse,
-  requestPayload: BackendLoginPayload | BackendRegisterPayload
-): AuthResult => ({
+const toAuthResult = (response: BackendAuthResponse): AuthResult => ({
   accessToken: response.access_token,
   refreshToken: response.refresh_token,
   expiresIn: response.expires_in,
@@ -101,75 +90,72 @@ const toAuthResult = (
     onboardingComplete: response.user.onboarding_complete,
     role: response.user.role,
   },
-  requestPayload,
 });
 
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
 export async function loginUser(values: LoginFormValues): Promise<AuthResult> {
-  const requestPayload = toLoginPayload(values);
-
-  await wait(MOCK_LATENCY_MS);
-
-  if (!requestPayload.email || !requestPayload.password) {
+  if (!values.email || !values.password) {
     throw new Error('Email and password are required.');
   }
 
-  const mockResponse: BackendAuthResponse = {
-    access_token: 'mock-access-token',
-    refresh_token: 'mock-refresh-token',
-    expires_in: 3600,
-    user: {
-      id: 'user_001',
-      first_name: 'Alex',
-      last_name: 'Rider',
-      email: requestPayload.email,
-      onboarding_complete: true,
-      role: requestPayload.email === 'admin@cyclink.com' 
-        ? 'admin' 
-        : requestPayload.email === 'business@cyclink.com' 
-          ? 'business' 
-          : 'user',
-    },
-  };
+  if (USE_MOCKS) {
+    await wait(MOCK_LATENCY_MS);
+    return getMockAuthResult(values.email);
+  }
 
-  return toAuthResult(mockResponse, requestPayload);
+  const payload = toLoginPayload(values);
+  const { httpClient } = await import('./httpClient');
+  const response = await httpClient.post<BackendAuthResponse>('/auth/login', payload);
+  return toAuthResult(response);
 }
 
 export async function registerUser(values: RegisterFormValues): Promise<AuthResult> {
-  const requestPayload = toRegisterPayload(values);
-
-  await wait(MOCK_LATENCY_MS);
-
   if (
-    !requestPayload.first_name ||
-    !requestPayload.last_name ||
-    !requestPayload.email ||
-    !requestPayload.password ||
-    !requestPayload.confirm_password
+    !values.firstName ||
+    !values.lastName ||
+    !values.email ||
+    !values.password ||
+    !values.confirmPassword
   ) {
     throw new Error('All fields are required.');
   }
 
-  if (requestPayload.password !== requestPayload.confirm_password) {
+  if (values.password !== values.confirmPassword) {
     throw new Error('Passwords do not match.');
   }
 
-  if (!requestPayload.agreed_to_terms) {
+  if (!values.agreedToTerms) {
     throw new Error('You must accept the terms to continue.');
   }
 
-  const mockResponse: BackendAuthResponse = {
-    access_token: 'mock-access-token',
-    refresh_token: 'mock-refresh-token',
-    expires_in: 3600,
-    user: {
-      id: 'user_002',
-      first_name: requestPayload.first_name,
-      last_name: requestPayload.last_name,
-      email: requestPayload.email,
-      onboarding_complete: false,
-      role: 'user',
-    },
-  };
+  if (USE_MOCKS) {
+    await wait(MOCK_LATENCY_MS);
+    const mockResult = getMockAuthResult(values.email);
+    return {
+      ...mockResult,
+      user: {
+        ...mockResult.user,
+        firstName: values.firstName.trim(),
+        lastName: values.lastName.trim(),
+        fullName: `${values.firstName.trim()} ${values.lastName.trim()}`,
+        email: normalizeEmail(values.email),
+        onboardingComplete: false,
+        role: 'user',
+      },
+    };
+  }
 
-  return toAuthResult(mockResponse, requestPayload);
+  const { httpClient } = await import('./httpClient');
+  const payload = toRegisterPayload(values);
+  const response = await httpClient.post<BackendAuthResponse>('/auth/register', payload);
+  return toAuthResult(response);
 }
