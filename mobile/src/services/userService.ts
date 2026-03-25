@@ -5,7 +5,7 @@
 // =============================================================================
 
 import type { UserProfile } from '../../../shared/types/index';
-import { mockUserProfile } from '../../../shared/mocks/index';
+import { getActiveMockAccountId, getLocalDb } from './localDb';
 
 export type { UserProfile };
 
@@ -31,6 +31,12 @@ type BackendUserProfileResponse = {
     total_distance_km: number;
     favorite_trails_count: number;
   };
+};
+
+type LocalUserProfileRow = Omit<BackendUserProfileResponse, 'ride_stats'> & {
+  total_rides: number;
+  total_distance_km: number;
+  favorite_trails_count: number;
 };
 
 type BackendAvatarUploadResponse = {
@@ -77,11 +83,6 @@ const toBackendUpdatePayload = (profile: UserProfile): BackendUserProfileUpdateP
   avatar_color: profile.avatarColor,
 });
 
-// ---------------------------------------------------------------------------
-// In-memory mock store (only used in mock mode)
-// ---------------------------------------------------------------------------
-
-let _mockProfile = { ...mockUserProfile };
 const wait = async (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 const getMimeType = (imageUri: string): string => {
@@ -99,7 +100,40 @@ const getMimeType = (imageUri: string): string => {
 export async function getUserProfile(token?: string): Promise<UserProfile> {
   if (USE_MOCKS) {
     await wait(350);
-    return { ..._mockProfile };
+    const db = await getLocalDb();
+    const accountId = await getActiveMockAccountId();
+    const row = await db.getFirstAsync<LocalUserProfileRow>(
+      `SELECT
+        user_id,
+        full_name,
+        email_address,
+        city_name,
+        member_since,
+        cycling_preference,
+        weekly_goal_km,
+        bio_text,
+        avatar_url,
+        avatar_color,
+        total_rides,
+        total_distance_km,
+        favorite_trails_count
+      FROM user_profiles
+      WHERE account_id = ?`,
+      accountId,
+    );
+
+    if (!row) {
+      throw new Error('User profile not found in the local database.');
+    }
+
+    return toFrontendProfile({
+      ...row,
+      ride_stats: {
+        total_rides: row.total_rides,
+        total_distance_km: row.total_distance_km,
+        favorite_trails_count: row.favorite_trails_count,
+      },
+    });
   }
 
   const { httpClient } = await import('./httpClient');
@@ -113,8 +147,31 @@ export async function updateUserProfile(
 ): Promise<UserProfile> {
   if (USE_MOCKS) {
     await wait(450);
-    _mockProfile = { ..._mockProfile, ...profile };
-    return { ..._mockProfile };
+    const db = await getLocalDb();
+    const accountId = await getActiveMockAccountId();
+
+    await db.runAsync(
+      `UPDATE user_profiles
+       SET
+         full_name = ?,
+         city_name = ?,
+         cycling_preference = ?,
+         weekly_goal_km = ?,
+         bio_text = ?,
+         avatar_color = ?,
+         updated_at = ?
+       WHERE account_id = ?`,
+      profile.fullName.trim(),
+      profile.location.trim(),
+      profile.cyclingPreference,
+      profile.weeklyGoalKm,
+      profile.bio.trim(),
+      profile.avatarColor,
+      new Date().toISOString(),
+      accountId,
+    );
+
+    return getUserProfile(token);
   }
 
   const { httpClient } = await import('./httpClient');
@@ -133,7 +190,16 @@ export async function uploadUserProfileAvatar(
 ): Promise<string> {
   if (USE_MOCKS) {
     await wait(350);
-    _mockProfile = { ..._mockProfile, avatarUrl: imageUri };
+    const db = await getLocalDb();
+    const accountId = await getActiveMockAccountId();
+    await db.runAsync(
+      `UPDATE user_profiles
+       SET avatar_url = ?, updated_at = ?
+       WHERE account_id = ?`,
+      imageUri,
+      new Date().toISOString(),
+      accountId,
+    );
     return imageUri;
   }
 
@@ -160,7 +226,15 @@ export async function uploadUserProfileAvatar(
 export async function deleteUserProfileAvatar(token?: string): Promise<void> {
   if (USE_MOCKS) {
     await wait(250);
-    _mockProfile = { ..._mockProfile, avatarUrl: null };
+    const db = await getLocalDb();
+    const accountId = await getActiveMockAccountId();
+    await db.runAsync(
+      `UPDATE user_profiles
+       SET avatar_url = NULL, updated_at = ?
+       WHERE account_id = ?`,
+      new Date().toISOString(),
+      accountId,
+    );
     return;
   }
 
