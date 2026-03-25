@@ -1,14 +1,15 @@
 import React, { useContext } from 'react';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { BottomTabBarProps, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import {
   GlassView,
   isGlassEffectAPIAvailable,
   isLiquidGlassAvailable,
 } from 'expo-glass-effect';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthContext, AuthProvider } from './AuthContext';
 import { useColorScheme } from 'nativewind';
 
@@ -38,13 +39,32 @@ const AuthStack = createNativeStackNavigator<any>();
 const supportsNativeGlass =
   Platform.OS === 'ios' && isLiquidGlassAvailable() && isGlassEffectAPIAvailable();
 
-function TabBarBackground({ isDark }: { isDark: boolean }) {
+function getTabIconName(routeName: string, focused: boolean) {
+  if (routeName === 'HomeTab') {
+    return focused ? 'home' : 'home-outline';
+  }
+  if (routeName === 'HistoryTab') {
+    return focused ? 'history' : 'history';
+  }
+  if (routeName === 'ProfileTab') {
+    return focused ? 'account' : 'account-outline';
+  }
+  return 'help-circle-outline';
+}
+
+function GlassSurface({
+  isDark,
+  style,
+}: {
+  isDark: boolean;
+  style: any;
+}) {
   if (!supportsNativeGlass) {
     return (
       <View
         pointerEvents="none"
         style={[
-          styles.tabBarBackgroundBase,
+          style,
           isDark ? styles.tabBarFallbackDark : styles.tabBarFallbackLight,
         ]}
       />
@@ -54,11 +74,99 @@ function TabBarBackground({ isDark }: { isDark: boolean }) {
   return (
     <GlassView
       pointerEvents="none"
-      style={styles.tabBarBackgroundBase}
-      glassEffectStyle="regular"
+      style={style}
+      glassEffectStyle="clear"
       colorScheme={isDark ? 'dark' : 'light'}
       tintColor={isDark ? 'rgba(15, 23, 42, 0.18)' : 'rgba(255, 255, 255, 0.18)'}
     />
+  );
+}
+
+function LiquidGlassTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+  const { colorScheme } = useColorScheme();
+  const insets = useSafeAreaInsets();
+  const isDark = colorScheme === 'dark';
+  const activeColor = '#2f6df6';
+  const inactiveColor = isDark ? '#cbd5e1' : '#1f2937';
+  const bottomOffset = Math.max(insets.bottom, 10);
+
+  return (
+    <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+      <View style={[styles.tabBarDock, styles.tabBarShadow, { bottom: bottomOffset }]}>
+        <GlassSurface isDark={isDark} style={styles.tabBarBackgroundBase} />
+        <View style={styles.tabBarRow}>
+          {state.routes.map((route, index) => {
+            const focused = state.index === index;
+            const { options } = descriptors[route.key];
+            const label =
+              typeof options.tabBarLabel === 'string'
+                ? options.tabBarLabel
+                : typeof options.title === 'string'
+                  ? options.title
+                  : route.name.replace(/Tab$/, '');
+
+            const onPress = () => {
+              const event = navigation.emit({
+                type: 'tabPress',
+                target: route.key,
+                canPreventDefault: true,
+              });
+
+              if (!focused && !event.defaultPrevented) {
+                navigation.navigate(route.name, route.params);
+              }
+            };
+
+            const onLongPress = () => {
+              navigation.emit({
+                type: 'tabLongPress',
+                target: route.key,
+              });
+            };
+
+            return (
+              <Pressable
+                key={route.key}
+                accessibilityRole="button"
+                accessibilityState={focused ? { selected: true } : {}}
+                accessibilityLabel={options.tabBarAccessibilityLabel}
+                testID={options.tabBarButtonTestID}
+                onPress={onPress}
+                onLongPress={onLongPress}
+                style={styles.tabButton}
+              >
+                <View
+                  style={[
+                    styles.tabButtonInner,
+                    focused
+                      ? isDark
+                        ? styles.tabButtonInnerActiveDark
+                        : styles.tabButtonInnerActiveLight
+                      : null,
+                  ]}
+                >
+                  <View style={styles.iconSlot}>
+                    <MaterialCommunityIcons
+                      name={getTabIconName(route.name, focused)}
+                      size={20}
+                      color={focused ? activeColor : inactiveColor}
+                    />
+                  </View>
+                  <Text
+                    style={[
+                      styles.tabLabel,
+                      { color: focused ? activeColor : inactiveColor },
+                    ]}
+                  >
+                    {label}
+                  </Text>
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+    </View>
   );
 }
 
@@ -112,40 +220,22 @@ function ProfileNavigator() {
 }
 
 function AppNavigator() {
-  const { colorScheme } = useColorScheme();
-  const isDark = colorScheme === 'dark';
-  const tabBarActiveTintColor = isDark ? '#f8fafc' : '#0f172a';
-  const tabBarInactiveTintColor = isDark ? '#94a3b8' : '#475569';
-
   return (
     <Tab.Navigator
       initialRouteName="HomeTab"
+      tabBar={(props) => <LiquidGlassTabBar {...props} />}
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarHideOnKeyboard: true,
         tabBarIcon: ({ focused, color, size }) => {
-          let iconName: any = 'help-circle-outline';
-          if (route.name === 'HomeTab') {
-            iconName = focused ? 'home' : 'home-outline';
-          } else if (route.name === 'HistoryTab') {
-            iconName = focused ? 'history' : 'history';
-          } else if (route.name === 'ProfileTab') {
-            iconName = focused ? 'account' : 'account-outline';
-          }
-          return <MaterialCommunityIcons name={iconName} size={size} color={color} />;
-        },
-        tabBarActiveTintColor,
-        tabBarInactiveTintColor,
-        tabBarActiveBackgroundColor: isDark
-          ? 'rgba(59, 130, 246, 0.18)'
-          : 'rgba(255, 255, 255, 0.52)',
-        tabBarLabelStyle: styles.tabBarLabel,
-        tabBarItemStyle: styles.tabBarItem,
-        tabBarStyle: [
-          styles.tabBar,
-          isDark ? styles.tabBarShadowDark : styles.tabBarShadowLight,
-        ],
-        tabBarBackground: () => <TabBarBackground isDark={isDark} />,
+          return (
+            <MaterialCommunityIcons
+              name={getTabIconName(route.name, focused)}
+              size={size}
+              color={color}
+            />
+          );
+        }
       })}
     >
       <Tab.Screen name="HistoryTab" component={HistoryNavigator} options={{ tabBarLabel: 'History' }} />
@@ -198,50 +288,70 @@ export function RootNavigatorWithProvider() {
 }
 
 const styles = StyleSheet.create({
-  tabBar: {
+  tabBarDock: {
     position: 'absolute',
-    left: 16,
-    right: 16,
-    bottom: 16,
-    height: 76,
-    paddingTop: 10,
-    paddingBottom: 10,
-    borderTopWidth: 0,
+    left: 22,
+    right: 22,
+    height: 72,
     borderRadius: 28,
-    backgroundColor: 'transparent',
-    elevation: 0,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.28)',
     overflow: 'hidden',
-  },
-  tabBarShadowDark: {
-    shadowColor: '#020617',
-    shadowOpacity: 0.35,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 12 },
-  },
-  tabBarShadowLight: {
-    shadowColor: '#0f172a',
-    shadowOpacity: 0.12,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 12 },
   },
   tabBarBackgroundBase: {
     ...StyleSheet.absoluteFillObject,
     borderRadius: 28,
   },
-  tabBarFallbackDark: {
-    backgroundColor: 'rgba(15, 23, 42, 0.92)',
+  tabBarRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
-  tabBarFallbackLight: {
-    backgroundColor: 'rgba(248, 250, 252, 0.94)',
+  tabButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  tabBarItem: {
-    marginHorizontal: 6,
-    marginVertical: 4,
+  tabButtonInner: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+    minWidth: 84,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 20,
   },
-  tabBarLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 2,
+  tabButtonInnerActiveLight: {
+    backgroundColor: '#e5e7eb',
+  },
+  tabButtonInnerActiveDark: {
+    backgroundColor: 'rgba(71, 85, 105, 0.9)',
+  },
+  iconSlot: {
+    width: 28,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+  tabBarShadow: {
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.14,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 14 },
+    elevation: 10,
+  },
+  tabBarFallbackDark: {
+    backgroundColor: 'rgba(15, 23, 42, 0.84)',
+  },
+  tabBarFallbackLight: {
+    backgroundColor: 'rgba(255, 255, 255, 0.78)',
   },
 });
