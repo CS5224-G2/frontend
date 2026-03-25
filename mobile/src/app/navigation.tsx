@@ -23,8 +23,6 @@ import RouteConfigScreen from './pages/RouteConfigPage';
 import LiveMapScreen from './pages/LiveMapPage';
 import OnboardingScreen from './pages/OnboardingPage';
 import UserJourneyScreen from './pages/UserJourneyPage';
-import AdminDashboardScreen from './pages/AdminDashboard';
-import BusinessDashboardScreen from './pages/BusinessDashboard';
 
 const Stack = createNativeStackNavigator<any>();
 const Tab = createBottomTabNavigator<any>();
@@ -119,21 +117,6 @@ function AppNavigator() {
   );
 }
 
-function AdminNavigator() {
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
-    </Stack.Navigator>
-  );
-}
-
-function BusinessNavigator() {
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="BusinessDashboard" component={BusinessDashboardScreen} />
-    </Stack.Navigator>
-  );
-}
 
 export function RootNavigator() {
   const { isLoggedIn, role } = useContext(AuthContext);
@@ -142,10 +125,6 @@ export function RootNavigator() {
     <NavigationContainer>
       {!isLoggedIn ? (
         <AuthNavigator />
-      ) : role === 'admin' ? (
-        <AdminNavigator />
-      ) : role === 'business' ? (
-        <BusinessNavigator />
       ) : (
         <AppNavigator />
       )}
