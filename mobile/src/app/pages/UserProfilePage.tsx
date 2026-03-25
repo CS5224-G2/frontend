@@ -4,7 +4,6 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -12,39 +11,24 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 
 import { getUserProfile, serializeUserProfile, UserProfile } from '@/services/userService';
 
-const theme = {
-  background: '#F3F4F6',
-  surface: '#FFFFFF',
-  surfaceMuted: '#EEF2FF',
-  primary: '#1D4ED8',
-  primarySoft: '#DBEAFE',
-  text: '#0F172A',
-  textMuted: '#64748B',
-  border: '#E2E8F0',
-  successSoft: '#DCFCE7',
-  successText: '#166534',
-  warningSoft: '#FEF3C7',
-  warningText: '#92400E',
-};
-
 const statCards = [
   {
     key: 'totalRides',
     label: 'Total rides',
-    backgroundColor: theme.primarySoft,
-    textColor: theme.primary,
+    bgClassName: 'bg-[#DBEAFE]',
+    textClassName: 'text-primary-dark',
   },
   {
     key: 'totalDistanceKm',
     label: 'Distance',
-    backgroundColor: theme.successSoft,
-    textColor: theme.successText,
+    bgClassName: 'bg-[#DCFCE7]',
+    textClassName: 'text-[#166534]',
   },
   {
     key: 'favoriteTrails',
     label: 'Saved trails',
-    backgroundColor: theme.warningSoft,
-    textColor: theme.warningText,
+    bgClassName: 'bg-[#FEF3C7]',
+    textClassName: 'text-[#92400E]',
   },
 ] as const;
 
@@ -104,21 +88,21 @@ export default function UserProfilePage() {
 
   if (isLoading) {
     return (
-      <View style={styles.centeredState}>
-        <ActivityIndicator size="large" color={theme.primary} />
-        <Text style={styles.stateTitle}>Loading your profile</Text>
-        <Text style={styles.stateText}>Fetching CycleLink account details and ride stats.</Text>
+      <View className="flex-1 justify-center items-center px-cy-xl bg-[#F3F4F6]">
+        <ActivityIndicator size="large" color="#1D4ED8" />
+        <Text className="mt-4 text-[22px] font-bold text-slate-900">Loading your profile</Text>
+        <Text className="mt-2 text-[15px] leading-[22px] text-text-secondary text-center">Fetching CycleLink account details and ride stats.</Text>
       </View>
     );
   }
 
   if (error || !profile) {
     return (
-      <View style={styles.centeredState}>
-        <Text style={styles.stateTitle}>Profile unavailable</Text>
-        <Text style={styles.stateText}>{error ?? 'No user profile was returned.'}</Text>
-        <Pressable style={styles.primaryButton} onPress={() => loadProfile()}>
-          <Text style={styles.primaryButtonText}>Try again</Text>
+      <View className="flex-1 justify-center items-center px-cy-xl bg-[#F3F4F6]">
+        <Text className="text-[22px] font-bold text-slate-900">Profile unavailable</Text>
+        <Text className="mt-2 text-[15px] leading-[22px] text-text-secondary text-center">{error ?? 'No user profile was returned.'}</Text>
+        <Pressable className="mt-5 bg-primary-dark px-5 py-cy-md rounded-[14px]" onPress={() => loadProfile()}>
+          <Text className="text-white text-[15px] font-bold">Try again</Text>
         </Pressable>
       </View>
     );
@@ -126,35 +110,38 @@ export default function UserProfilePage() {
 
   return (
     <ScrollView
-      style={styles.screen}
-      contentContainerStyle={styles.contentContainer}
+      className="flex-1 bg-[#F3F4F6]"
+      contentContainerStyle={{ padding: 20, gap: 16 }}
       refreshControl={
         <RefreshControl refreshing={isRefreshing} onRefresh={() => loadProfile('refresh')} />
       }
     >
-      <View style={styles.profileCard}>
-        <View style={[styles.avatar, { backgroundColor: profile.avatarColor }]}>
-          <Text style={styles.avatarText}>{initials}</Text>
+      <View className="bg-white rounded-[24px] p-5 border border-border">
+        <View
+          className="justify-center items-center mb-[18px]"
+          style={{ width: 82, height: 82, borderRadius: 41, backgroundColor: profile.avatarColor }}
+        >
+          <Text className="text-white text-[28px] font-extrabold">{initials}</Text>
         </View>
-        <View style={styles.profileHeaderRow}>
-          <View style={styles.profileTextBlock}>
-            <Text style={styles.profileName}>{profile.fullName}</Text>
-            <Text style={styles.profileEmail}>{profile.email}</Text>
-            <Text style={styles.profileMeta}>{profile.location}</Text>
-            <Text style={styles.profileMeta}>Member since {profile.memberSince}</Text>
+        <View style={{ gap: 16 }}>
+          <View style={{ gap: 4 }}>
+            <Text className="text-[28px] font-extrabold text-slate-900">{profile.fullName}</Text>
+            <Text className="text-[16px] text-slate-900">{profile.email}</Text>
+            <Text className="text-[14px] text-text-secondary">{profile.location}</Text>
+            <Text className="text-[14px] text-text-secondary">Member since {profile.memberSince}</Text>
           </View>
           <Pressable
-            style={styles.editButton}
+            className="self-start mt-2 bg-primary-dark px-[18px] py-cy-md rounded-[14px]"
             onPress={() =>
               navigation.navigate('EditProfile', { profile: serializeUserProfile(profile) })
             }
           >
-            <Text style={styles.editButtonText}>Edit profile</Text>
+            <Text className="text-white text-[15px] font-bold">Edit profile</Text>
           </Pressable>
         </View>
       </View>
 
-      <View style={styles.statsRow}>
+      <View className="flex-row" style={{ gap: 12 }}>
         {statCards.map((card) => {
           const value =
             card.key === 'totalDistanceKm'
@@ -164,215 +151,54 @@ export default function UserProfilePage() {
           return (
             <View
               key={card.key}
-              style={[styles.statCard, { backgroundColor: card.backgroundColor }]}
+              className={`flex-1 rounded-[20px] py-[18px] px-cy-md ${card.bgClassName}`}
             >
-              <Text style={[styles.statValue, { color: card.textColor }]}>{value}</Text>
-              <Text style={styles.statLabel}>{card.label}</Text>
+              <Text className={`text-[20px] font-extrabold ${card.textClassName}`}>{value}</Text>
+              <Text className="mt-1.5 text-[13px] leading-[18px] text-text-secondary">{card.label}</Text>
             </View>
           );
         })}
       </View>
 
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionEyebrow}>Cycling preference</Text>
-        <Text style={styles.sectionTitle}>{profile.cyclingPreference}</Text>
-        <Text style={styles.sectionBody}>
+      <View className="bg-white rounded-[24px] p-5 border border-border">
+        <Text className="text-[12px] font-bold text-text-secondary uppercase tracking-[0.8px]">Cycling preference</Text>
+        <Text className="mt-2 text-[24px] font-extrabold text-slate-900">{profile.cyclingPreference}</Text>
+        <Text className="mt-2 text-[15px] leading-[22px] text-text-secondary">
           Weekly goal: {profile.weeklyGoalKm} km
         </Text>
       </View>
 
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionEyebrow}>About</Text>
-        <Text style={styles.sectionBody}>{profile.bio}</Text>
+      <View className="bg-white rounded-[24px] p-5 border border-border">
+        <Text className="text-[12px] font-bold text-text-secondary uppercase tracking-[0.8px]">About</Text>
+        <Text className="mt-2 text-[15px] leading-[22px] text-text-secondary">{profile.bio}</Text>
       </View>
 
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionEyebrow}>Account settings</Text>
+      <View className="bg-white rounded-[24px] p-5 border border-border">
+        <Text className="text-[12px] font-bold text-text-secondary uppercase tracking-[0.8px]">Account settings</Text>
         <Pressable
-          style={styles.settingRow}
+          className="flex-row justify-between items-center py-1.5"
           onPress={() => navigation.navigate('PrivacySecurity')}
         >
-          <Text style={styles.settingTitle}>Notifications</Text>
-          <Text style={styles.settingValue}>Manage</Text>
+          <Text className="text-[16px] font-semibold text-slate-900">Notifications</Text>
+          <Text className="text-[14px] text-text-secondary">Manage</Text>
         </Pressable>
-        <View style={styles.divider} />
+        <View className="h-px bg-border my-3" />
         <Pressable
-          style={styles.settingRow}
+          className="flex-row justify-between items-center py-1.5"
           onPress={() => navigation.navigate('PrivacySecurity')}
         >
-          <Text style={styles.settingTitle}>Privacy</Text>
-          <Text style={styles.settingValue}>Review</Text>
+          <Text className="text-[16px] font-semibold text-slate-900">Privacy</Text>
+          <Text className="text-[14px] text-text-secondary">Review</Text>
         </Pressable>
-        <View style={styles.divider} />
+        <View className="h-px bg-border my-3" />
         <Pressable
-          style={styles.settingRow}
+          className="flex-row justify-between items-center py-1.5"
           onPress={() => navigation.navigate('ChangePassword')}
         >
-          <Text style={styles.settingTitle}>Password</Text>
-          <Text style={styles.settingValue}>Change</Text>
+          <Text className="text-[16px] font-semibold text-slate-900">Password</Text>
+          <Text className="text-[14px] text-text-secondary">Change</Text>
         </Pressable>
       </View>
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: theme.background,
-  },
-  contentContainer: {
-    padding: 20,
-    gap: 16,
-  },
-  centeredState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    backgroundColor: theme.background,
-  },
-  stateTitle: {
-    marginTop: 16,
-    fontSize: 22,
-    fontWeight: '700',
-    color: theme.text,
-  },
-  stateText: {
-    marginTop: 8,
-    fontSize: 15,
-    lineHeight: 22,
-    color: theme.textMuted,
-    textAlign: 'center',
-  },
-  profileCard: {
-    backgroundColor: theme.surface,
-    borderRadius: 24,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: theme.border,
-  },
-  avatar: {
-    width: 82,
-    height: 82,
-    borderRadius: 41,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 18,
-  },
-  avatarText: {
-    color: '#FFFFFF',
-    fontSize: 28,
-    fontWeight: '800',
-  },
-  profileHeaderRow: {
-    gap: 16,
-  },
-  profileTextBlock: {
-    gap: 4,
-  },
-  profileName: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: theme.text,
-  },
-  profileEmail: {
-    fontSize: 16,
-    color: theme.text,
-  },
-  profileMeta: {
-    fontSize: 14,
-    color: theme.textMuted,
-  },
-  editButton: {
-    marginTop: 8,
-    alignSelf: 'flex-start',
-    backgroundColor: theme.primary,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 14,
-  },
-  editButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  statCard: {
-    flex: 1,
-    borderRadius: 20,
-    paddingVertical: 18,
-    paddingHorizontal: 12,
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: '800',
-  },
-  statLabel: {
-    marginTop: 6,
-    fontSize: 13,
-    lineHeight: 18,
-    color: theme.textMuted,
-  },
-  sectionCard: {
-    backgroundColor: theme.surface,
-    borderRadius: 24,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: theme.border,
-  },
-  sectionEyebrow: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: theme.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  sectionTitle: {
-    marginTop: 8,
-    fontSize: 24,
-    fontWeight: '800',
-    color: theme.text,
-  },
-  sectionBody: {
-    marginTop: 8,
-    fontSize: 15,
-    lineHeight: 22,
-    color: theme.textMuted,
-  },
-  settingRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 6,
-  },
-  settingTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.text,
-  },
-  settingValue: {
-    fontSize: 14,
-    color: theme.textMuted,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: theme.border,
-    marginVertical: 12,
-  },
-  primaryButton: {
-    marginTop: 20,
-    backgroundColor: theme.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 14,
-  },
-  primaryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-});
