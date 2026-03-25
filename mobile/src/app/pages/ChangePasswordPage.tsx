@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useColorScheme } from 'nativewind';
 
 import { updatePassword } from '@/services/settingsService';
 
@@ -20,6 +21,7 @@ type PasswordFieldProps = {
   secureTextEntry: boolean;
   onToggleVisibility: () => void;
   helperText?: string;
+  placeholderTextColor: string;
 };
 
 function PasswordField({
@@ -30,35 +32,37 @@ function PasswordField({
   secureTextEntry,
   onToggleVisibility,
   helperText,
+  placeholderTextColor,
 }: PasswordFieldProps) {
   return (
     <View className="gap-2">
-      <Text className="text-[14px] font-bold text-slate-900">{label}</Text>
+      <Text className="text-[14px] font-bold text-slate-900 dark:text-slate-100">{label}</Text>
       <View
-        className="flex-row items-center border border-border rounded-[18px] bg-[#F8FAFC] px-cy-lg"
+        className="flex-row items-center border border-border dark:border-[#2d2d2d] rounded-[18px] bg-[#F8FAFC] dark:bg-[#1a1a1a] px-cy-lg"
         style={{ minHeight: 56, gap: 12 }}
       >
         <TextInput
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor="#64748B"
+          placeholderTextColor={placeholderTextColor}
           secureTextEntry={secureTextEntry}
           autoCapitalize="none"
           autoCorrect={false}
-          className="flex-1 text-[16px] text-slate-900"
+          className="flex-1 text-[16px] text-slate-900 dark:text-slate-100"
         />
         <Pressable onPress={onToggleVisibility} hitSlop={12}>
-          <Text className="text-[14px] font-bold text-primary-dark">{secureTextEntry ? 'Show' : 'Hide'}</Text>
+          <Text className="text-[14px] font-bold text-primary-dark dark:text-blue-400">{secureTextEntry ? 'Show' : 'Hide'}</Text>
         </Pressable>
       </View>
-      {helperText ? <Text className="text-[13px] leading-[18px] text-text-secondary">{helperText}</Text> : null}
+      {helperText ? <Text className="text-[13px] leading-[18px] text-text-secondary dark:text-slate-400">{helperText}</Text> : null}
     </View>
   );
 }
 
 export default function ChangePasswordPage() {
   const navigation = useNavigation<any>();
+  const { colorScheme } = useColorScheme();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
@@ -139,17 +143,19 @@ export default function ChangePasswordPage() {
     }
   };
 
+  const placeholderTextColor = colorScheme === 'dark' ? '#64748b' : '#94a3b8';
+
   return (
-    <ScrollView className="flex-1 bg-[#F3F4F6]" contentContainerStyle={{ padding: 20, gap: 16 }}>
-      <View className="bg-white rounded-[24px] p-[22px] border border-border">
-        <Text className="text-[13px] font-bold tracking-[0.6px] uppercase text-primary-dark mb-2">Security</Text>
-        <Text className="text-[28px] font-extrabold text-slate-900">Change password</Text>
-        <Text className="mt-[10px] text-[15px] leading-[22px] text-text-secondary">
+    <ScrollView className="flex-1 bg-[#F3F4F6] dark:bg-black" contentContainerStyle={{ padding: 20, gap: 16 }}>
+      <View className="bg-white dark:bg-[#111111] rounded-[24px] p-[22px] border border-border dark:border-[#2d2d2d]">
+        <Text className="text-[13px] font-bold tracking-[0.6px] uppercase text-primary-dark dark:text-blue-400 mb-2">Security</Text>
+        <Text className="text-[28px] font-extrabold text-slate-900 dark:text-slate-100">Change password</Text>
+        <Text className="mt-[10px] text-[15px] leading-[22px] text-text-secondary dark:text-slate-400">
           Update your account credentials and keep your CycleLink profile secure.
         </Text>
       </View>
 
-      <View className="bg-white rounded-[24px] p-5 border border-border" style={{ gap: 16 }}>
+      <View className="bg-white dark:bg-[#111111] rounded-[24px] p-5 border border-border dark:border-[#2d2d2d]" style={{ gap: 16 }}>
         <PasswordField
           label="Current password"
           placeholder="Enter current password"
@@ -157,6 +163,7 @@ export default function ChangePasswordPage() {
           onChangeText={setCurrentPassword}
           secureTextEntry={!showCurrentPassword}
           onToggleVisibility={() => setShowCurrentPassword((value) => !value)}
+          placeholderTextColor={placeholderTextColor}
         />
 
         <PasswordField
@@ -167,6 +174,7 @@ export default function ChangePasswordPage() {
           secureTextEntry={!showNewPassword}
           onToggleVisibility={() => setShowNewPassword((value) => !value)}
           helperText="Use at least 8 characters, including one number and one uppercase letter."
+          placeholderTextColor={placeholderTextColor}
         />
 
         <View className="gap-2">
@@ -191,6 +199,7 @@ export default function ChangePasswordPage() {
           onChangeText={setConfirmNewPassword}
           secureTextEntry={!showConfirmPassword}
           onToggleVisibility={() => setShowConfirmPassword((value) => !value)}
+          placeholderTextColor={placeholderTextColor}
         />
 
         {!passwordsMatch ? (
@@ -198,9 +207,9 @@ export default function ChangePasswordPage() {
         ) : null}
       </View>
 
-      <View className="bg-[#DBEAFE] rounded-[20px] p-[18px]">
-        <Text className="text-[15px] font-extrabold text-slate-900 mb-1.5">Security tip</Text>
-        <Text className="text-[14px] leading-[21px] text-text-secondary">
+      <View className="bg-[#DBEAFE] dark:bg-[#1e293b] rounded-[20px] p-[18px]">
+        <Text className="text-[15px] font-extrabold text-slate-900 dark:text-slate-100 mb-1.5">Security tip</Text>
+        <Text className="text-[14px] leading-[21px] text-text-secondary dark:text-slate-400">
           The mock backend password is currently set to `CycleLink123` for demo purposes.
         </Text>
       </View>
@@ -208,12 +217,12 @@ export default function ChangePasswordPage() {
       <View className="flex-row mt-1 mb-6" style={{ gap: 12 }}>
         <Pressable
           testID="change-password-cancel-button"
-          className="flex-1 justify-center items-center border border-border bg-white rounded-[18px]"
+          className="flex-1 justify-center items-center border border-border dark:border-[#2d2d2d] bg-white dark:bg-[#111111] rounded-[18px]"
           style={{ minHeight: 54 }}
           onPress={() => navigation.goBack()}
           disabled={isSaving}
         >
-          <Text className="text-[15px] font-bold text-slate-900">Cancel</Text>
+          <Text className="text-[15px] font-bold text-slate-900 dark:text-slate-100">Cancel</Text>
         </Pressable>
         <Pressable
           testID="change-password-submit-button"
@@ -223,7 +232,7 @@ export default function ChangePasswordPage() {
           disabled={isSubmitDisabled}
         >
           {isSaving ? (
-            <ActivityIndicator color="#FFFFFF" />
+            <ActivityIndicator color={colorScheme === 'dark' ? '#3b82f6' : '#FFFFFF'} />
           ) : (
             <Text className="text-[15px] font-extrabold text-white">Update password</Text>
           )}
