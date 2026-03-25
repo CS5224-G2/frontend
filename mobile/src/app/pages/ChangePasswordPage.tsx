@@ -4,7 +4,6 @@ import {
   Alert,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -12,20 +11,6 @@ import {
 import { useNavigation } from '@react-navigation/native';
 
 import { updatePassword } from '@/services/settingsService';
-
-const theme = {
-  background: '#F3F4F6',
-  surface: '#FFFFFF',
-  surfaceMuted: '#F8FAFC',
-  primary: '#1D4ED8',
-  primarySoft: '#DBEAFE',
-  text: '#0F172A',
-  textMuted: '#64748B',
-  border: '#E2E8F0',
-  danger: '#DC2626',
-  warning: '#D97706',
-  success: '#15803D',
-};
 
 type PasswordFieldProps = {
   label: string;
@@ -47,24 +32,27 @@ function PasswordField({
   helperText,
 }: PasswordFieldProps) {
   return (
-    <View style={styles.fieldBlock}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={styles.inputShell}>
+    <View className="gap-2">
+      <Text className="text-[14px] font-bold text-slate-900">{label}</Text>
+      <View
+        className="flex-row items-center border border-border rounded-[18px] bg-[#F8FAFC] px-cy-lg"
+        style={{ minHeight: 56, gap: 12 }}
+      >
         <TextInput
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor={theme.textMuted}
+          placeholderTextColor="#64748B"
           secureTextEntry={secureTextEntry}
           autoCapitalize="none"
           autoCorrect={false}
-          style={styles.input}
+          className="flex-1 text-[16px] text-slate-900"
         />
         <Pressable onPress={onToggleVisibility} hitSlop={12}>
-          <Text style={styles.visibilityText}>{secureTextEntry ? 'Show' : 'Hide'}</Text>
+          <Text className="text-[14px] font-bold text-primary-dark">{secureTextEntry ? 'Show' : 'Hide'}</Text>
         </Pressable>
       </View>
-      {helperText ? <Text style={styles.helperText}>{helperText}</Text> : null}
+      {helperText ? <Text className="text-[13px] leading-[18px] text-text-secondary">{helperText}</Text> : null}
     </View>
   );
 }
@@ -81,18 +69,18 @@ export default function ChangePasswordPage() {
 
   const passwordStrength = useMemo(() => {
     if (!newPassword.length) {
-      return { label: 'Enter a new password', color: theme.textMuted, fillPercent: 0 };
+      return { label: 'Enter a new password', color: '#64748B', fillPercent: 0 };
     }
 
     if (newPassword.length < 8) {
-      return { label: 'Weak password', color: theme.danger, fillPercent: 33 };
+      return { label: 'Weak password', color: '#DC2626', fillPercent: 33 };
     }
 
     if (!/[A-Z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
-      return { label: 'Fair password', color: theme.warning, fillPercent: 66 };
+      return { label: 'Fair password', color: '#D97706', fillPercent: 66 };
     }
 
-    return { label: 'Strong password', color: theme.success, fillPercent: 100 };
+    return { label: 'Strong password', color: '#15803D', fillPercent: 100 };
   }, [newPassword]);
 
   const passwordsMatch = !confirmNewPassword.length || newPassword === confirmNewPassword;
@@ -152,16 +140,16 @@ export default function ChangePasswordPage() {
   };
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.contentContainer}>
-      <View style={styles.heroCard}>
-        <Text style={styles.heroEyebrow}>Security</Text>
-        <Text style={styles.heroTitle}>Change password</Text>
-        <Text style={styles.heroSubtitle}>
+    <ScrollView className="flex-1 bg-[#F3F4F6]" contentContainerStyle={{ padding: 20, gap: 16 }}>
+      <View className="bg-white rounded-[24px] p-[22px] border border-border">
+        <Text className="text-[13px] font-bold tracking-[0.6px] uppercase text-primary-dark mb-2">Security</Text>
+        <Text className="text-[28px] font-extrabold text-slate-900">Change password</Text>
+        <Text className="mt-[10px] text-[15px] leading-[22px] text-text-secondary">
           Update your account credentials and keep your CycleLink profile secure.
         </Text>
       </View>
 
-      <View style={styles.sectionCard}>
+      <View className="bg-white rounded-[24px] p-5 border border-border" style={{ gap: 16 }}>
         <PasswordField
           label="Current password"
           placeholder="Enter current password"
@@ -181,19 +169,17 @@ export default function ChangePasswordPage() {
           helperText="Use at least 8 characters, including one number and one uppercase letter."
         />
 
-        <View style={styles.strengthBlock}>
-          <View style={styles.strengthTrack}>
+        <View className="gap-2">
+          <View className="h-2 rounded-full bg-[#E5E7EB] overflow-hidden">
             <View
-              style={[
-                styles.strengthFill,
-                {
-                  width: `${passwordStrength.fillPercent}%`,
-                  backgroundColor: passwordStrength.color,
-                },
-              ]}
+              className="h-full rounded-full"
+              style={{
+                width: `${passwordStrength.fillPercent}%`,
+                backgroundColor: passwordStrength.color,
+              }}
             />
           </View>
-          <Text style={[styles.strengthLabel, { color: passwordStrength.color }]}>
+          <Text className="text-[13px] font-bold" style={{ color: passwordStrength.color }}>
             {passwordStrength.label}
           </Text>
         </View>
@@ -208,193 +194,41 @@ export default function ChangePasswordPage() {
         />
 
         {!passwordsMatch ? (
-          <Text style={styles.errorText}>Confirmation must match the new password.</Text>
+          <Text className="text-[13px] font-semibold text-[#DC2626]">Confirmation must match the new password.</Text>
         ) : null}
       </View>
 
-      <View style={styles.tipCard}>
-        <Text style={styles.tipTitle}>Security tip</Text>
-        <Text style={styles.tipBody}>
+      <View className="bg-[#DBEAFE] rounded-[20px] p-[18px]">
+        <Text className="text-[15px] font-extrabold text-slate-900 mb-1.5">Security tip</Text>
+        <Text className="text-[14px] leading-[21px] text-text-secondary">
           The mock backend password is currently set to `CycleLink123` for demo purposes.
         </Text>
       </View>
 
-      <View style={styles.actionRow}>
+      <View className="flex-row mt-1 mb-6" style={{ gap: 12 }}>
         <Pressable
           testID="change-password-cancel-button"
-          style={styles.secondaryButton}
+          className="flex-1 justify-center items-center border border-border bg-white rounded-[18px]"
+          style={{ minHeight: 54 }}
           onPress={() => navigation.goBack()}
           disabled={isSaving}
         >
-          <Text style={styles.secondaryButtonText}>Cancel</Text>
+          <Text className="text-[15px] font-bold text-slate-900">Cancel</Text>
         </Pressable>
         <Pressable
           testID="change-password-submit-button"
-          style={[styles.primaryButton, isSubmitDisabled && styles.primaryButtonDisabled]}
+          className="justify-center items-center bg-primary-dark rounded-[18px]"
+          style={[{ flex: 1.3, minHeight: 54 }, isSubmitDisabled ? { opacity: 0.55 } : undefined]}
           onPress={handleSave}
           disabled={isSubmitDisabled}
         >
           {isSaving ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
-            <Text style={styles.primaryButtonText}>Update password</Text>
+            <Text className="text-[15px] font-extrabold text-white">Update password</Text>
           )}
         </Pressable>
       </View>
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: theme.background,
-  },
-  contentContainer: {
-    padding: 20,
-    gap: 16,
-  },
-  heroCard: {
-    backgroundColor: theme.surface,
-    borderRadius: 24,
-    padding: 22,
-    borderWidth: 1,
-    borderColor: theme.border,
-  },
-  heroEyebrow: {
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    color: theme.primary,
-    marginBottom: 8,
-  },
-  heroTitle: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: theme.text,
-  },
-  heroSubtitle: {
-    marginTop: 10,
-    fontSize: 15,
-    lineHeight: 22,
-    color: theme.textMuted,
-  },
-  sectionCard: {
-    backgroundColor: theme.surface,
-    borderRadius: 24,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: theme.border,
-    gap: 16,
-  },
-  fieldBlock: {
-    gap: 8,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: theme.text,
-  },
-  inputShell: {
-    minHeight: 56,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: theme.border,
-    backgroundColor: theme.surfaceMuted,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  input: {
-    flex: 1,
-    fontSize: 16,
-    color: theme.text,
-  },
-  visibilityText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: theme.primary,
-  },
-  helperText: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: theme.textMuted,
-  },
-  strengthBlock: {
-    gap: 8,
-  },
-  strengthTrack: {
-    height: 8,
-    borderRadius: 999,
-    backgroundColor: '#E5E7EB',
-    overflow: 'hidden',
-  },
-  strengthFill: {
-    height: '100%',
-    borderRadius: 999,
-  },
-  strengthLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  errorText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: theme.danger,
-  },
-  tipCard: {
-    backgroundColor: theme.primarySoft,
-    borderRadius: 20,
-    padding: 18,
-  },
-  tipTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: theme.text,
-    marginBottom: 6,
-  },
-  tipBody: {
-    fontSize: 14,
-    lineHeight: 21,
-    color: theme.textMuted,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 4,
-    marginBottom: 24,
-  },
-  secondaryButton: {
-    flex: 1,
-    minHeight: 54,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: theme.border,
-    backgroundColor: theme.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  secondaryButtonText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: theme.text,
-  },
-  primaryButton: {
-    flex: 1.3,
-    minHeight: 54,
-    borderRadius: 18,
-    backgroundColor: theme.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  primaryButtonDisabled: {
-    opacity: 0.55,
-  },
-  primaryButtonText: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-});
