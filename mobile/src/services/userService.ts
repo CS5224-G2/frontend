@@ -1,8 +1,19 @@
-type BackendRideStats = {
-  total_rides: number;
-  total_distance_km: number;
-  favorite_trails_count: number;
-};
+// =============================================================================
+// USER SERVICE — Mobile (Expo/React Native)
+// Adapter pattern: maps between backend snake_case and frontend camelCase.
+// Gated by EXPO_PUBLIC_USE_MOCKS — set to 'true' to skip real network calls.
+// =============================================================================
+
+import type { UserProfile } from '../../../shared/types/index';
+import { mockUserProfile } from '../../../shared/mocks/index';
+
+export type { UserProfile };
+
+const USE_MOCKS = process.env.EXPO_PUBLIC_USE_MOCKS === 'true';
+
+// ---------------------------------------------------------------------------
+// Backend shapes (internal)
+// ---------------------------------------------------------------------------
 
 type BackendUserProfileResponse = {
   user_id: string;
@@ -14,7 +25,11 @@ type BackendUserProfileResponse = {
   weekly_goal_km: number;
   bio_text: string;
   avatar_color: string;
-  ride_stats: BackendRideStats;
+  ride_stats: {
+    total_rides: number;
+    total_distance_km: number;
+    favorite_trails_count: number;
+  };
 };
 
 type BackendUserProfileUpdatePayload = {
@@ -26,45 +41,9 @@ type BackendUserProfileUpdatePayload = {
   avatar_color: string;
 };
 
-export type UserProfile = {
-  userId: string;
-  fullName: string;
-  email: string;
-  location: string;
-  memberSince: string;
-  cyclingPreference: 'Leisure' | 'Commuter' | 'Performance';
-  weeklyGoalKm: number;
-  bio: string;
-  avatarColor: string;
-  stats: {
-    totalRides: number;
-    totalDistanceKm: number;
-    favoriteTrails: number;
-  };
-};
-
-let mockBackendUserProfile: BackendUserProfileResponse = {
-  user_id: 'rider_1024',
-  full_name: 'Alex Johnson',
-  email_address: 'alex.johnson@example.com',
-  city_name: 'San Francisco, CA',
-  member_since: 'January 2025',
-  cycling_preference: 'Leisure',
-  weekly_goal_km: 80,
-  bio_text:
-    'Weekend rider focused on scenic waterfront routes, coffee stops, and low-stress climbs.',
-  avatar_color: '#1D4ED8',
-  ride_stats: {
-    total_rides: 47,
-    total_distance_km: 385.6,
-    favorite_trails_count: 28,
-  },
-};
-
-const wait = async (ms: number) =>
-  new Promise<void>((resolve) => {
-    setTimeout(resolve, ms);
-  });
+// ---------------------------------------------------------------------------
+// Mappers
+// ---------------------------------------------------------------------------
 
 const toFrontendProfile = (payload: BackendUserProfileResponse): UserProfile => ({
   userId: payload.user_id,
@@ -92,35 +71,56 @@ const toBackendUpdatePayload = (profile: UserProfile): BackendUserProfileUpdateP
   avatar_color: profile.avatarColor,
 });
 
-export async function getUserProfile(): Promise<UserProfile> {
-  await wait(350);
-  return toFrontendProfile(mockBackendUserProfile);
+// ---------------------------------------------------------------------------
+// In-memory mock store (only used in mock mode)
+// ---------------------------------------------------------------------------
+
+let _mockProfile = { ...mockUserProfile };
+const wait = async (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
+export async function getUserProfile(token?: string): Promise<UserProfile> {
+  if (USE_MOCKS) {
+    await wait(350);
+    return { ..._mockProfile };
+  }
+
+  const { httpClient } = await import('./httpClient');
+  const response = await httpClient.get<BackendUserProfileResponse>('/user/profile', token);
+  return toFrontendProfile(response);
 }
 
-export async function updateUserProfile(profile: UserProfile): Promise<UserProfile> {
-  await wait(450);
+export async function updateUserProfile(
+  profile: UserProfile,
+  token?: string,
+): Promise<UserProfile> {
+  if (USE_MOCKS) {
+    await wait(450);
+    _mockProfile = { ..._mockProfile, ...profile };
+    return { ..._mockProfile };
+  }
 
-  const backendPayload = toBackendUpdatePayload(profile);
-
-  mockBackendUserProfile = {
-    ...mockBackendUserProfile,
-    ...backendPayload,
-  };
-
-  return toFrontendProfile(mockBackendUserProfile);
+  const { httpClient } = await import('./httpClient');
+  const payload = toBackendUpdatePayload(profile);
+  const response = await httpClient.put<BackendUserProfileResponse>(
+    '/user/profile',
+    payload,
+    token,
+  );
+  return toFrontendProfile(response);
 }
 
+// Utility: serialise profile for navigation params
 export function serializeUserProfile(profile: UserProfile): string {
   return encodeURIComponent(JSON.stringify(profile));
 }
 
 export function parseUserProfileParam(param?: string | string[]): UserProfile | null {
-  if (!param) {
-    return null;
-  }
-
+  if (!param) return null;
   const value = Array.isArray(param) ? param[0] : param;
-
   try {
     return JSON.parse(decodeURIComponent(value)) as UserProfile;
   } catch {

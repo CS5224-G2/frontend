@@ -1,14 +1,31 @@
-import React from 'react';
-import { View, Text, ScrollView, Pressable, FlatList } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, Pressable, FlatList, ActivityIndicator } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AntDesign, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/native/Common';
-import { mockRoutes, Route } from '../types';
+import { type Route } from '../../../../shared/types/index';
+import { getRoutes } from '../../services/routeService';
 
 type Props = NativeStackScreenProps<any, 'Recommendation'>;
 
 export default function RouteRecommendationPage({ navigation }: Props) {
-  const recommendedRoutes = mockRoutes.slice(0, 3);
+  const [routes, setRoutes] = useState<Route[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    getRoutes().then((data) => {
+      setRoutes(data.slice(0, 3));
+      setIsLoading(false);
+    });
+  }, []);
+
+  if (isLoading) {
+    return (
+      <View className="flex-1 justify-center items-center bg-slate-50">
+        <ActivityIndicator size="large" color="#3b82f6" />
+      </View>
+    );
+  }
 
   const renderRoute = ({ item }: { item: Route }) => (
     <Pressable
@@ -80,10 +97,10 @@ export default function RouteRecommendationPage({ navigation }: Props) {
         <Text className="text-2xl font-bold text-[#1e293b]">Route Recommendations</Text>
       </View>
 
-      <Text className="mb-[14px] text-slate-500">{recommendedRoutes.length} routes found</Text>
+      <Text className="mb-[14px] text-slate-500">{routes.length} routes found</Text>
 
       <FlatList
-        data={recommendedRoutes}
+        data={routes}
         keyExtractor={(item) => item.id}
         renderItem={renderRoute}
         ItemSeparatorComponent={() => <View style={{ height: 12 }} />}

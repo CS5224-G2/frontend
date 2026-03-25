@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import { View, Text, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { mockRoutes, type Route, type UserPreferences } from '../types';
+import { type Route, type UserPreferences } from '../../../../shared/types/index';
+import { getRoutes, getRouteRecommendations } from '../../services/routeService';
 import { FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -12,15 +13,32 @@ type Props = NativeStackScreenProps<any, 'HomePage'>;
 export default function HomeScreen({ navigation }: Props) {
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [allRoutes, setAllRoutes] = useState<Route[]>([]);
+  const [suggestedRoutes, setSuggestedRoutes] = useState<(Route & { matchScore: number })[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const loadPreferences = async () => {
-      const savedPrefs = await AsyncStorage.getItem('userPreferences');
-      if (savedPrefs) {
-        setPreferences(JSON.parse(savedPrefs));
+    const loadData = async () => {
+      try {
+        setIsLoading(true);
+        const savedPrefs = await AsyncStorage.getItem('userPreferences');
+        const prefs: UserPreferences | null = savedPrefs ? JSON.parse(savedPrefs) : null;
+        setPreferences(prefs);
+
+        const [routes, suggested] = await Promise.all([
+          getRoutes(prefs ?? undefined),
+          prefs ? getRouteRecommendations(prefs, 3) : Promise.resolve([]),
+        ]);
+
+        setAllRoutes(routes);
+        setSuggestedRoutes(
+          suggested.map((r) => ({ ...r, matchScore: calculateMatchScore(r, prefs) })),
+        );
+      } finally {
+        setIsLoading(false);
       }
     };
-    loadPreferences();
+    loadData();
   }, []);
 
   useFocusEffect(
@@ -37,56 +55,21 @@ export default function HomeScreen({ navigation }: Props) {
     }, [])
   );
 
-  // Calculate match score for personalized recommendations
-  const calculateMatchScore = (route: Route): number => {
-    if (!preferences) return route.rating * 20;
-
-    let score = 0;
-    score += route.rating * 10;
-    score += Math.min(route.reviewCount / 100, 10);
-
-    if (route.cyclistType === preferences.cyclistType) {
-      score += 20;
-    }
-
-    const distanceDiff = Math.abs(route.distance - preferences.distance);
-    score += Math.max(10 - distanceDiff / 2, 0);
-
-    const elevationDiff = Math.abs(route.elevation - preferences.elevation * 3);
-    score += Math.max(10 - elevationDiff / 30, 0);
-
-    const shadeDiff = Math.abs(route.shade - preferences.preferredShade);
-    score += Math.max(10 - shadeDiff / 10, 0);
-
-    const airQualityDiff = Math.abs(route.airQuality - preferences.airQuality);
-    score += Math.max(10 - airQualityDiff / 10, 0);
-
+  // Match score helper (mirrors routeService logic, for badge display)
+  const calculateMatchScore = (route: Route, prefs: UserPreferences | null): number => {
+    if (!prefs) return route.rating * 20;
+    let score = route.rating * 10 + Math.min(route.reviewCount / 100, 10);
+    if (route.cyclistType === prefs.cyclistType) score += 20;
+    score += Math.max(10 - Math.abs(route.distance - prefs.distance) / 2, 0);
+    score += Math.max(10 - Math.abs(route.elevation - prefs.elevation * 3) / 30, 0);
+    score += Math.max(10 - Math.abs(route.shade - prefs.preferredShade) / 10, 0);
+    score += Math.max(10 - Math.abs(route.airQuality - prefs.airQuality) / 10, 0);
     return score;
   };
 
-  // Get favorite routes
-  const favoriteRoutes = mockRoutes.filter((route) => favorites.includes(route.id));
-
-  // Get personalized suggestions
-  const suggestedRoutes = [...mockRoutes]
-    .map(route => ({
-      ...route,
-      matchScore: calculateMatchScore(route)
-    }))
-    .sort((a, b) => b.matchScore - a.matchScore)
-    .slice(0, 3);
-
-  // Filter routes based on user preferences
-  const recommendedRoutes = mockRoutes
-    .filter((route) => {
-      if (!preferences) return true;
-      return (
-        route.cyclistType === preferences.cyclistType &&
-        route.distance <= preferences.distance * 1.5 &&
-        route.airQuality >= preferences.airQuality - 20
-      );
-    })
-    .slice(0, 6);
+  // Derived state from service data
+  const favoriteRoutes = allRoutes.filter((route) => favorites.includes(route.id));
+  const recommendedRoutes = allRoutes.slice(0, 6);
 
   const getMatchPercentage = (score: number): number => {
     return Math.min(Math.round(score), 100);
@@ -178,6 +161,14 @@ export default function HomeScreen({ navigation }: Props) {
       </View>
     </Pressable>
   );
+
+  if (isLoading) {
+    return (
+      <View className="flex-1 justify-center items-center bg-[#f3f4f6]">
+        <ActivityIndicator size="large" color="#3b82f6" />
+      </View>
+    );
+  }
 
   return (
     <ScrollView className="flex-1 bg-[#f3f4f6]" scrollIndicatorInsets={{ right: 1 }}>

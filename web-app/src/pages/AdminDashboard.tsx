@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import StatCard from '../components/StatCard'
+import { getAdminStats, getAdminUsers, type AdminStats, type AdminUser } from '../services/adminService'
 
 type NavItem = { label: string; icon: string }
 
@@ -12,24 +13,30 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Settings', icon: '⚙️' },
 ]
 
-const STATS = [
-  { label: 'Total Rides', value: '1,280' },
-  { label: 'Active Users', value: '452' },
-  { label: 'Revenue', value: '$12.4k' },
-  { label: 'Open Reports', value: '12', accent: 'amber' as const },
-]
-
-const USERS = [
-  { email: 'alex@email.com', role: 'user', status: 'Active', joined: 'Jan 2025' },
-  { email: 'jamie@email.com', role: 'user', status: 'Active', joined: 'Feb 2025' },
-  { email: 'grace@email.com', role: 'user', status: 'Inactive', joined: 'Feb 2025' },
-  { email: 'admin@cyclink.com', role: 'admin', status: 'Active', joined: 'Jan 2025' },
-  { email: 'business@cyclink.com', role: 'business', status: 'Active', joined: 'Jan 2025' },
-]
-
 export default function AdminDashboard() {
   const { logout } = useAuth()
   const [activeNav, setActiveNav] = useState('Overview')
+  const [stats, setStats] = useState<AdminStats | null>(null)
+  const [users, setUsers] = useState<AdminUser[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    Promise.all([getAdminStats(), getAdminUsers()])
+      .then(([s, u]) => {
+        setStats(s)
+        setUsers(u)
+      })
+      .finally(() => setIsLoading(false))
+  }, [])
+
+  const statCards = stats
+    ? [
+        { label: 'Total Rides', value: stats.totalRides.toLocaleString() },
+        { label: 'Active Users', value: stats.activeUsers.toLocaleString() },
+        { label: 'Revenue', value: stats.revenueFormatted },
+        { label: 'Open Reports', value: String(stats.openReports), accent: 'amber' as const },
+      ]
+    : []
 
   return (
     <div className="min-h-screen flex">
@@ -67,10 +74,14 @@ export default function AdminDashboard() {
         <h1 className="text-xl font-extrabold text-primary-900 mb-1">System Overview</h1>
         <p className="text-slate-500 text-sm mb-6">Admin Panel — CycleLink</p>
 
-        {activeNav === 'Overview' ? (
+        {isLoading ? (
+          <div className="flex justify-center items-center h-40">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
+          </div>
+        ) : activeNav === 'Overview' ? (
           <>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-              {STATS.map((s) => (
+              {statCards.map((s) => (
                 <StatCard key={s.label} label={s.label} value={s.value} accent={s.accent} />
               ))}
             </div>
@@ -88,8 +99,8 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {USERS.map((u) => (
-                      <tr key={u.email} className="border-b border-slate-50 last:border-0">
+                    {users.map((u) => (
+                      <tr key={u.id} className="border-b border-slate-50 last:border-0">
                         <td className="py-3 pr-4 text-slate-700">{u.email}</td>
                         <td className="py-3 pr-4 text-slate-500">{u.role}</td>
                         <td className="py-3 pr-4">
@@ -103,7 +114,7 @@ export default function AdminDashboard() {
                             {u.status}
                           </span>
                         </td>
-                        <td className="py-3 text-slate-400">{u.joined}</td>
+                        <td className="py-3 text-slate-400">{u.joinedFormatted}</td>
                       </tr>
                     ))}
                   </tbody>

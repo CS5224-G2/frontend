@@ -1,6 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import StatCard from '../components/StatCard'
+import {
+  getBusinessStats,
+  getSponsoredLocations,
+  type BusinessStats,
+  type SponsoredLocation,
+} from '../services/businessService'
 
 type NavItem = { label: string; icon: string }
 
@@ -11,23 +17,30 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Settings', icon: '⚙️' },
 ]
 
-const STATS = [
-  { label: 'Active Sponsors', value: '8' },
-  { label: 'Data Points', value: '45.2k' },
-  { label: 'Total Spent', value: '$3,420' },
-  { label: 'User Reach', value: '8.5k' },
-]
-
-const LOCATIONS = [
-  { venue: 'Maxwell Food Centre', location: 'Tanjong Pagar', views: '1,200', clicks: '340', status: 'Live' },
-  { venue: 'East Coast Park', location: 'Marine Parade', views: '980', clicks: '210', status: 'Pending' },
-  { venue: 'Chinatown Heritage Trail', location: 'Chinatown', views: '750', clicks: '180', status: 'Live' },
-  { venue: 'Bedok Interchange', location: 'Bedok', views: '620', clicks: '145', status: 'Pending' },
-]
-
 export default function BusinessDashboard() {
   const { logout } = useAuth()
   const [activeNav, setActiveNav] = useState('Overview')
+  const [stats, setStats] = useState<BusinessStats | null>(null)
+  const [locations, setLocations] = useState<SponsoredLocation[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    Promise.all([getBusinessStats(), getSponsoredLocations()])
+      .then(([s, l]) => {
+        setStats(s)
+        setLocations(l)
+      })
+      .finally(() => setIsLoading(false))
+  }, [])
+
+  const statCards = stats
+    ? [
+        { label: 'Active Sponsors', value: String(stats.activeSponsors) },
+        { label: 'Data Points', value: stats.dataPoints },
+        { label: 'Total Spent', value: stats.totalSpentFormatted },
+        { label: 'User Reach', value: stats.userReach },
+      ]
+    : []
 
   return (
     <div className="min-h-screen flex">
@@ -65,10 +78,14 @@ export default function BusinessDashboard() {
         <h1 className="text-xl font-extrabold text-primary-900 mb-1">Business Overview</h1>
         <p className="text-slate-500 text-sm mb-6">Partner Portal — CycleLink</p>
 
-        {activeNav === 'Overview' ? (
+        {isLoading ? (
+          <div className="flex justify-center items-center h-40">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
+          </div>
+        ) : activeNav === 'Overview' ? (
           <>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-              {STATS.map((s) => (
+              {statCards.map((s) => (
                 <StatCard key={s.label} label={s.label} value={s.value} />
               ))}
             </div>
@@ -87,8 +104,8 @@ export default function BusinessDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {LOCATIONS.map((l) => (
-                      <tr key={l.venue} className="border-b border-slate-50 last:border-0">
+                    {locations.map((l) => (
+                      <tr key={l.id} className="border-b border-slate-50 last:border-0">
                         <td className="py-3 pr-4 font-medium text-slate-700">{l.venue}</td>
                         <td className="py-3 pr-4 text-slate-500">{l.location}</td>
                         <td className="py-3 pr-4 text-slate-600">{l.views}</td>

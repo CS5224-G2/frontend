@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { loginUser, AuthUser, LoginValues } from '../services/authService'
+import { loginUser, type AuthUser, type LoginValues } from '../services/authService'
 
 type AuthContextValue = {
   user: AuthUser | null

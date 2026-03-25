@@ -1,16 +1,40 @@
-import React from 'react';
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button } from '../components/native/Common';
 import { FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
-import { mockRoutes, mockRideHistory } from '../types';
+import { type RideHistory, type Route } from '../../../../shared/types/index';
+import { getRideById } from '../../services/rideService';
+import { getRouteById } from '../../services/routeService';
 
 type Props = NativeStackScreenProps<any, 'HistoryDetails'>;
 
 export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
   const { rideId } = route.params as { rideId: string };
-  const ride = mockRideHistory.find((item) => item.id === rideId);
-  const routeInfo = mockRoutes.find((r) => r.id === ride?.routeId);
+  const [ride, setRide] = useState<RideHistory | null>(null);
+  const [routeInfo, setRouteInfo] = useState<Route | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      const rideData = await getRideById(rideId);
+      if (rideData) {
+        const [routeData] = await Promise.all([getRouteById(rideData.routeId)]);
+        setRide(rideData);
+        setRouteInfo(routeData);
+      }
+      setIsLoading(false);
+    };
+    loadData();
+  }, [rideId]);
+
+  if (isLoading) {
+    return (
+      <View className="flex-1 justify-center items-center">
+        <ActivityIndicator size="large" color="#3b82f6" />
+      </View>
+    );
+  }
 
   if (!ride || !routeInfo) {
     return (

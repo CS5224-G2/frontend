@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, TextInput, Pressable } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, TextInput, Pressable, ActivityIndicator } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { mockRoutes } from '../types';
+import { type Route } from '../../../../shared/types/index';
+import { getRouteById } from '../../services/routeService';
+import { submitRideFeedback } from '../../services/rideService';
 
 type Props = NativeStackScreenProps<any, any>;
 
@@ -12,17 +14,31 @@ export default function RouteFeedbackPage({ navigation, route }: Props) {
   const [hoveredRating, setHoveredRating] = useState(0);
   const [feedback, setFeedback] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [routeData, setRouteData] = useState<Route | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const routeData = mockRoutes.find((r) => r.id === routeId);
+  useEffect(() => {
+    getRouteById(routeId).then((r) => {
+      setRouteData(r);
+      setIsLoading(false);
+    });
+  }, [routeId]);
 
-  const handleSubmit = () => {
-    console.log('Feedback submitted:', { routeId, rating, feedback });
+  const handleSubmit = async () => {
+    await submitRideFeedback({ routeId, rating, review: feedback });
     setSubmitted(true);
-
-    setTimeout(() => {
-      navigation.navigate('HomePage');
-    }, 2000);
+    setTimeout(() => { navigation.navigate('HomePage'); }, 2000);
   };
+
+  if (isLoading) {
+    return (
+      <ScrollView className="flex-1 bg-[#f9fafb]">
+        <View className="flex-1 justify-center items-center p-[32px]">
+          <ActivityIndicator size="large" color="#3b82f6" />
+        </View>
+      </ScrollView>
+    );
+  }
 
   if (!routeData) {
     return (

@@ -1,30 +1,41 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, FlatList, Pressable, Alert } from 'react-native';
+import { View, Text, ScrollView, FlatList, Pressable, Alert, ActivityIndicator } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button } from '../components/native/Common';
-import { RideHistory, mockRideHistory, weeklyData, monthlyData, mockRoutes } from '../types';
+import { type RideHistory, type GraphDataPoint, type GraphPeriod } from '../../../../shared/types/index';
+import { getRideHistory, getDistanceStats } from '../../services/rideService';
 
 type Props = NativeStackScreenProps<any, 'RideHistory'>;
 
 export default function RideHistoryPage({ navigation }: Props) {
   const [period, setPeriod] = useState<'week' | 'month'>('week');
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [rideHistory, setRideHistory] = useState<RideHistory[]>([]);
+  const [graphData, setGraphData] = useState<GraphDataPoint[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const loadFavorites = async () => {
+    const loadData = async () => {
       try {
-        const saved = await AsyncStorage.getItem('favoriteRoutes');
-        if (saved) {
-          setFavorites(JSON.parse(saved));
-        }
+        setIsLoading(true);
+        const [history, stats, saved] = await Promise.all([
+          getRideHistory(),
+          getDistanceStats(period),
+          AsyncStorage.getItem('favoriteRoutes'),
+        ]);
+        setRideHistory(history);
+        setGraphData(stats);
+        if (saved) setFavorites(JSON.parse(saved));
       } catch (error) {
-        console.warn('Error loading favorites', error);
+        console.warn('Error loading ride data', error);
+      } finally {
+        setIsLoading(false);
       }
     };
-    loadFavorites();
-  }, []);
+    loadData();
+  }, [period]);
 
   const toggleFavorite = async (routeId: string, routeName: string) => {
     const isFav = favorites.includes(routeId);
@@ -43,10 +54,9 @@ export default function RideHistoryPage({ navigation }: Props) {
     }
   };
 
-  const graphData = period === 'week' ? weeklyData : monthlyData;
   const totalGraphDistance = graphData.reduce((sum, item) => sum + item.distance, 0);
-  const totalTime = mockRideHistory.reduce((sum, ride) => sum + ride.totalTime, 0);
-  const totalCheckpoints = mockRideHistory.reduce((sum, ride) => sum + ride.checkpoints, 0);
+  const totalTime = rideHistory.reduce((sum, ride) => sum + ride.totalTime, 0);
+  const totalCheckpoints = rideHistory.reduce((sum, ride) => sum + ride.checkpoints, 0);
 
   const formatTime = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
@@ -71,8 +81,7 @@ export default function RideHistoryPage({ navigation }: Props) {
 
   const renderRide = ({ item }: { item: RideHistory }) => {
     const isFav = favorites.includes(item.routeId);
-    const route = mockRoutes.find((routeItem) => routeItem.id === item.routeId);
-    const displayName = route?.name ?? item.routeName;
+    const displayName = item.routeName;
 
     return (
       <Pressable
@@ -117,6 +126,14 @@ export default function RideHistoryPage({ navigation }: Props) {
     );
   };
 
+  if (isLoading) {
+    return (
+      <View className="flex-1 justify-center items-center bg-slate-50">
+        <ActivityIndicator size="large" color="#3b82f6" />
+      </View>
+    );
+  }
+
   return (
     <ScrollView className="flex-1 bg-slate-50" contentContainerStyle={{ padding: 16, paddingBottom: 36 }}>
       <View className="mb-[12px]">
@@ -128,7 +145,7 @@ export default function RideHistoryPage({ navigation }: Props) {
         <Card style={{ width: '48%', padding: 10, borderRadius: 12 }}>
           <CardContent>
             <Text className="text-xs text-[#64748b]">Total Rides</Text>
-            <Text className="text-xl font-bold text-[#1e293b] mt-[6px]">{mockRideHistory.length}</Text>
+            <Text className="text-xl font-bold text-[#1e293b] mt-[6px]">{rideHistory.length}</Text>
           </CardContent>
         </Card>
         <Card style={{ width: '48%', padding: 10, borderRadius: 12 }}>
@@ -187,7 +204,7 @@ export default function RideHistoryPage({ navigation }: Props) {
       </View>
 
       <FlatList
-        data={mockRideHistory}
+        data={rideHistory}
         keyExtractor={(item) => item.id}
         renderItem={renderRide}
         scrollEnabled={false}
