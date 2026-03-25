@@ -26,6 +26,13 @@ jest.mock('@/services/settingsService', () => ({
   updatePrivacySecuritySettings: jest.fn(),
 }));
 
+jest.mock('../ThemeContext', () => ({
+  useTheme: () => ({
+    preference: 'system',
+    setPreference: jest.fn(),
+  }),
+}));
+
 const mockedGetPrivacySecuritySettings =
   getPrivacySecuritySettings as jest.MockedFunction<typeof getPrivacySecuritySettings>;
 
@@ -53,6 +60,18 @@ describe('PrivacySecurityPage', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
+  });
+
+  it('renders Appearance segmented control with three options', async () => {
+    const { getByText, getByTestId } = render(<PrivacySecurityPage />);
+
+    await waitFor(() => {
+      expect(getByText('Appearance')).toBeTruthy();
+    });
+
+    expect(getByTestId('appearance-system')).toBeTruthy();
+    expect(getByTestId('appearance-light')).toBeTruthy();
+    expect(getByTestId('appearance-dark')).toBeTruthy();
   });
 
   it('renders the layout correctly', async () => {
