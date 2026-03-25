@@ -6,7 +6,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -65,79 +64,124 @@ export default function RegisterPage() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView className="flex-1 bg-[#eef4ff]">
       <KeyboardAvoidingView
-        style={styles.flex}
+        className="flex-1"
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 32, backgroundColor: '#eef4ff' }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.backgroundBubbleTop} />
-          <View style={styles.backgroundBubbleBottom} />
+          <View
+            className="absolute top-5 left-[-40px]"
+            style={{ width: 180, height: 180, borderRadius: 90, backgroundColor: '#d8e6ff' }}
+          />
+          <View
+            className="absolute bottom-10 right-[-60px]"
+            style={{ width: 220, height: 220, borderRadius: 110, backgroundColor: '#dbeafe' }}
+          />
 
-          <View style={styles.header}>
-            <View style={styles.logoCircle}>
-              <Text style={styles.logoGlyph}>CL</Text>
+          <View className="items-center mb-7">
+            <View
+              className="items-center justify-center mb-4"
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: 36,
+                backgroundColor: '#2563eb',
+                shadowColor: '#1d4ed8',
+                shadowOffset: { width: 0, height: 10 },
+                shadowOpacity: 0.22,
+                shadowRadius: 18,
+                elevation: 8,
+              }}
+            >
+              <Text className="text-white text-[22px] font-extrabold tracking-widest">CL</Text>
             </View>
-            <Text style={styles.brand}>CycleLink</Text>
-            <Text style={styles.subtitle}>Create your account to unlock smarter cycling routes.</Text>
+            <Text className="text-[34px] font-extrabold text-[#2563eb] mb-2">CycleLink</Text>
+            <Text
+              className="text-[15px] leading-[22px] text-[#475569] text-center"
+              style={{ maxWidth: 300 }}
+            >
+              Create your account to unlock smarter cycling routes.
+            </Text>
           </View>
 
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Create Account</Text>
-            <Text style={styles.cardDescription}>Choose your preferred sign-up method</Text>
+          <View
+            className="bg-white rounded-cy-2xl px-[22px] py-cy-xl"
+            style={{
+              shadowColor: '#0f172a',
+              shadowOffset: { width: 0, height: 16 },
+              shadowOpacity: 0.08,
+              shadowRadius: 24,
+              elevation: 8,
+            }}
+          >
+            <Text className="text-[24px] font-bold text-slate-900 mb-1.5">Create Account</Text>
+            <Text className="text-[14px] text-text-secondary mb-[18px]">Choose your preferred sign-up method</Text>
 
-            <Pressable style={styles.socialButton} onPress={() => Alert.alert('Google', 'Mock only')}>
-              <View style={[styles.socialIcon, styles.googleIcon]}>
-                <Text style={styles.socialIconText}>G</Text>
+            <Pressable
+              className="flex-row items-center justify-center border border-[#dbe3f0] rounded-cy-xl py-[14px] px-cy-lg mb-3 bg-white"
+              onPress={() => Alert.alert('Google', 'Mock only')}
+            >
+              <View
+                className="items-center justify-center mr-3 bg-slate-100"
+                style={{ width: 28, height: 28, borderRadius: 14 }}
+              >
+                <Text className="text-[14px] font-bold text-slate-900">G</Text>
               </View>
-              <Text style={styles.socialButtonText}>Continue with Google</Text>
+              <Text className="text-[15px] font-semibold text-slate-900">Continue with Google</Text>
             </Pressable>
 
-            <Pressable style={styles.socialButton} onPress={() => Alert.alert('Apple', 'Mock only')}>
-              <View style={[styles.socialIcon, styles.appleIcon]}>
-                <Text style={[styles.socialIconText, styles.appleIconText]}>A</Text>
+            <Pressable
+              className="flex-row items-center justify-center border border-[#dbe3f0] rounded-cy-xl py-[14px] px-cy-lg mb-3 bg-white"
+              onPress={() => Alert.alert('Apple', 'Mock only')}
+            >
+              <View
+                className="items-center justify-center mr-3 bg-[#111827]"
+                style={{ width: 28, height: 28, borderRadius: 14 }}
+              >
+                <Text className="text-[14px] font-bold text-white">A</Text>
               </View>
-              <Text style={styles.socialButtonText}>Continue with Apple</Text>
+              <Text className="text-[15px] font-semibold text-slate-900">Continue with Apple</Text>
             </Pressable>
 
-            <View style={styles.dividerRow}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>Or sign up with email</Text>
-              <View style={styles.dividerLine} />
+            <View className="flex-row items-center my-5">
+              <View className="flex-1 h-px bg-slate-200" />
+              <Text className="mx-3 text-slate-400 text-[12px] font-semibold">Or sign up with email</Text>
+              <View className="flex-1 h-px bg-slate-200" />
             </View>
 
-            <View style={styles.inlineFields}>
-              <View style={[styles.fieldGroup, styles.halfField]}>
-                <Text style={styles.label}>First Name</Text>
+            <View className="flex-row" style={{ marginHorizontal: -6 }}>
+              <View className="flex-1 mb-4" style={{ marginHorizontal: 6 }}>
+                <Text className="text-[14px] font-semibold text-[#334155] mb-2">First Name</Text>
                 <TextInput
                   autoCapitalize="words"
                   onChangeText={setFirstName}
                   placeholder="Alex"
                   placeholderTextColor="#94a3b8"
-                  style={styles.input}
+                  className="border border-[#dbe3f0] rounded-cy-xl px-cy-lg py-[15px] text-[15px] text-slate-900 bg-[#f8fbff]"
                   value={firstName}
                 />
               </View>
 
-              <View style={[styles.fieldGroup, styles.halfField]}>
-                <Text style={styles.label}>Last Name</Text>
+              <View className="flex-1 mb-4" style={{ marginHorizontal: 6 }}>
+                <Text className="text-[14px] font-semibold text-[#334155] mb-2">Last Name</Text>
                 <TextInput
                   autoCapitalize="words"
                   onChangeText={setLastName}
                   placeholder="Johnson"
                   placeholderTextColor="#94a3b8"
-                  style={styles.input}
+                  className="border border-[#dbe3f0] rounded-cy-xl px-cy-lg py-[15px] text-[15px] text-slate-900 bg-[#f8fbff]"
                   value={lastName}
                 />
               </View>
             </View>
 
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Email</Text>
+            <View className="mb-4">
+              <Text className="text-[14px] font-semibold text-[#334155] mb-2">Email</Text>
               <TextInput
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -145,14 +189,14 @@ export default function RegisterPage() {
                 onChangeText={setEmail}
                 placeholder="you@example.com"
                 placeholderTextColor="#94a3b8"
-                style={styles.input}
+                className="border border-[#dbe3f0] rounded-cy-xl px-cy-lg py-[15px] text-[15px] text-slate-900 bg-[#f8fbff]"
                 value={email}
               />
             </View>
 
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Password</Text>
-              <View style={styles.passwordRow}>
+            <View className="mb-4">
+              <Text className="text-[14px] font-semibold text-[#334155] mb-2">Password</Text>
+              <View className="flex-row items-center border border-[#dbe3f0] rounded-cy-xl px-cy-lg bg-[#f8fbff]">
                 <TextInput
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -160,18 +204,18 @@ export default function RegisterPage() {
                   placeholder="At least 8 characters"
                   placeholderTextColor="#94a3b8"
                   secureTextEntry={!showPassword}
-                  style={styles.passwordInput}
+                  className="flex-1 py-[15px] text-[15px] text-slate-900"
                   value={password}
                 />
                 <Pressable onPress={() => setShowPassword((current) => !current)}>
-                  <Text style={styles.toggleText}>{showPassword ? 'Hide' : 'Show'}</Text>
+                  <Text className="text-[#2563eb] text-[13px] font-bold">{showPassword ? 'Hide' : 'Show'}</Text>
                 </Pressable>
               </View>
             </View>
 
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Confirm Password</Text>
-              <View style={styles.passwordRow}>
+            <View className="mb-4">
+              <Text className="text-[14px] font-semibold text-[#334155] mb-2">Confirm Password</Text>
+              <View className="flex-row items-center border border-[#dbe3f0] rounded-cy-xl px-cy-lg bg-[#f8fbff]">
                 <TextInput
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -179,44 +223,48 @@ export default function RegisterPage() {
                   placeholder="Re-enter your password"
                   placeholderTextColor="#94a3b8"
                   secureTextEntry={!showConfirmPassword}
-                  style={styles.passwordInput}
+                  className="flex-1 py-[15px] text-[15px] text-slate-900"
                   value={confirmPassword}
                 />
                 <Pressable onPress={() => setShowConfirmPassword((current) => !current)}>
-                  <Text style={styles.toggleText}>{showConfirmPassword ? 'Hide' : 'Show'}</Text>
+                  <Text className="text-[#2563eb] text-[13px] font-bold">{showConfirmPassword ? 'Hide' : 'Show'}</Text>
                 </Pressable>
               </View>
             </View>
 
             <Pressable
-              style={styles.termsRow}
+              className="flex-row items-start mb-5"
               onPress={() => setAgreedToTerms((current) => !current)}
             >
-              <View style={[styles.checkbox, agreedToTerms && styles.checkboxChecked]}>
-                {agreedToTerms ? <Text style={styles.checkboxTick}>x</Text> : null}
+              <View
+                className={`items-center justify-center mr-[10px] mt-0.5 border rounded-cy-sm ${agreedToTerms ? 'bg-[#2563eb] border-[#2563eb]' : 'bg-white border-[#cbd5e1]'}`}
+                style={{ width: 20, height: 20 }}
+              >
+                {agreedToTerms ? <Text className="text-white text-[11px] font-extrabold">x</Text> : null}
               </View>
-              <Text style={styles.termsText}>
-                I agree to the <Text style={styles.linkText}>Terms of Service</Text> and{' '}
-                <Text style={styles.linkText}>Privacy Policy</Text>.
+              <Text className="flex-1 text-[#475569] text-[13px] leading-5">
+                I agree to the <Text className="text-[#2563eb] text-[13px] font-bold">Terms of Service</Text> and{' '}
+                <Text className="text-[#2563eb] text-[13px] font-bold">Privacy Policy</Text>.
               </Text>
             </Pressable>
 
             <Pressable
               disabled={isSubmitting}
               onPress={handleRegister}
-              style={[styles.primaryButton, isSubmitting && styles.primaryButtonDisabled]}
+              className="bg-primary rounded-[18px] items-center justify-center py-cy-lg mb-[18px]"
+              style={isSubmitting ? { opacity: 0.7 } : undefined}
             >
               {isSubmitting ? (
                 <ActivityIndicator color="#ffffff" />
               ) : (
-                <Text style={styles.primaryButtonText}>Create Account</Text>
+                <Text className="text-white text-[16px] font-bold">Create Account</Text>
               )}
             </Pressable>
 
-            <View style={styles.footerRow}>
-              <Text style={styles.footerText}>Already have an account? </Text>
+            <View className="flex-row justify-center items-center">
+              <Text className="text-text-secondary text-[13px]">Already have an account? </Text>
               <Pressable onPress={() => navigation.navigate('Login')}>
-                <Text style={styles.linkText}>Sign in</Text>
+                <Text className="text-[#2563eb] text-[13px] font-bold">Sign in</Text>
               </Pressable>
             </View>
           </View>
@@ -225,261 +273,3 @@ export default function RegisterPage() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#eef4ff',
-  },
-  flex: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 32,
-    backgroundColor: '#eef4ff',
-  },
-  backgroundBubbleTop: {
-    position: 'absolute',
-    top: 20,
-    left: -40,
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: '#d8e6ff',
-  },
-  backgroundBubbleBottom: {
-    position: 'absolute',
-    bottom: 40,
-    right: -60,
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: '#dbeafe',
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 28,
-  },
-  logoCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: '#2563eb',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-    shadowColor: '#1d4ed8',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.22,
-    shadowRadius: 18,
-    elevation: 8,
-  },
-  logoGlyph: {
-    color: '#ffffff',
-    fontSize: 22,
-    fontWeight: '800',
-    letterSpacing: 1,
-  },
-  brand: {
-    fontSize: 34,
-    fontWeight: '800',
-    color: '#2563eb',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: '#475569',
-    textAlign: 'center',
-    maxWidth: 300,
-  },
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 28,
-    paddingHorizontal: 22,
-    paddingVertical: 24,
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.08,
-    shadowRadius: 24,
-    elevation: 8,
-  },
-  cardTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#0f172a',
-    marginBottom: 6,
-  },
-  cardDescription: {
-    fontSize: 14,
-    color: '#64748b',
-    marginBottom: 18,
-  },
-  socialButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#dbe3f0',
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    marginBottom: 12,
-    backgroundColor: '#ffffff',
-  },
-  socialIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  googleIcon: {
-    backgroundColor: '#f1f5f9',
-  },
-  appleIcon: {
-    backgroundColor: '#111827',
-  },
-  socialIconText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0f172a',
-  },
-  appleIconText: {
-    color: '#ffffff',
-  },
-  socialButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#0f172a',
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#e2e8f0',
-  },
-  dividerText: {
-    marginHorizontal: 12,
-    color: '#94a3b8',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  inlineFields: {
-    flexDirection: 'row',
-    marginHorizontal: -6,
-  },
-  halfField: {
-    flex: 1,
-    marginHorizontal: 6,
-  },
-  fieldGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#334155',
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#dbe3f0',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 15,
-    fontSize: 15,
-    color: '#0f172a',
-    backgroundColor: '#f8fbff',
-  },
-  passwordRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#dbe3f0',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    backgroundColor: '#f8fbff',
-  },
-  passwordInput: {
-    flex: 1,
-    paddingVertical: 15,
-    fontSize: 15,
-    color: '#0f172a',
-  },
-  toggleText: {
-    color: '#2563eb',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  termsRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 20,
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-    marginTop: 2,
-    backgroundColor: '#ffffff',
-  },
-  checkboxChecked: {
-    backgroundColor: '#2563eb',
-    borderColor: '#2563eb',
-  },
-  checkboxTick: {
-    color: '#ffffff',
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  termsText: {
-    flex: 1,
-    color: '#475569',
-    fontSize: 13,
-    lineHeight: 20,
-  },
-  linkText: {
-    color: '#2563eb',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  primaryButton: {
-    backgroundColor: '#2563eb',
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    marginBottom: 18,
-  },
-  primaryButtonDisabled: {
-    opacity: 0.7,
-  },
-  primaryButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  footerRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  footerText: {
-    color: '#64748b',
-    fontSize: 13,
-  },
-});
