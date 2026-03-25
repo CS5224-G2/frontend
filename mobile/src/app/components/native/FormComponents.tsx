@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, TextInput, Pressable } from 'react-native';
 
 interface InputProps {
@@ -84,8 +84,8 @@ export const Checkbox = ({ value, onValueChange, disabled }: CheckboxProps) => (
   <Pressable
     onPress={() => !disabled && onValueChange(!value)}
     className={[
-      'w-5 h-5 border rounded-cy-sm justify-center items-center bg-bg-base',
-      value ? 'bg-primary border-primary' : 'border-border',
+      'w-5 h-5 border rounded-cy-sm justify-center items-center',
+      value ? 'bg-primary border-primary' : 'bg-bg-base border-border',
       disabled ? 'opacity-50' : '',
     ].filter(Boolean).join(' ')}
   >
