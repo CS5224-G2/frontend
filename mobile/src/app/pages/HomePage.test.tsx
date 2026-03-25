@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import HomeScreen from './HomePage';
 import { AuthContext } from '../AuthContext';
 
@@ -28,6 +28,17 @@ jest.mock('expo-linear-gradient', () => ({
   LinearGradient: 'LinearGradient',
 }));
 
+// All mock data defined INSIDE the factory to avoid jest.mock hoisting issues
+jest.mock('../../services/routeService', () => ({
+  getRoutes: jest.fn().mockResolvedValue([
+    { id: '1', name: 'Riverside Park Loop', description: 'A scenic route along the river', distance: 12.5, elevation: 45, estimatedTime: 45, rating: 4.8, reviewCount: 234, startPoint: { lat: 0, lng: 0, name: 'Start' }, endPoint: { lat: 0, lng: 0, name: 'End' }, checkpoints: [], cyclistType: 'recreational', shade: 80, airQuality: 85 },
+    { id: '2', name: 'City Commuter Express', description: 'Fast commuter route', distance: 8.3, elevation: 25, estimatedTime: 25, rating: 4.5, reviewCount: 567, startPoint: { lat: 0, lng: 0, name: 'Start' }, endPoint: { lat: 0, lng: 0, name: 'End' }, checkpoints: [], cyclistType: 'commuter', shade: 40, airQuality: 70 },
+  ]),
+  getRouteRecommendations: jest.fn().mockResolvedValue([
+    { id: '1', name: 'Riverside Park Loop', description: 'A scenic route along the river', distance: 12.5, elevation: 45, estimatedTime: 45, rating: 4.8, reviewCount: 234, startPoint: { lat: 0, lng: 0, name: 'Start' }, endPoint: { lat: 0, lng: 0, name: 'End' }, checkpoints: [], cyclistType: 'recreational', shade: 80, airQuality: 85 },
+  ]),
+}));
+
 describe('HomePage', () => {
   const renderWithAuth = (component: React.ReactElement) => {
     return render(
@@ -37,18 +48,18 @@ describe('HomePage', () => {
     );
   };
 
-  it('renders correctly', () => {
+  it('renders correctly', async () => {
     renderWithAuth(<HomeScreen navigation={{ navigate: mockNavigate } as any} route={{} as any} />);
 
-    expect(screen.getByText('CycleLink')).toBeTruthy();
+    await waitFor(() => expect(screen.getByText('CycleLink')).toBeTruthy());
     expect(screen.getByText('Discover Routes')).toBeTruthy();
     expect(screen.getByText('Create Custom Route')).toBeTruthy();
   });
 
-  it('navigates to RouteConfig when create button is pressed', () => {
+  it('navigates to RouteConfig when create button is pressed', async () => {
     renderWithAuth(<HomeScreen navigation={{ navigate: mockNavigate } as any} route={{} as any} />);
-    
-    const createButton = screen.getByText('Create Custom Route');
+
+    const createButton = await screen.findByText('Create Custom Route');
     fireEvent.press(createButton);
 
     expect(mockNavigate).toHaveBeenCalledWith('RouteConfig');
@@ -56,8 +67,7 @@ describe('HomePage', () => {
 
   it('renders recommended routes', async () => {
     renderWithAuth(<HomeScreen navigation={{ navigate: mockNavigate } as any} route={{} as any} />);
-    
-    // Check if at least one route card is rendered (mockRoutes has data)
+
     expect(await screen.findByText(/Riverside Park Loop/i)).toBeTruthy();
   });
 });
