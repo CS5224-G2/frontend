@@ -8,6 +8,7 @@ import {
   NativeTabs,
   VectorIcon,
 } from 'expo-router/unstable-native-tabs';
+import { useColorScheme } from 'nativewind';
 
 import { AuthContext } from '@/app/AuthContext';
 
@@ -19,18 +20,23 @@ const selectedTintColor =
       })
     : '#2563eb';
 
-const labelColor =
-  Platform.OS === 'ios'
-    ? DynamicColorIOS({
-        light: '#111827',
-        dark: '#e5e7eb',
-      })
-    : '#111827';
-
-const tabBarBackgroundColor = Platform.OS === 'android' ? '#ffffff' : null;
-
 export default function TabsLayout() {
   const { isLoggedIn } = useContext(AuthContext);
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
+  const labelColor =
+    Platform.OS === 'ios'
+      ? DynamicColorIOS({
+          light: '#111827',
+          dark: '#e5e7eb',
+        })
+      : isDark
+        ? '#e5e7eb'
+        : '#111827';
+
+  const tabBarBackgroundColor = Platform.OS === 'android' ? (isDark ? '#111111' : '#ffffff') : null;
+  const tabBarIconColor = Platform.OS === 'android' ? (isDark ? '#d4d4d8' : '#52525b') : undefined;
 
   if (!isLoggedIn) {
     return <Redirect href="/login" />;
@@ -39,6 +45,7 @@ export default function TabsLayout() {
   return (
     <NativeTabs
       tintColor={selectedTintColor}
+      iconColor={tabBarIconColor}
       backgroundColor={tabBarBackgroundColor}
       labelStyle={{
         color: labelColor,
