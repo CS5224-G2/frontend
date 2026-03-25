@@ -13,8 +13,9 @@ jest.mock('@react-native-async-storage/async-storage', () =>
 );
 
 describe('ThemeContext', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
+    await AsyncStorage.clear();
   });
 
   it('defaults to system when no stored preference', async () => {

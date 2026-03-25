@@ -9,10 +9,7 @@ interface ThemeContextValue {
   setPreference: (pref: ColorSchemePref) => void;
 }
 
-const ThemeContext = createContext<ThemeContextValue>({
-  preference: 'system',
-  setPreference: () => {},
-});
+const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 const STORAGE_KEY = 'colorScheme';
 
@@ -29,7 +26,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const setPreference = (pref: ColorSchemePref) => {
     setPreferenceState(pref);
-    AsyncStorage.setItem(STORAGE_KEY, pref);
+    AsyncStorage.setItem(STORAGE_KEY, pref).catch((err) =>
+      console.error('ThemeContext: failed to persist colorScheme', err)
+    );
     colorScheme.set(pref);
   };
 
@@ -41,5 +40,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useTheme() {
-  return useContext(ThemeContext);
+  const ctx = useContext(ThemeContext);
+  if (!ctx) throw new Error('useTheme must be used within ThemeProvider');
+  return ctx;
 }
