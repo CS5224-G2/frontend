@@ -1,33 +1,6 @@
 import React from 'react';
 import { View, Text, Pressable, ActivityIndicator } from 'react-native';
 
-export const styles = {
-  // Colors
-  primaryColor: '#2563eb',
-  secondaryColor: '#64748b',
-  backgroundColor: '#ffffff',
-  borderColor: '#e2e8f0',
-  textPrimary: '#1e293b',
-  textSecondary: '#64748b',
-
-  // Spacing
-  spacing: {
-    xs: 4,
-    sm: 8,
-    md: 12,
-    lg: 16,
-    xl: 24,
-    '2xl': 32,
-  },
-
-  // Border radius
-  radiusXs: 4,
-  radiusSm: 6,
-  radiusMd: 8,
-  radiusLg: 12,
-  radiusXl: 16,
-  radiusFull: 9999,
-};
 
 interface CardProps {
   children: React.ReactNode;
