@@ -60,4 +60,10 @@ describe('ThemeContext', () => {
     });
     expect(colorScheme.set).toHaveBeenCalledWith('system');
   });
+
+  it('throws when used outside ThemeProvider', () => {
+    expect(() => renderHook(() => useTheme())).toThrow(
+      'useTheme must be used within ThemeProvider'
+    );
+  });
 });

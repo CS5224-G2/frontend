@@ -17,11 +17,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [preference, setPreferenceState] = useState<ColorSchemePref>('system');
 
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then((value) => {
-      const pref = (value as ColorSchemePref | null) ?? 'system';
-      setPreferenceState(pref);
-      colorScheme.set(pref);
-    });
+    AsyncStorage.getItem(STORAGE_KEY)
+      .then((value) => {
+        const pref = (value as ColorSchemePref | null) ?? 'system';
+        setPreferenceState(pref);
+        colorScheme.set(pref);
+      })
+      .catch((err) => {
+        console.error('ThemeContext: failed to read colorScheme', err);
+      });
   }, []);
 
   const setPreference = (pref: ColorSchemePref) => {
