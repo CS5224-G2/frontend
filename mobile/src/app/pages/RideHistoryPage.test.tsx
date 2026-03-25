@@ -29,6 +29,18 @@ jest.mock('@expo/vector-icons', () => {
   };
 });
 
+jest.mock('expo-glass-effect', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+
+  return {
+    GlassView: (props: any) => React.createElement(View, props),
+    GlassContainer: (props: any) => React.createElement(View, props),
+    isLiquidGlassAvailable: () => false,
+    isGlassEffectAPIAvailable: () => false,
+  };
+});
+
 jest.mock('react-native-reanimated', () => {
   const React = require('react');
   const { Text, View } = require('react-native');
