@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Pressable, FlatList, ActivityIndicator, useColorScheme } from 'react-native';
+import { View, Text, ScrollView, Pressable, FlatList, ActivityIndicator } from 'react-native';
+import { useColorScheme } from 'nativewind';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AntDesign, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/native/Common';
@@ -11,7 +12,7 @@ type Props = NativeStackScreenProps<any, 'Recommendation'>;
 export default function RouteRecommendationPage({ navigation }: Props) {
   const [routes, setRoutes] = useState<Route[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const colorScheme = useColorScheme();
+  const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
 
   useEffect(() => {

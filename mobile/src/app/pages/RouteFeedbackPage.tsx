@@ -117,7 +117,7 @@ export default function RouteFeedbackPage({ navigation, route }: Props) {
             placeholderTextColor={isDark ? '#64748b' : '#94a3b8'}
             multiline
             numberOfLines={5}
-            className="border border-[#d1d5db] rounded-cy-md p-cy-md text-base bg-white dark:bg-[#111111]"
+            className="border border-[#d1d5db] rounded-cy-md p-cy-md text-base bg-white dark:bg-[#111111] dark:text-slate-100"
             style={{ minHeight: 120 }}
             textAlignVertical="top"
           />

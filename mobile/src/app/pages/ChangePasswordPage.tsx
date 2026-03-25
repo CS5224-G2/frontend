@@ -232,7 +232,7 @@ export default function ChangePasswordPage() {
           disabled={isSubmitDisabled}
         >
           {isSaving ? (
-            <ActivityIndicator color={colorScheme === 'dark' ? '#3b82f6' : '#FFFFFF'} />
+            <ActivityIndicator color="#FFFFFF" />
           ) : (
             <Text className="text-[15px] font-extrabold text-white">Update password</Text>
           )}
