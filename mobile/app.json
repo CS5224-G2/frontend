@@ -2,6 +2,7 @@
   "expo": {
     "name": "CycleLink",
     "slug": "cyclelink",
+    "scheme": "cyclelink",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -39,7 +40,11 @@
           "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location"
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      "expo-secure-store",
+      [
+        "expo-apple-authentication"
+      ]
     ],
     "extra": {
       "eas": {
