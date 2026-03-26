@@ -4,6 +4,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import HomeScreen from './HomePage';
 import { AuthContext } from '../AuthContext';
 
+jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
+
 const mockNavigate = jest.fn();
 
 jest.mock('@react-navigation/native', () => ({
