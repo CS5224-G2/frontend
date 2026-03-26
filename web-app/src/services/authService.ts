@@ -5,13 +5,14 @@
 // =============================================================================
 
 import type { LoginFormValues, AuthUser, AuthResult } from '@shared/types/index';
-import { getMockAuthResult } from '@shared/mocks/index';
+import { mockStoredPassword } from '@shared/mocks/index';
+import { findWebUserByEmail, getStoredAuthResult } from './localDb';
 
 export type { LoginFormValues, AuthUser, AuthResult };
 
 // Vite exposes env vars through import.meta.env
-const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'true';
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.cyclelink.example.com';
+const shouldUseMocks = () => import.meta.env.VITE_USE_MOCKS === 'true';
 
 // Re-export for consumers that used the old minimal type
 export type LoginValues = LoginFormValues;
@@ -80,9 +81,21 @@ export async function loginUser(values: LoginFormValues): Promise<AuthResult> {
   if (!email) throw new Error('Email is required.');
   if (!values.password.trim()) throw new Error('Password is required.');
 
-  if (USE_MOCKS) {
+  if (shouldUseMocks()) {
     await new Promise((r) => setTimeout(r, 600));
-    return getMockAuthResult(email);
+
+    const mockUser = await findWebUserByEmail(email)
+
+    if (!mockUser || values.password !== mockStoredPassword) {
+      throw new Error('Invalid email or password.');
+    }
+
+    const authResult = await getStoredAuthResult(email)
+    if (!authResult) {
+      throw new Error('Invalid email or password.');
+    }
+
+    return authResult
   }
 
   const payload = toLoginPayload(values);

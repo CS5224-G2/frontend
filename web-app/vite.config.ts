@@ -3,11 +3,19 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
 
+const repoRoot = resolve(__dirname, '..')
+const sharedRoot = resolve(__dirname, '../shared')
+
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@shared': resolve(__dirname, '../shared'),
+      '@shared': sharedRoot,
+    },
+  },
+  server: {
+    fs: {
+      allow: [repoRoot, sharedRoot],
     },
   },
   test: {

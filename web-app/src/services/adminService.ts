@@ -5,12 +5,12 @@
 // =============================================================================
 
 import type { AdminStats, AdminUser } from '@shared/types/index';
-import { mockAdminStats, mockAdminUsers } from '@shared/mocks/index';
+import { getStoredAdminStats, getStoredAdminUsers } from './localDb';
 
 export type { AdminStats, AdminUser };
 
-const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'true';
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.cyclelink.example.com';
+const shouldUseMocks = () => import.meta.env.VITE_USE_MOCKS === 'true';
 
 // ---------------------------------------------------------------------------
 // Backend shapes (internal)
@@ -56,9 +56,9 @@ const toFrontendUser = (u: BackendAdminUser): AdminUser => ({
 
 /** Fetch platform-wide statistics for the Admin Overview panel. */
 export async function getAdminStats(token?: string): Promise<AdminStats> {
-  if (USE_MOCKS) {
+  if (shouldUseMocks()) {
     await new Promise((r) => setTimeout(r, 300));
-    return { ...mockAdminStats };
+    return getStoredAdminStats()
   }
 
   const response = await fetch(`${BASE_URL}/admin/stats`, {
@@ -74,9 +74,9 @@ export async function getAdminStats(token?: string): Promise<AdminStats> {
 
 /** Fetch the list of all registered users for the User Management table. */
 export async function getAdminUsers(token?: string): Promise<AdminUser[]> {
-  if (USE_MOCKS) {
+  if (shouldUseMocks()) {
     await new Promise((r) => setTimeout(r, 350));
-    return [...mockAdminUsers];
+    return getStoredAdminUsers()
   }
 
   const response = await fetch(`${BASE_URL}/admin/users`, {

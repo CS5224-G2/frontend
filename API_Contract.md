@@ -206,6 +206,24 @@ Same shape as `GET /user/profile`.
 
 ---
 
+### `DELETE /user/profile/avatar`
+
+**Purpose**: Remove the authenticated user's profile photo and fall back to avatar color/initials.  
+**Client(s)**: Mobile  
+**Auth**: Bearer token required
+
+#### Ideal JSON Response — `204 No Content`
+
+No body.
+
+#### Error Responses
+
+| Status | Condition |
+|---|---|
+| `404` | No avatar exists for the user |
+
+---
+
 ## 3. User Settings
 
 ### `POST /user/password`
@@ -569,6 +587,27 @@ No body.
 ---
 
 ## 7. Business Dashboard
+
+### `GET /business/landing-stats`
+
+**Purpose**: Fetch public marketing statistics for the business landing page.  
+**Client(s)**: Web App (public landing page)  
+**Auth**: None required
+
+#### Ideal JSON Response — `200 OK`
+
+```json
+{
+  "monthly_users": 5000,
+  "monthly_route_requests": 50000,
+  "active_partners": 8
+}
+```
+
+> These are platform-level summary figures intended for the business landing page's
+> "Platform at a glance" section.
+
+---
 
 ### `GET /business/stats`
 

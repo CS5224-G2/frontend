@@ -15,6 +15,7 @@ import type {
   GraphDataPoint,
   AdminStats,
   AdminUser,
+  BusinessLandingStats,
   BusinessStats,
   SponsoredLocation,
 } from '../types/index';
@@ -332,6 +333,12 @@ export const mockBusinessStats: BusinessStats = {
   dataPoints: '45.2k',
   totalSpentFormatted: '$3,420',
   userReach: '8.5k',
+};
+
+export const mockBusinessLandingStats: BusinessLandingStats = {
+  monthlyUsers: 5000,
+  monthlyRouteRequests: 50000,
+  activePartners: 8,
 };
 
 export const mockSponsoredLocations: SponsoredLocation[] = [

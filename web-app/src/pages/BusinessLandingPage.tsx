@@ -1,6 +1,11 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import BusinessNavbar from '../components/BusinessNavbar'
 import Footer from '../components/Footer'
+import {
+  getBusinessLandingStats,
+  type BusinessLandingStats,
+} from '../services/businessService'
 
 const offerings = [
   {
@@ -20,13 +25,29 @@ const offerings = [
   },
 ]
 
-const stats = [
-  { value: '5,000+', label: 'Monthly Users' },
-  { value: '50,000', label: 'Route Requests/mo' },
-  { value: '8', label: 'Active Partners' },
-]
-
 export default function BusinessLandingPage() {
+  const [stats, setStats] = useState<BusinessLandingStats | null>(null)
+
+  useEffect(() => {
+    getBusinessLandingStats()
+      .then(setStats)
+      .catch((error) => {
+        console.error('Failed to load business landing stats', error)
+      })
+  }, [])
+
+  const statItems = stats
+    ? [
+        { value: `${stats.monthlyUsers.toLocaleString()}+`, label: 'Monthly Users' },
+        { value: stats.monthlyRouteRequests.toLocaleString(), label: 'Route Requests/mo' },
+        { value: stats.activePartners.toLocaleString(), label: 'Active Partners' },
+      ]
+    : [
+        { value: '—', label: 'Monthly Users' },
+        { value: '—', label: 'Route Requests/mo' },
+        { value: '—', label: 'Active Partners' },
+      ]
+
   return (
     <div className="min-h-screen flex flex-col">
       <BusinessNavbar />
@@ -76,7 +97,7 @@ export default function BusinessLandingPage() {
             Platform at a glance
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            {stats.map((s) => (
+            {statItems.map((s) => (
               <div key={s.label} className="text-center">
                 <p className="text-4xl font-black text-primary-600">{s.value}</p>
                 <p className="text-slate-600 text-sm mt-1">{s.label}</p>

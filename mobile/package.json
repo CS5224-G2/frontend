@@ -29,6 +29,7 @@
     "expo-location": "~19.0.8",
     "expo-router": "~6.0.23",
     "expo-splash-screen": "~31.0.13",
+    "expo-sqlite": "^55.0.11",
     "expo-status-bar": "~3.0.9",
     "lucide-react-native": "^0.577.0",
     "nativewind": "^4.2.3",

@@ -7,7 +7,7 @@ function TestConsumer() {
   return (
     <div>
       <span data-testid="role">{user?.role ?? 'none'}</span>
-      <button onClick={() => login({ email: 'admin@cyclink.com', password: 'x' })}>login</button>
+      <button onClick={() => login({ email: 'admin@cyclink.com', password: 'CycleLink123' })}>login</button>
       <button onClick={logout}>logout</button>
     </div>
   )

@@ -9,10 +9,7 @@ import type {
   PasswordUpdateResult,
   PrivacySecuritySettings,
 } from '../../../shared/types/index';
-import {
-  mockPrivacySettings,
-  mockStoredPassword,
-} from '../../../shared/mocks/index';
+import { getActiveMockAccountId, getLocalDb } from './localDb';
 
 export type { ChangePasswordInput, PasswordUpdateResult, PrivacySecuritySettings };
 
@@ -47,8 +44,18 @@ type BackendPrivacySecurityResponse = {
     data_improvement_opt_out: boolean;
   };
   device_permissions: {
-    notifications_managed_in_os: true;
+    notifications_managed_in_os: boolean;
   };
+};
+
+type LocalPasswordRow = {
+  password: string;
+};
+
+type LocalPrivacySettingsRow = {
+  third_party_ads_opt_out: number;
+  data_improvement_opt_out: number;
+  notifications_managed_in_os: number;
 };
 
 // ---------------------------------------------------------------------------
@@ -84,19 +91,6 @@ const toPasswordUpdateResult = (r: BackendPasswordUpdateResponse): PasswordUpdat
   updatedAt: r.updated_at,
 });
 
-// ---------------------------------------------------------------------------
-// In-memory mock stores (only used in mock mode)
-// ---------------------------------------------------------------------------
-
-let _mockStoredPassword = mockStoredPassword;
-let _mockPrivacySettings: BackendPrivacySecurityResponse = {
-  privacy_controls: {
-    third_party_ads_opt_out: mockPrivacySettings.noThirdPartyAds,
-    data_improvement_opt_out: mockPrivacySettings.noDataImprovement,
-  },
-  device_permissions: { notifications_managed_in_os: true },
-};
-
 const wait = async (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 // ---------------------------------------------------------------------------
@@ -112,10 +106,27 @@ export async function updatePassword(
     if (input.newPassword !== input.confirmNewPassword) {
       throw new Error('New password confirmation does not match.');
     }
-    if (input.currentPassword !== _mockStoredPassword) {
+
+    const db = await getLocalDb();
+    const accountId = await getActiveMockAccountId();
+    const row = await db.getFirstAsync<LocalPasswordRow>(
+      'SELECT password FROM users WHERE id = ?',
+      accountId,
+    );
+
+    if (!row || input.currentPassword !== row.password) {
       throw new Error('Current password is incorrect.');
     }
-    _mockStoredPassword = input.newPassword;
+
+    await db.runAsync(
+      `UPDATE users
+       SET password = ?, updated_at = ?
+       WHERE id = ?`,
+      input.newPassword,
+      new Date().toISOString(),
+      accountId,
+    );
+
     return { status: 'ok', message: 'Password updated successfully.', updatedAt: new Date().toISOString() };
   }
 
@@ -132,7 +143,31 @@ export async function updatePassword(
 export async function getPrivacySecuritySettings(token?: string): Promise<PrivacySecuritySettings> {
   if (USE_MOCKS) {
     await wait(300);
-    return toFrontendPrivacySettings(_mockPrivacySettings);
+    const db = await getLocalDb();
+    const accountId = await getActiveMockAccountId();
+    const row = await db.getFirstAsync<LocalPrivacySettingsRow>(
+      `SELECT
+        third_party_ads_opt_out,
+        data_improvement_opt_out,
+        notifications_managed_in_os
+      FROM user_privacy_settings
+      WHERE account_id = ?`,
+      accountId,
+    );
+
+    if (!row) {
+      throw new Error('Privacy settings not found in the local database.');
+    }
+
+    return toFrontendPrivacySettings({
+      privacy_controls: {
+        third_party_ads_opt_out: Boolean(row.third_party_ads_opt_out),
+        data_improvement_opt_out: Boolean(row.data_improvement_opt_out),
+      },
+      device_permissions: {
+        notifications_managed_in_os: Boolean(row.notifications_managed_in_os),
+      },
+    });
   }
 
   const { httpClient } = await import('./httpClient');
@@ -147,14 +182,25 @@ export async function updatePrivacySecuritySettings(
   if (USE_MOCKS) {
     await wait(450);
     const payload = toBackendPrivacyPayload(settings);
-    _mockPrivacySettings = {
-      ..._mockPrivacySettings,
-      privacy_controls: {
-        ..._mockPrivacySettings.privacy_controls,
-        ...payload.privacy_controls,
-      },
-    };
-    return toFrontendPrivacySettings(_mockPrivacySettings);
+    const db = await getLocalDb();
+    const accountId = await getActiveMockAccountId();
+
+    await db.runAsync(
+      `UPDATE user_privacy_settings
+       SET
+         third_party_ads_opt_out = ?,
+         data_improvement_opt_out = ?,
+         notifications_managed_in_os = ?,
+         updated_at = ?
+       WHERE account_id = ?`,
+      payload.privacy_controls.third_party_ads_opt_out ? 1 : 0,
+      payload.privacy_controls.data_improvement_opt_out ? 1 : 0,
+      settings.notificationsManagedInDeviceSettings ? 1 : 0,
+      new Date().toISOString(),
+      accountId,
+    );
+
+    return getPrivacySecuritySettings(token);
   }
 
   const { httpClient } = await import('./httpClient');

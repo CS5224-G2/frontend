@@ -6,7 +6,7 @@
 // =============================================================================
 
 import type { RideHistory, GraphDataPoint, GraphPeriod, RouteFeedbackPayload } from '../../../shared/types/index';
-import { mockRideHistory, mockWeeklyData, mockMonthlyData } from '../../../shared/mocks/index';
+import { getActiveMockAccountId, getLocalDb } from './localDb';
 
 export type { RideHistory, GraphDataPoint, GraphPeriod };
 
@@ -45,6 +45,12 @@ type BackendFeedbackPayload = {
   review_text: string;
 };
 
+type LocalDistanceStatRow = {
+  id: string;
+  label: string;
+  distance_km: number;
+};
+
 // ---------------------------------------------------------------------------
 // Mappers
 // ---------------------------------------------------------------------------
@@ -73,7 +79,30 @@ const toFrontendRide = (r: BackendRide): RideHistory => ({
 export async function getRideHistory(token?: string): Promise<RideHistory[]> {
   if (USE_MOCKS) {
     await wait(350);
-    return [...mockRideHistory];
+    const db = await getLocalDb();
+    const accountId = await getActiveMockAccountId();
+    const response = await db.getAllAsync<BackendRide>(
+      `SELECT
+        id AS ride_id,
+        route_id,
+        route_name,
+        completion_date,
+        completion_time,
+        start_time,
+        end_time,
+        total_time_min,
+        distance_km,
+        avg_speed_kmh,
+        checkpoints_visited,
+        user_rating,
+        user_review
+      FROM ride_history
+      WHERE account_id = ?
+      ORDER BY id DESC`,
+      accountId,
+    );
+
+    return response.map(toFrontendRide);
   }
 
   const { httpClient } = await import('./httpClient');
@@ -85,7 +114,30 @@ export async function getRideHistory(token?: string): Promise<RideHistory[]> {
 export async function getRideById(id: string, token?: string): Promise<RideHistory | null> {
   if (USE_MOCKS) {
     await wait(200);
-    return mockRideHistory.find((r) => r.id === id) ?? null;
+    const db = await getLocalDb();
+    const accountId = await getActiveMockAccountId();
+    const response = await db.getFirstAsync<BackendRide>(
+      `SELECT
+        id AS ride_id,
+        route_id,
+        route_name,
+        completion_date,
+        completion_time,
+        start_time,
+        end_time,
+        total_time_min,
+        distance_km,
+        avg_speed_kmh,
+        checkpoints_visited,
+        user_rating,
+        user_review
+      FROM ride_history
+      WHERE account_id = ? AND id = ?`,
+      accountId,
+      id,
+    );
+
+    return response ? toFrontendRide(response) : null;
   }
 
   try {
@@ -107,7 +159,25 @@ export async function getDistanceStats(
 ): Promise<GraphDataPoint[]> {
   if (USE_MOCKS) {
     await wait(250);
-    return period === 'week' ? [...mockWeeklyData] : [...mockMonthlyData];
+    const db = await getLocalDb();
+    const accountId = await getActiveMockAccountId();
+    const response = await db.getAllAsync<LocalDistanceStatRow>(
+      `SELECT
+        id,
+        label,
+        distance_km
+      FROM distance_stats
+      WHERE account_id = ? AND period = ?
+      ORDER BY sort_order ASC`,
+      accountId,
+      period,
+    );
+
+    return response.map((item) =>
+      period === 'week'
+        ? ({ id: item.id, day: item.label, distance: item.distance_km } as GraphDataPoint)
+        : ({ id: item.id, week: item.label, distance: item.distance_km } as GraphDataPoint),
+    );
   }
 
   const { httpClient } = await import('./httpClient');
@@ -131,8 +201,22 @@ export async function submitRideFeedback(
 ): Promise<void> {
   if (USE_MOCKS) {
     await wait(500);
-    // In mock mode, log and return — no state mutation needed
-    console.log('[Mock] Feedback submitted:', payload);
+    const db = await getLocalDb();
+    const accountId = await getActiveMockAccountId();
+    await db.runAsync(
+      `INSERT INTO ride_feedback (
+        account_id,
+        route_id,
+        rating,
+        review_text,
+        created_at
+      ) VALUES (?, ?, ?, ?, ?)`,
+      accountId,
+      payload.routeId,
+      payload.rating,
+      payload.review,
+      new Date().toISOString(),
+    );
     return;
   }
 

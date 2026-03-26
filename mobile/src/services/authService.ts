@@ -9,7 +9,11 @@ import type {
   RegisterFormValues,
   AuthResult,
 } from '../../../shared/types/index';
-import { getMockAuthResult } from '../../../shared/mocks/index';
+import {
+  createLocalAccount,
+  getLocalDb,
+  setActiveMockAccountId,
+} from './localDb';
 
 export type { LoginFormValues, RegisterFormValues, AuthResult };
 
@@ -18,6 +22,20 @@ export type { AuthUser } from '../../../shared/types/index';
 
 const USE_MOCKS = process.env.EXPO_PUBLIC_USE_MOCKS === 'true';
 const MOCK_LATENCY_MS = 850;
+
+type LocalAuthRow = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  full_name: string;
+  email: string;
+  password: string;
+  onboarding_complete: number;
+  role: 'user' | 'admin' | 'business';
+  access_token: string;
+  refresh_token: string;
+  expires_in: number;
+};
 
 // ---------------------------------------------------------------------------
 // Backend shapes (internal — not exported)
@@ -92,6 +110,21 @@ const toAuthResult = (response: BackendAuthResponse): AuthResult => ({
   },
 });
 
+const toAuthResultFromLocalRow = (row: LocalAuthRow): AuthResult => ({
+  accessToken: row.access_token,
+  refreshToken: row.refresh_token,
+  expiresIn: row.expires_in,
+  user: {
+    id: row.id,
+    firstName: row.first_name,
+    lastName: row.last_name,
+    fullName: row.full_name,
+    email: row.email,
+    onboardingComplete: Boolean(row.onboarding_complete),
+    role: row.role,
+  },
+});
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -109,7 +142,31 @@ export async function loginUser(values: LoginFormValues): Promise<AuthResult> {
 
   if (USE_MOCKS) {
     await wait(MOCK_LATENCY_MS);
-    return getMockAuthResult(values.email);
+    const db = await getLocalDb();
+    const row = await db.getFirstAsync<LocalAuthRow>(
+      `SELECT
+        id,
+        first_name,
+        last_name,
+        full_name,
+        email,
+        password,
+        onboarding_complete,
+        role,
+        access_token,
+        refresh_token,
+        expires_in
+      FROM users
+      WHERE email = ?`,
+      normalizeEmail(values.email),
+    );
+
+    if (!row || row.password !== values.password) {
+      throw new Error('Invalid email or password.');
+    }
+
+    await setActiveMockAccountId(row.id);
+    return toAuthResultFromLocalRow(row);
   }
 
   const payload = toLoginPayload(values);
@@ -139,19 +196,47 @@ export async function registerUser(values: RegisterFormValues): Promise<AuthResu
 
   if (USE_MOCKS) {
     await wait(MOCK_LATENCY_MS);
-    const mockResult = getMockAuthResult(values.email);
-    return {
-      ...mockResult,
-      user: {
-        ...mockResult.user,
-        firstName: values.firstName.trim(),
-        lastName: values.lastName.trim(),
-        fullName: `${values.firstName.trim()} ${values.lastName.trim()}`,
-        email: normalizeEmail(values.email),
-        onboardingComplete: false,
-        role: 'user',
-      },
-    };
+    const db = await getLocalDb();
+    const email = normalizeEmail(values.email);
+    const existing = await db.getFirstAsync<{ id: string }>(
+      'SELECT id FROM users WHERE email = ?',
+      email,
+    );
+
+    if (existing) {
+      throw new Error('An account with this email already exists.');
+    }
+
+    const { accountId } = await createLocalAccount({
+      firstName: values.firstName,
+      lastName: values.lastName,
+      email,
+      password: values.password,
+    });
+
+    const row = await db.getFirstAsync<LocalAuthRow>(
+      `SELECT
+        id,
+        first_name,
+        last_name,
+        full_name,
+        email,
+        password,
+        onboarding_complete,
+        role,
+        access_token,
+        refresh_token,
+        expires_in
+      FROM users
+      WHERE id = ?`,
+      accountId,
+    );
+
+    if (!row) {
+      throw new Error('Unable to create the local account.');
+    }
+
+    return toAuthResultFromLocalRow(row);
   }
 
   const { httpClient } = await import('./httpClient');
