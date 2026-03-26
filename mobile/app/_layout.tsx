@@ -5,13 +5,16 @@ import { StatusBar } from 'expo-status-bar';
 import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useColorScheme } from 'nativewind';
-import { Platform, View, StatusBar as RNStatusBar } from 'react-native';
+import { Platform, View, StatusBar as RNStatusBar, StyleSheet } from 'react-native';
+import { BlurView } from 'expo-blur';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AuthProvider } from '@/app/AuthContext';
 import { ThemeProvider } from '@/app/ThemeContext';
 
 function RootLayoutNav() {
   const { colorScheme } = useColorScheme();
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     const initializeData = async () => {
@@ -34,6 +37,14 @@ function RootLayoutNav() {
         <Stack.Screen name="register" />
         <Stack.Screen name="(tabs)" />
       </Stack>
+      {Platform.OS === 'ios' && (
+        <BlurView
+          intensity={60}
+          tint={colorScheme === 'dark' ? 'dark' : 'light'}
+          style={[StyleSheet.absoluteFill, { height: insets.top, bottom: undefined }]}
+          experimentalBlurMethod="dimezisBlurView"
+        />
+      )}
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
     </GestureHandlerRootView>
   );
