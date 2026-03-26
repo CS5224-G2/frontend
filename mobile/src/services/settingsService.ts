@@ -9,12 +9,11 @@ import type {
   PasswordUpdateResult,
   PrivacySecuritySettings,
 } from '../../../shared/types/index';
+import { USE_MOCKS } from '../config/runtime';
 import { getActiveMockAccountId, getLocalDb } from './localDb';
 import { hashPassword } from '../utils/passwordHash';
 
 export type { ChangePasswordInput, PasswordUpdateResult, PrivacySecuritySettings };
-
-const USE_MOCKS = process.env.EXPO_PUBLIC_USE_MOCKS === 'true';
 
 // ---------------------------------------------------------------------------
 // Backend shapes (internal)
