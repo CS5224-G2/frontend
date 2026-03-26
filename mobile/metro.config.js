@@ -13,4 +13,13 @@ config.resolver.nodeModulesPaths = [
   path.resolve(workspaceRoot, 'node_modules'),
 ];
 
+// Exclude test files from the production bundle.
+// Without this, *.test.* files inside app/ are treated as Expo Router routes
+// and Metro attempts to bundle test-only packages (e.g. @testing-library/react-native)
+// that import Node built-ins unavailable in the native runtime.
+config.resolver.blockList = [
+  /.*\.test\.[jt]sx?$/,
+  /.*\.spec\.[jt]sx?$/,
+];
+
 module.exports = withNativeWind(config, { input: './global.css' });
