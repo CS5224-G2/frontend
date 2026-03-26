@@ -13,7 +13,7 @@
     "test:ci": "jest --watchman=false --ci --no-watch"
   },
   "dependencies": {
-    "@react-native-async-storage/async-storage": "^3.0.1",
+    "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-community/slider": "5.0.1",
     "@react-navigation/bottom-tabs": "^6.5.0",
     "@react-navigation/native": "^6.1.0",
@@ -24,7 +24,7 @@
     "expo": "^54.0.33",
     "expo-asset": "~12.0.12",
     "expo-constants": "~18.0.13",
-    "expo-linear-gradient": "~12.0.1",
+    "expo-linear-gradient": "~15.0.8",
     "expo-linking": "~8.0.11",
     "expo-location": "~19.0.8",
     "expo-splash-screen": "~31.0.13",
@@ -45,7 +45,7 @@
   "devDependencies": {
     "@babel/core": "^7.25.0",
     "@testing-library/react-native": "^13.3.3",
-    "@types/jest": "^30.0.0",
+    "@types/jest": "^29.5.14",
     "@types/react": "~19.1.10",
     "@types/react-native": "^0.72.8",
     "babel-preset-expo": "~54.0.0",
