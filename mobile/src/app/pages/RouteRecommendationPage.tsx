@@ -1,71 +1,119 @@
-import React from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, Pressable, FlatList, ActivityIndicator } from 'react-native';
+import { useColorScheme } from 'nativewind';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { AntDesign, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Card, CardHeader, CardTitle, CardContent } from '../components/native/Common';
+import { type Route } from '../../../../shared/types/index';
+import { getRoutes } from '../../services/routeService';
 
-import { mockRoutes } from '../types';
+type Props = NativeStackScreenProps<any, 'Recommendation'>;
 
-export default function RouteRecommendationScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<any>>();
+export default function RouteRecommendationPage({ navigation }: Props) {
+  const [routes, setRoutes] = useState<Route[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
+  useEffect(() => {
+    getRoutes().then((data) => {
+      setRoutes(data.slice(0, 3));
+      setIsLoading(false);
+    });
+  }, []);
+
+  if (isLoading) {
+    return (
+      <View className="flex-1 justify-center items-center bg-slate-50 dark:bg-black">
+        <ActivityIndicator size="large" color={isDark ? '#60a5fa' : '#3b82f6'} />
+      </View>
+    );
+  }
+
+  const renderRoute = ({ item }: { item: Route }) => (
+    <Pressable
+      style={({ pressed }) => [{ borderRadius: 12 }, pressed && { opacity: 0.8 }]}
+      onPress={() => navigation.navigate('RouteDetails', { routeId: item.id })}
+    >
+      <Card>
+        <CardHeader>
+          <CardTitle style={{ fontSize: 18, fontWeight: '700' }}>{item.name}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Text className="text-sm text-slate-500 mb-2">{item.description}</Text>
+          <View className="flex-row justify-between mb-2">
+            <View className="items-center flex-1">
+              <Text className="text-base text-[#6b7280] dark:text-slate-400 ml-1 text-center">
+                <MaterialCommunityIcons name="map-marker" size={16} color="#6b7280" />
+                Distance
+              </Text>
+              <Text className="text-base text-[#6b7280] dark:text-slate-400 ml-1 text-center">{item.distance} km</Text>
+            </View>
+            <View className="items-center flex-1">
+              <Text className="text-base text-[#6b7280] dark:text-slate-400 ml-1 text-center">
+                <MaterialCommunityIcons name="clock" size={16} color="#6b7280" />
+                Estimated Time
+              </Text>
+              <Text className="text-base text-[#6b7280] dark:text-slate-400 ml-1 text-center">{item.estimatedTime} min</Text>
+            </View>
+            <View className="items-center flex-1">
+              <Text className="text-base text-[#6b7280] dark:text-slate-400 ml-1 text-center">
+                <MaterialCommunityIcons name="arrow-up" size={16} color="#6b7280" />
+                Elevation
+              </Text>
+              <Text className="text-base text-[#6b7280] dark:text-slate-400 ml-1 text-center">{item.elevation} m</Text>
+            </View>
+          </View>
+          <View className="flex-row justify-between mb-2">
+            <View className="items-center flex-1">
+              <Text className="text-base text-[#6b7280] dark:text-slate-400 ml-1 text-center">
+                <MaterialCommunityIcons name="tree" size={16} color="#6b7280" />
+                Shade
+              </Text>
+              <Text className="text-base text-[#6b7280] dark:text-slate-400 ml-1 text-center">{item.shade}%</Text>
+            </View>
+            <View className="items-center flex-1">
+              <Text className="text-base text-[#6b7280] dark:text-slate-400 ml-1 text-center">
+                <MaterialCommunityIcons name="air-filter" size={16} color="#6b7280" />
+                Air Quality
+              </Text>
+              <Text className="text-base text-[#6b7280] dark:text-slate-400 ml-1 text-center">{item.airQuality}%</Text>
+            </View>
+          </View>
+          <View className="flex-row justify-between items-center">
+            <Text className="text-[13px] text-[#444] dark:text-slate-400">
+              <AntDesign name="star" size={15} color="#f59e0b" />
+              {item.rating} ({item.reviewCount})
+            </Text>
+            <Text className="text-xs text-[#1e293b] dark:text-slate-100 font-bold capitalize">
+              {item.cyclistType}
+            </Text>
+          </View>
+        </CardContent>
+      </Card>
+    </Pressable>
+  );
 
   return (
-    <View style={styles.safe}>
-      <Text style={styles.heading} testID="route-list-heading">
-        Recommended routes
-      </Text>
-      <Text style={styles.sub}>Based on your preferences — tap for details</Text>
+    <ScrollView className="flex-1 bg-slate-50 dark:bg-black" contentContainerStyle={{ padding: 16, paddingBottom: 36 }}>
+      <View className="flex-row items-center mb-[12px] gap-cy-md">
+        <Text testID="route-list-heading" className="text-2xl font-bold text-[#1e293b] dark:text-slate-100">Route Recommendations</Text>
+      </View>
+
+      <Text className="mb-[14px] text-slate-500 dark:text-slate-400">{routes.length} routes found</Text>
+
       <FlatList
-        data={mockRoutes}
+        data={routes}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
         renderItem={({ item }) => (
-          <Pressable
-            style={styles.card}
-            onPress={() =>
-              navigation.navigate('RecommendationDetails', { routeId: item.id })
-            }
-            testID={`route-list-item-${item.id}`}
-          >
-            <Text style={styles.cardTitle}>{item.name}</Text>
-            <Text style={styles.cardMeta}>
-              {item.distance} km · ~{item.estimatedTime} min · {item.checkpoints.length}{' '}
-              checkpoints
-            </Text>
-            <Text style={styles.cardDesc} numberOfLines={2}>
-              {item.description}
-            </Text>
-          </Pressable>
+          <View testID={`route-list-item-${item.id}`}>
+            {renderRoute({ item })}
+          </View>
         )}
+        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+        showsVerticalScrollIndicator={false}
+        scrollEnabled={false}
       />
-    </View>
+    </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#f8fafc' },
-  heading: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#0f172a',
-    paddingHorizontal: 20,
-    paddingTop: 16,
-  },
-  sub: {
-    fontSize: 14,
-    color: '#64748b',
-    paddingHorizontal: 20,
-    marginBottom: 12,
-  },
-  list: { paddingHorizontal: 16, paddingBottom: 24 },
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  cardTitle: { fontSize: 17, fontWeight: '700', color: '#0f172a', marginBottom: 6 },
-  cardMeta: { fontSize: 13, color: '#64748b', marginBottom: 8 },
-  cardDesc: { fontSize: 14, color: '#475569', lineHeight: 20 },
-});

@@ -33,6 +33,88 @@ export interface Route {
   airQuality: number;
 }
 
+export interface RideHistory {
+  id: string;
+  routeId: string; // references Route.id
+  routeName: string;
+  completionDate: string;
+  completionTime: string;
+  startTime?: string;
+  endTime?: string;
+  totalTime: number; // in minutes
+  distance: number; // in km
+  avgSpeed: number; // km/h
+  checkpoints: number;
+  userRating?: number;
+  userReview?: string;
+}
+
+export const mockRideHistory: RideHistory[] = [
+  {
+    id: '1',
+    routeId: '1',
+    routeName: 'Waterfront Loop',
+    completionDate: 'March 12, 2026',
+    completionTime: '10:30 AM',
+    startTime: '9:42 AM',
+    endTime: '10:30 AM',
+    totalTime: 48,
+    distance: 12.5,
+    avgSpeed: 15.6,
+    checkpoints: 3,
+    userRating: 5,
+    userReview: 'Absolutely loved this route! The waterfront views were stunning and the path was well-maintained.',
+  },
+  {
+    id: '2',
+    routeId: '2',
+    routeName: 'Mountain Ridge Trail',
+    completionDate: 'March 10, 2026',
+    completionTime: '2:15 PM',
+    startTime: '12:40 PM',
+    endTime: '2:15 PM',
+    totalTime: 95,
+    distance: 18.3,
+    avgSpeed: 11.6,
+    checkpoints: 5,
+    userRating: 4,
+    userReview: 'Challenging but rewarding! The elevation was tough but the views made it worthwhile.',
+  },
+  {
+    id: '3',
+    routeId: '3',
+    routeName: 'City Express',
+    completionDate: 'March 8, 2026',
+    completionTime: '8:45 AM',
+    startTime: '8:13 AM',
+    endTime: '8:45 AM',
+    totalTime: 32,
+    distance: 8.2,
+    avgSpeed: 15.4,
+    checkpoints: 2,
+    userRating: 4,
+  },
+];
+
+export type GraphPeriod = 'week' | 'month';
+
+export const weeklyData = [
+  { id: 'mon', day: 'Mon', distance: 0 },
+  { id: 'tue', day: 'Tue', distance: 8.2 },
+  { id: 'wed', day: 'Wed', distance: 0 },
+  { id: 'thu', day: 'Thu', distance: 18.3 },
+  { id: 'fri', day: 'Fri', distance: 0 },
+  { id: 'sat', day: 'Sat', distance: 12.5 },
+  { id: 'sun', day: 'Sun', distance: 0 },
+];
+
+export const monthlyData = [
+  { id: 'week1', week: 'Week 1', distance: 45.5 },
+  { id: 'week2', week: 'Week 2', distance: 38.9 },
+  { id: 'week3', week: 'Week 3', distance: 52.3 },
+  { id: 'week4', week: 'Week 4', distance: 39.0 },
+];
+
 // Mock routes data
 export const mockRoutes: Route[] = [
   {

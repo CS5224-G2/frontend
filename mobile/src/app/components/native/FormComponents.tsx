@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Pressable } from 'react-native';
-import { styles } from './Common';
+import React from 'react';
+import { View, Text, TextInput, Pressable } from 'react-native';
+import { useColorScheme } from 'nativewind';
 
 interface InputProps {
   value: string;
@@ -20,31 +20,22 @@ export const Input = ({
   editable = true,
   keyboardType = 'default',
   style,
-}: InputProps) => (
-  <TextInput
-    style={[inputStyles.input, style]}
-    value={value}
-    onChangeText={onChangeText}
-    placeholder={placeholder}
-    placeholderTextColor={styles.textSecondary}
-    secureTextEntry={secureTextEntry}
-    editable={editable}
-    keyboardType={keyboardType}
-  />
-);
-
-const inputStyles = StyleSheet.create({
-  input: {
-    borderWidth: 1,
-    borderColor: styles.borderColor,
-    borderRadius: styles.radiusMd,
-    paddingHorizontal: styles.spacing.md,
-    paddingVertical: styles.spacing.md,
-    fontSize: 14,
-    color: styles.textPrimary,
-    backgroundColor: '#ffffff',
-  },
-});
+}: InputProps) => {
+  const { colorScheme } = useColorScheme();
+  return (
+    <TextInput
+      className="border border-border dark:border-[#2d2d2d] rounded-cy-md px-cy-md py-cy-md text-sm text-text-primary dark:text-slate-100 bg-bg-base dark:bg-[#1a1a1a]"
+      value={value}
+      onChangeText={onChangeText}
+      placeholder={placeholder}
+      placeholderTextColor={colorScheme === 'dark' ? '#64748b' : '#94a3b8'}
+      secureTextEntry={secureTextEntry}
+      editable={editable}
+      keyboardType={keyboardType}
+      style={style}
+    />
+  );
+};
 
 interface LabelProps {
   children: React.ReactNode;
@@ -52,19 +43,10 @@ interface LabelProps {
 }
 
 export const Label = ({ children, htmlFor }: LabelProps) => (
-  <Text style={labelStyles.text}>
+  <Text className="text-sm font-medium text-text-primary dark:text-slate-100 mb-cy-sm">
     {children}
   </Text>
 );
-
-const labelStyles = StyleSheet.create({
-  text: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: styles.textPrimary,
-    marginBottom: styles.spacing.sm,
-  },
-});
 
 interface BadgeProps {
   children: React.ReactNode;
@@ -73,51 +55,28 @@ interface BadgeProps {
 }
 
 export const Badge = ({ children, variant = 'default', style }: BadgeProps) => (
-  <View style={[badgeStyles.base, badgeStyles[variant], style]}>
-    <Text style={badgeStyles.text}>
+  <View
+    className={[
+      'px-cy-md py-cy-xs rounded-full self-start',
+      variant === 'default' ? 'bg-primary dark:bg-blue-500' : '',
+      variant === 'secondary' ? 'bg-slate-200 dark:bg-[#2d2d2d]' : '',
+      variant === 'destructive' ? 'bg-red-500' : '',
+    ].filter(Boolean).join(' ')}
+    style={style}
+  >
+    <Text className="text-white text-xs font-semibold">
       {typeof children === 'string' ? children : children}
     </Text>
   </View>
 );
-
-const badgeStyles = StyleSheet.create({
-  base: {
-    paddingHorizontal: styles.spacing.md,
-    paddingVertical: styles.spacing.xs,
-    borderRadius: styles.radiusFull,
-    alignSelf: 'flex-start',
-  },
-  default: {
-    backgroundColor: styles.primaryColor,
-  },
-  secondary: {
-    backgroundColor: '#e2e8f0',
-  },
-  destructive: {
-    backgroundColor: '#ef4444',
-  },
-  text: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-});
 
 interface SeparatorProps {
   style?: any;
 }
 
 export const Separator = ({ style }: SeparatorProps) => (
-  <View style={[separatorStyles.line, style]} />
+  <View className="h-px bg-border dark:bg-[#2d2d2d] my-cy-md" style={style} />
 );
-
-const separatorStyles = StyleSheet.create({
-  line: {
-    height: 1,
-    backgroundColor: styles.borderColor,
-    marginVertical: styles.spacing.md,
-  },
-});
 
 interface CheckboxProps {
   value: boolean;
@@ -128,36 +87,14 @@ interface CheckboxProps {
 export const Checkbox = ({ value, onValueChange, disabled }: CheckboxProps) => (
   <Pressable
     onPress={() => !disabled && onValueChange(!value)}
-    style={[
-      checkboxStyles.box,
-      value && checkboxStyles.checked,
-      disabled && checkboxStyles.disabled,
-    ]}
+    className={[
+      'w-5 h-5 border rounded-cy-sm justify-center items-center',
+      value
+        ? 'bg-primary dark:bg-blue-500 border-primary dark:border-blue-500'
+        : 'bg-bg-base dark:bg-[#1a1a1a] border-border dark:border-[#2d2d2d]',
+      disabled ? 'opacity-50' : '',
+    ].filter(Boolean).join(' ')}
   >
-    {value && <Text style={checkboxStyles.checkmark}>✓</Text>}
+    {value && <Text className="text-white font-bold">✓</Text>}
   </Pressable>
 );
-
-const checkboxStyles = StyleSheet.create({
-  box: {
-    width: 20,
-    height: 20,
-    borderWidth: 1,
-    borderColor: styles.borderColor,
-    borderRadius: styles.radiusSm,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-  },
-  checked: {
-    backgroundColor: styles.primaryColor,
-    borderColor: styles.primaryColor,
-  },
-  checkmark: {
-    color: '#ffffff',
-    fontWeight: 'bold',
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-});

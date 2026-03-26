@@ -1,11 +1,12 @@
 {
   "expo": {
     "name": "CycleLink",
-    "slug": "cycle-link",
+    "slug": "cyclelink",
+    "scheme": "cyclelink",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -17,6 +18,7 @@
       }
     },
     "android": {
+      "package": "sg.edu.nus.cyclelink",
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#ffffff"
@@ -27,13 +29,24 @@
     },
     "plugins": [
       [
+        "expo-router",
+        {
+          "root": "app"
+        }
+      ],
+      [
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location"
         }
       ],
       "expo-asset",
-      "@rnmapbox/maps"
+      "@rnmapbox/maps",
+      "expo-secure-store",
+      [
+        "expo-apple-authentication"
+      ],
+      "expo-web-browser"
     ],
     "extra": {
       "eas": {

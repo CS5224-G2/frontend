@@ -1,32 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, ActivityIndicator } from 'react-native';
 
-/** Design tokens (not a StyleSheet — avoids invalid nested keys in StyleSheet.create). */
-export const theme = {
-  primaryColor: '#2563eb',
-  secondaryColor: '#64748b',
-  backgroundColor: '#ffffff',
-  borderColor: '#e2e8f0',
-  textPrimary: '#1e293b',
-  textSecondary: '#64748b',
-  spacing: {
-    xs: 4,
-    sm: 8,
-    md: 12,
-    lg: 16,
-    xl: 24,
-    '2xl': 32,
-  },
-  radiusXs: 4,
-  radiusSm: 6,
-  radiusMd: 8,
-  radiusLg: 12,
-  radiusXl: 16,
-  radiusFull: 9999,
-} as const;
-
-/** @deprecated Use `theme` */
-export const styles = theme;
 
 interface CardProps {
   children: React.ReactNode;
@@ -34,37 +8,20 @@ interface CardProps {
 }
 
 export const Card = ({ children, style }: CardProps) => (
-  <View style={[cardStyles.container, style]}>
+  <View className="bg-bg-base dark:bg-[#111111] rounded-cy-md border border-border dark:border-[#2d2d2d] p-cy-md my-cy-sm" style={style}>
     {children}
   </View>
 );
-
-const cardStyles = StyleSheet.create({
-  container: {
-    backgroundColor: '#ffffff',
-    borderRadius: theme.radiusMd,
-    borderWidth: 1,
-    borderColor: theme.borderColor,
-    padding: theme.spacing.md,
-    marginVertical: theme.spacing.sm,
-  },
-});
 
 interface CardHeaderProps {
   children: React.ReactNode;
 }
 
 export const CardHeader = ({ children }: CardHeaderProps) => (
-  <View style={cardHeaderStyles.container}>
+  <View className="mb-cy-md">
     {children}
   </View>
 );
-
-const cardHeaderStyles = StyleSheet.create({
-  container: {
-    marginBottom: theme.spacing.md,
-  },
-});
 
 interface CardTitleProps {
   children: React.ReactNode;
@@ -72,52 +29,30 @@ interface CardTitleProps {
 }
 
 export const CardTitle = ({ children, style }: CardTitleProps) => (
-  <Text style={[cardTitleStyles.text, style]}>
+  <Text className="text-xl font-semibold text-text-primary dark:text-slate-100" style={style}>
     {children}
   </Text>
 );
-
-const cardTitleStyles = StyleSheet.create({
-  text: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: theme.textPrimary,
-  },
-});
 
 interface CardDescriptionProps {
   children: React.ReactNode;
 }
 
 export const CardDescription = ({ children }: CardDescriptionProps) => (
-  <Text style={cardDescriptionStyles.text}>
+  <Text className="text-sm text-text-secondary dark:text-slate-400 mt-cy-xs">
     {children}
   </Text>
 );
-
-const cardDescriptionStyles = StyleSheet.create({
-  text: {
-    fontSize: 14,
-    color: theme.textSecondary,
-    marginTop: theme.spacing.xs,
-  },
-});
 
 interface CardContentProps {
   children: React.ReactNode;
 }
 
 export const CardContent = ({ children }: CardContentProps) => (
-  <View style={cardContentStyles.container}>
+  <View className="gap-cy-md">
     {children}
   </View>
 );
-
-const cardContentStyles = StyleSheet.create({
-  container: {
-    gap: theme.spacing.md,
-  },
-});
 
 interface ButtonProps {
   onPress: () => void;
@@ -132,54 +67,24 @@ export const Button = ({ onPress, children, variant = 'default', disabled = fals
   <Pressable
     onPress={onPress}
     disabled={disabled || loading}
+    className={[
+      'px-cy-lg py-cy-md rounded-cy-md justify-center items-center',
+      variant === 'default' ? 'bg-primary dark:bg-blue-500' : '',
+      variant === 'secondary' ? 'bg-slate-100 dark:bg-[#1a1a1a] border border-border dark:border-[#2d2d2d]' : '',
+      variant === 'ghost' ? 'bg-transparent' : '',
+      (disabled || loading) ? 'opacity-50' : '',
+    ].filter(Boolean).join(' ')}
     style={({ pressed }) => [
-      buttonStyles.base,
-      variant === 'default' && buttonStyles.default,
-      variant === 'secondary' && buttonStyles.secondary,
-      variant === 'ghost' && buttonStyles.ghost,
-      (disabled || loading) && buttonStyles.disabled,
-      pressed && buttonStyles.pressed,
+      pressed && { opacity: 0.8 },
       style,
     ]}
   >
     {loading ? (
       <ActivityIndicator color="#ffffff" />
     ) : typeof children === 'string' ? (
-      <Text style={buttonStyles.text}>{children}</Text>
+      <Text className="text-white text-sm font-semibold">{children}</Text>
     ) : (
       children
     )}
   </Pressable>
 );
-
-const buttonStyles = StyleSheet.create({
-  base: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
-    borderRadius: theme.radiusMd,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  default: {
-    backgroundColor: theme.primaryColor,
-  },
-  secondary: {
-    backgroundColor: '#f1f5f9',
-    borderWidth: 1,
-    borderColor: theme.borderColor,
-  },
-  ghost: {
-    backgroundColor: 'transparent',
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-  pressed: {
-    opacity: 0.8,
-  },
-  text: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-});

@@ -3,6 +3,8 @@
   "compilerOptions": {
     "strict": true,
     "baseUrl": ".",
+    "esModuleInterop": true,
+    "jsx": "react-native",
     "paths": {
       "@/*": [
         "src/*"
@@ -11,6 +13,8 @@
   },
   "include": [
     "**/*.ts",
-    "**/*.tsx"
+    "**/*.tsx",
+    "../shared/**/*.ts",
+    "nativewind-env.d.ts"
   ]
 }
