@@ -39,7 +39,7 @@ export function HomeNavigator() {
 
   return (
     <Stack.Navigator screenOptions={getStackScreenOptions(isDark)}>
-      <Stack.Screen name="HomePage" component={HomeScreen} options={{ title: 'Home' }} />
+      <Stack.Screen name="HomePage" component={HomeScreen} options={{ headerShown: false }} />
       <Stack.Screen name="RouteConfig" component={RouteConfigScreen} options={{ title: 'Customize Route' }} />
       <Stack.Screen name="Recommendation" component={RouteRecommendationScreen} options={{ title: 'Route Recommendation' }} />
       <Stack.Screen name="RouteDetails" component={RouteDetailsScreen} options={{ title: 'Route Details' }} />
@@ -55,7 +55,7 @@ export function HistoryNavigator() {
 
   return (
     <Stack.Navigator screenOptions={getStackScreenOptions(isDark)}>
-      <Stack.Screen name="RideHistory" component={RouteHistoryScreen} options={{ title: 'Ride History' }} />
+      <Stack.Screen name="RideHistory" component={RouteHistoryScreen} options={{ headerShown: false }} />
       <Stack.Screen name="HistoryDetails" component={RouteHistoryDetailsScreen} options={{ title: 'Ride Details' }} />
       <Stack.Screen name="HistoryRouteFeedback" component={RouteFeedbackScreen} options={{ title: 'Feedback' }} />
     </Stack.Navigator>
@@ -68,7 +68,7 @@ export function ProfileNavigator() {
 
   return (
     <Stack.Navigator screenOptions={getStackScreenOptions(isDark)}>
-      <Stack.Screen name="ProfileMain" component={UserProfileScreen} options={{ title: 'Profile' }} />
+      <Stack.Screen name="ProfileMain" component={UserProfileScreen} options={{ headerShown: false }} />
       <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: 'Edit Profile' }} />
       <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ title: 'Change Password' }} />
       <Stack.Screen name="PrivacySecurity" component={PrivacySecurityScreen} options={{ title: 'Privacy & Security' }} />
