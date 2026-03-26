@@ -16,8 +16,8 @@ import {
 export type { LoginFormValues, AuthUser, AuthResult };
 
 // Vite exposes env vars through import.meta.env
-const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'true';
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.cyclelink.example.com';
+const shouldUseMocks = () => import.meta.env.VITE_USE_MOCKS === 'true';
 
 // Re-export for consumers that used the old minimal type
 export type LoginValues = LoginFormValues;
@@ -87,7 +87,7 @@ export async function loginUser(values: LoginFormValues): Promise<AuthResult> {
   if (!email) throw new Error('Email is required.');
   if (!values.password.trim()) throw new Error('Password is required.');
 
-  if (USE_MOCKS) {
+  if (shouldUseMocks()) {
     await new Promise((r) => setTimeout(r, 600));
 
     const mockUser = MOCK_USERS.find((user) => normalizeEmail(user.email) === email);
