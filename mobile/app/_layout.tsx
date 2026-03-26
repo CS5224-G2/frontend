@@ -5,7 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useColorScheme } from 'nativewind';
-import { Platform, View, StatusBar as RNStatusBar, StyleSheet } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -28,9 +28,6 @@ function RootLayoutNav() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      {Platform.OS === 'android' && (
-        <View style={{ height: RNStatusBar.currentHeight ?? 24, backgroundColor: 'white' }} />
-      )}
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="login" />
@@ -45,7 +42,7 @@ function RootLayoutNav() {
           experimentalBlurMethod="dimezisBlurView"
         />
       )}
-      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} backgroundColor="white" />
     </GestureHandlerRootView>
   );
 }
