@@ -739,7 +739,7 @@ async function seedDatabaseIfEmpty(db: DatabaseLike): Promise<void> {
 
     for (const user of authUsers) {
       await db.runAsync(
-        `INSERT INTO users (
+        `INSERT OR IGNORE INTO users (
           id,
           first_name,
           last_name,
@@ -765,7 +765,7 @@ async function seedDatabaseIfEmpty(db: DatabaseLike): Promise<void> {
     }
 
     await db.runAsync(
-      `INSERT INTO user_profiles (
+      `INSERT OR IGNORE INTO user_profiles (
         account_id,
         user_id,
         full_name,
@@ -800,7 +800,7 @@ async function seedDatabaseIfEmpty(db: DatabaseLike): Promise<void> {
     );
 
     await db.runAsync(
-      `INSERT INTO user_privacy_settings (
+      `INSERT OR IGNORE INTO user_privacy_settings (
         account_id,
         third_party_ads_opt_out,
         data_improvement_opt_out,
@@ -816,7 +816,7 @@ async function seedDatabaseIfEmpty(db: DatabaseLike): Promise<void> {
 
     for (const route of mockRoutes) {
       await db.runAsync(
-        `INSERT INTO routes (
+        `INSERT OR IGNORE INTO routes (
           id,
           name,
           description,
@@ -856,7 +856,7 @@ async function seedDatabaseIfEmpty(db: DatabaseLike): Promise<void> {
 
       for (const [index, checkpoint] of route.checkpoints.entries()) {
         await db.runAsync(
-          `INSERT INTO route_checkpoints (
+          `INSERT OR IGNORE INTO route_checkpoints (
             id,
             route_id,
             sort_order,
@@ -878,7 +878,7 @@ async function seedDatabaseIfEmpty(db: DatabaseLike): Promise<void> {
 
     for (const ride of mockRideHistory) {
       await db.runAsync(
-        `INSERT INTO ride_history (
+        `INSERT OR IGNORE INTO ride_history (
           id,
           account_id,
           route_id,
@@ -913,7 +913,7 @@ async function seedDatabaseIfEmpty(db: DatabaseLike): Promise<void> {
 
     for (const [index, point] of mockWeeklyData.entries()) {
       await db.runAsync(
-        `INSERT INTO distance_stats (
+        `INSERT OR IGNORE INTO distance_stats (
           id,
           account_id,
           period,
@@ -932,7 +932,7 @@ async function seedDatabaseIfEmpty(db: DatabaseLike): Promise<void> {
 
     for (const [index, point] of mockMonthlyData.entries()) {
       await db.runAsync(
-        `INSERT INTO distance_stats (
+        `INSERT OR IGNORE INTO distance_stats (
           id,
           account_id,
           period,
@@ -1108,7 +1108,7 @@ export async function createLocalAccount(input: {
 
     for (const stat of emptyStats) {
       await db.runAsync(
-        `INSERT INTO distance_stats (
+        `INSERT OR IGNORE INTO distance_stats (
           id,
           account_id,
           period,
