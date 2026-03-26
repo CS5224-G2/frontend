@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -20,6 +20,7 @@ import {
   UserProfile,
 } from '@/services/userService';
 import { getProfileAvatarSource } from '@/app/utils/profileAvatar';
+import { AuthContext } from '../AuthContext';
 import { useTheme } from '../ThemeContext';
 
 const statCards = [
@@ -46,6 +47,7 @@ const statCards = [
 export default function UserProfilePage() {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
+  const { logout } = useContext(AuthContext);
   const { preference, setPreference } = useTheme();
   const { colorScheme } = useColorScheme();
   const nextPref = preference === 'system' ? 'light' : preference === 'light' ? 'dark' : 'system';
@@ -232,6 +234,19 @@ export default function UserProfilePage() {
         >
           <Text className="text-[16px] font-semibold text-slate-900 dark:text-slate-100">Appearance</Text>
           <Text className="text-[14px] text-text-secondary dark:text-slate-400">{prefLabel} ›</Text>
+        </Pressable>
+        <View className="h-px bg-border dark:bg-[#2d2d2d] my-3" />
+        <Pressable
+          testID="sign-out-button"
+          className="flex-row justify-between items-center py-1.5"
+          onPress={() =>
+            Alert.alert('Sign out', 'Are you sure you want to sign out?', [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Sign out', style: 'destructive', onPress: () => { void logout(); } },
+            ])
+          }
+        >
+          <Text className="text-[16px] font-semibold text-red-500">Sign out</Text>
         </Pressable>
       </View>
     </ScrollView>

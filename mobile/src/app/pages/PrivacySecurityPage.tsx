@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -12,6 +12,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { useColorScheme } from 'nativewind';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AuthContext } from '../AuthContext';
 import { useTheme } from '../ThemeContext';
 
 import {
@@ -19,6 +20,7 @@ import {
   PrivacySecuritySettings,
   updatePrivacySecuritySettings,
 } from '@/services/settingsService';
+import { deleteAccount } from '@/services/userService';
 
 const defaultSettings: PrivacySecuritySettings = {
   noThirdPartyAds: false,
@@ -55,12 +57,41 @@ function ToggleRow({ title, description, value, onValueChange }: ToggleRowProps)
 export default function PrivacySecurityPage() {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
+  const { logout } = useContext(AuthContext);
   const [settings, setSettings] = useState<PrivacySecuritySettings>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { preference, setPreference } = useTheme();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete account',
+      'This will permanently delete your account and all associated data. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete account',
+          style: 'destructive',
+          onPress: async () => {
+            setIsDeleting(true);
+            try {
+              await deleteAccount();
+              await logout();
+            } catch (error) {
+              setIsDeleting(false);
+              Alert.alert(
+                'Delete failed',
+                error instanceof Error ? error.message : 'Your account could not be deleted. Please try again.'
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -227,6 +258,26 @@ export default function PrivacySecurityPage() {
             </Pressable>
           ))}
         </View>
+      </View>
+
+      <View className="bg-white dark:bg-[#111111] rounded-[24px] p-5 border border-red-200 dark:border-red-900">
+        <Text className="text-[12px] font-bold text-red-500 uppercase tracking-[0.8px] mb-3">Danger zone</Text>
+        <Text className="text-[14px] leading-[21px] text-text-secondary dark:text-slate-400 mb-4">
+          Permanently delete your CycleLink account and all associated data. This action cannot be undone.
+        </Text>
+        <Pressable
+          testID="delete-account-button"
+          className="justify-center items-center bg-red-500 rounded-[14px]"
+          style={{ minHeight: 48 }}
+          onPress={handleDeleteAccount}
+          disabled={isDeleting}
+        >
+          {isDeleting ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text className="text-[15px] font-bold text-white">Delete account</Text>
+          )}
+        </Pressable>
       </View>
 
       <View className="flex-row mt-1 mb-6" style={{ gap: 12 }}>

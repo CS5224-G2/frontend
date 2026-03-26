@@ -1,4 +1,5 @@
 import React from 'react';
+import { Alert } from 'react-native';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import UserProfilePage from './UserProfilePage';
@@ -25,6 +26,11 @@ jest.mock('../ThemeContext', () => ({
     setPreference: jest.fn(),
   }),
 }));
+
+jest.mock('../AuthContext', () => {
+  const { createContext } = jest.requireActual('react');
+  return { AuthContext: createContext({ logout: jest.fn() }) };
+});
 
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({
@@ -71,5 +77,22 @@ describe('UserProfilePage', () => {
 
     fireEvent.press(screen.getByText('Edit profile'));
     expect(mockNavigate).toHaveBeenCalledWith('EditProfile', { profile: 'profile-param' });
+  });
+
+  it('shows a sign-out confirmation alert when the sign out button is pressed', async () => {
+    jest.spyOn(Alert, 'alert');
+    render(<UserProfilePage />);
+
+    await screen.findByTestId('sign-out-button');
+    fireEvent.press(screen.getByTestId('sign-out-button'));
+
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Sign out',
+      'Are you sure you want to sign out?',
+      expect.arrayContaining([
+        expect.objectContaining({ text: 'Cancel', style: 'cancel' }),
+        expect.objectContaining({ text: 'Sign out', style: 'destructive' }),
+      ])
+    );
   });
 });
