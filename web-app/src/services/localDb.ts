@@ -11,19 +11,22 @@ import {
   mockAdminStats,
   mockAdminUser,
   mockAdminUsers,
-  mockAuthResult,
   mockAuthUser,
   mockBusinessLandingStats,
   mockBusinessStats,
   mockBusinessUser,
   mockSponsoredLocations,
-  mockStoredPassword,
 } from '@shared/mocks/index'
+import { hashPassword } from '../utils/passwordHash'
 
 const STORAGE_KEY = 'cyclelink_web_local_db'
 
+// SHA-256('CycleLink123') — pre-computed seed digest for mock users.
+// Update this constant if you change the default demo credential.
+const SEED_CREDENTIAL_DIGEST = 'bb63bcbb3d935953e5d2141dda133be2ae42747d439c51c3d5364681a5419916'
+
 type StoredUser = AuthUser & {
-  password: string
+  passwordHash: string
 }
 
 type WebLocalDbState = {
@@ -40,9 +43,9 @@ const normalizeEmail = (value: string) => value.trim().toLowerCase()
 function createSeedState(): WebLocalDbState {
   return {
     users: [
-      { ...mockAuthUser, email: normalizeEmail(mockAuthUser.email), password: mockStoredPassword },
-      { ...mockAdminUser, email: normalizeEmail(mockAdminUser.email), password: mockStoredPassword },
-      { ...mockBusinessUser, email: normalizeEmail(mockBusinessUser.email), password: mockStoredPassword },
+      { ...mockAuthUser, email: normalizeEmail(mockAuthUser.email), passwordHash: SEED_CREDENTIAL_DIGEST },
+      { ...mockAdminUser, email: normalizeEmail(mockAdminUser.email), passwordHash: SEED_CREDENTIAL_DIGEST },
+      { ...mockBusinessUser, email: normalizeEmail(mockBusinessUser.email), passwordHash: SEED_CREDENTIAL_DIGEST },
     ],
     adminStats: { ...mockAdminStats },
     adminUsers: [...mockAdminUsers],
@@ -65,7 +68,14 @@ function readState(): WebLocalDbState {
   }
 
   try {
-    return JSON.parse(raw) as WebLocalDbState
+    const state = JSON.parse(raw) as WebLocalDbState
+    // Migrate: reseed if stored data still uses the old plaintext-password schema
+    if (state.users.length > 0 && 'password' in state.users[0]) {
+      const seeded = createSeedState()
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded))
+      return seeded
+    }
+    return state
   } catch {
     const seeded = createSeedState()
     localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded))
@@ -99,7 +109,9 @@ export async function getStoredAuthResult(email: string): Promise<AuthResult | n
   }
 
   return {
-    ...mockAuthResult,
+    accessToken: `mock-at-${user.id}`,
+    refreshToken: `mock-rt-${user.id}`,
+    expiresIn: 3600,
     user: {
       id: user.id,
       firstName: user.firstName,
@@ -110,6 +122,13 @@ export async function getStoredAuthResult(email: string): Promise<AuthResult | n
       role: user.role,
     },
   }
+}
+
+export async function verifyStoredPassword(email: string, password: string): Promise<boolean> {
+  const user = await findWebUserByEmail(email)
+  if (!user) return false
+  const digest = await hashPassword(password)
+  return digest === user.passwordHash
 }
 
 export async function getStoredAdminStats(): Promise<AdminStats> {
