@@ -5,6 +5,7 @@
 // =============================================================================
 
 import type { BusinessLandingStats, BusinessStats, SponsoredLocation } from '@shared/types/index';
+import { apiFetch } from '../utils/apiFetch';
 import {
   getStoredBusinessLandingStats,
   getStoredBusinessStats,
@@ -79,7 +80,7 @@ export async function getBusinessLandingStats(): Promise<BusinessLandingStats> {
     return getStoredBusinessLandingStats()
   }
 
-  const response = await fetch(`${BASE_URL}/business/landing-stats`, {
+  const response = await apiFetch(`${BASE_URL}/business/landing-stats`, {
     headers: {
       'Content-Type': 'application/json',
     },
@@ -96,7 +97,7 @@ export async function getBusinessStats(token?: string): Promise<BusinessStats> {
     return getStoredBusinessStats()
   }
 
-  const response = await fetch(`${BASE_URL}/business/stats`, {
+  const response = await apiFetch(`${BASE_URL}/business/stats`, {
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -114,7 +115,7 @@ export async function getSponsoredLocations(token?: string): Promise<SponsoredLo
     return getStoredSponsoredLocations()
   }
 
-  const response = await fetch(`${BASE_URL}/business/locations`, {
+  const response = await apiFetch(`${BASE_URL}/business/locations`, {
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),

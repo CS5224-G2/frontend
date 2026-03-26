@@ -6,6 +6,7 @@
 
 import type { AdminStats, AdminUser } from '@shared/types/index';
 import { getStoredAdminStats, getStoredAdminUsers } from './localDb';
+import { apiFetch } from '../utils/apiFetch';
 
 export type { AdminStats, AdminUser };
 
@@ -61,7 +62,7 @@ export async function getAdminStats(token?: string): Promise<AdminStats> {
     return getStoredAdminStats()
   }
 
-  const response = await fetch(`${BASE_URL}/admin/stats`, {
+  const response = await apiFetch(`${BASE_URL}/admin/stats`, {
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -79,7 +80,7 @@ export async function getAdminUsers(token?: string): Promise<AdminUser[]> {
     return getStoredAdminUsers()
   }
 
-  const response = await fetch(`${BASE_URL}/admin/users`, {
+  const response = await apiFetch(`${BASE_URL}/admin/users`, {
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),

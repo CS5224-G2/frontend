@@ -6,6 +6,7 @@
 
 import type { LoginFormValues, AuthUser, AuthResult } from '@shared/types/index';
 import { findWebUserByEmail, getStoredAuthResult, verifyStoredPassword } from './localDb';
+import { apiFetch } from '../utils/apiFetch';
 
 export type { LoginFormValues, AuthUser, AuthResult };
 
@@ -99,7 +100,7 @@ export async function loginUser(values: LoginFormValues): Promise<AuthResult> {
   }
 
   const payload = toLoginPayload(values);
-  const response = await fetch(`${BASE_URL}/auth/login`, {
+  const response = await apiFetch(`${BASE_URL}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
