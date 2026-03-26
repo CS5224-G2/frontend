@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, Pressable, ActivityIndicator, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -14,6 +15,7 @@ type Props = NativeStackScreenProps<any, 'HomePage'>;
 export default function HomeScreen({ navigation }: Props) {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const insets = useSafeAreaInsets();
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [allRoutes, setAllRoutes] = useState<Route[]>([]);
@@ -198,9 +200,9 @@ export default function HomeScreen({ navigation }: Props) {
   }
 
   return (
-    <ScrollView className="flex-1 bg-[#f3f4f6] dark:bg-black" scrollIndicatorInsets={{ right: 1 }}>
+    <ScrollView className="flex-1 bg-[#f3f4f6] dark:bg-black" scrollIndicatorInsets={{ right: 1 }} >
       {/* Header */}
-      <View className="bg-white dark:bg-[#111111] px-cy-lg py-cy-md flex-row justify-between items-center border-b border-[#e5e7eb] dark:border-[#2d2d2d]">
+      <View className="bg-white dark:bg-[#111111] px-cy-lg py-cy-md flex-row justify-between items-center border-b border-[#e5e7eb] dark:border-[#2d2d2d]" style={{ paddingTop: Platform.OS === 'ios' ? insets.top : undefined }}>
         <Text className="text-2xl font-bold text-[#2563eb]">CycleLink</Text>
         <View className="flex-row items-center gap-cy-sm">
           {/* <Pressable onPress={() => navigation.navigate('UserJourneyPage')} className="flex-row items-center gap-1 px-cy-sm py-1">

@@ -1,7 +1,10 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import HomeScreen from './HomePage';
 import { AuthContext } from '../AuthContext';
+
+jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
 
 const mockNavigate = jest.fn();
 
@@ -43,9 +46,11 @@ jest.mock('../../services/routeService', () => ({
 describe('HomePage', () => {
   const renderWithAuth = (component: React.ReactElement) => {
     return render(
-      <AuthContext.Provider value={{ login: jest.fn(), logout: jest.fn(), isLoggedIn: true, role: 'user' }}>
-        {component}
-      </AuthContext.Provider>
+      <SafeAreaProvider>
+        <AuthContext.Provider value={{ login: jest.fn(), logout: jest.fn(), isLoggedIn: true, role: 'user' }}>
+          {component}
+        </AuthContext.Provider>
+      </SafeAreaProvider>
     );
   };
 
