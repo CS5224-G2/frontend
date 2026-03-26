@@ -5,7 +5,11 @@
 // =============================================================================
 
 import type { BusinessLandingStats, BusinessStats, SponsoredLocation } from '@shared/types/index';
-import { mockBusinessLandingStats, mockBusinessStats, mockSponsoredLocations } from '@shared/mocks/index';
+import {
+  getStoredBusinessLandingStats,
+  getStoredBusinessStats,
+  getStoredSponsoredLocations,
+} from './localDb';
 
 export type { BusinessLandingStats, BusinessStats, SponsoredLocation };
 
@@ -72,7 +76,7 @@ const toFrontendLocation = (l: BackendSponsoredLocation): SponsoredLocation => (
 export async function getBusinessLandingStats(): Promise<BusinessLandingStats> {
   if (shouldUseMocks()) {
     await new Promise((r) => setTimeout(r, 250));
-    return { ...mockBusinessLandingStats };
+    return getStoredBusinessLandingStats()
   }
 
   const response = await fetch(`${BASE_URL}/business/landing-stats`, {
@@ -89,7 +93,7 @@ export async function getBusinessLandingStats(): Promise<BusinessLandingStats> {
 export async function getBusinessStats(token?: string): Promise<BusinessStats> {
   if (shouldUseMocks()) {
     await new Promise((r) => setTimeout(r, 300));
-    return { ...mockBusinessStats };
+    return getStoredBusinessStats()
   }
 
   const response = await fetch(`${BASE_URL}/business/stats`, {
@@ -107,7 +111,7 @@ export async function getBusinessStats(token?: string): Promise<BusinessStats> {
 export async function getSponsoredLocations(token?: string): Promise<SponsoredLocation[]> {
   if (shouldUseMocks()) {
     await new Promise((r) => setTimeout(r, 350));
-    return [...mockSponsoredLocations];
+    return getStoredSponsoredLocations()
   }
 
   const response = await fetch(`${BASE_URL}/business/locations`, {

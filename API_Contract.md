@@ -206,6 +206,24 @@ Same shape as `GET /user/profile`.
 
 ---
 
+### `DELETE /user/profile/avatar`
+
+**Purpose**: Remove the authenticated user's profile photo and fall back to avatar color/initials.  
+**Client(s)**: Mobile  
+**Auth**: Bearer token required
+
+#### Ideal JSON Response — `204 No Content`
+
+No body.
+
+#### Error Responses
+
+| Status | Condition |
+|---|---|
+| `404` | No avatar exists for the user |
+
+---
+
 ## 3. User Settings
 
 ### `POST /user/password`

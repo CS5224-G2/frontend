@@ -5,13 +5,8 @@
 // =============================================================================
 
 import type { LoginFormValues, AuthUser, AuthResult } from '@shared/types/index';
-import {
-  getMockAuthResult,
-  mockAdminUser,
-  mockAuthUser,
-  mockBusinessUser,
-  mockStoredPassword,
-} from '@shared/mocks/index';
+import { mockStoredPassword } from '@shared/mocks/index';
+import { findWebUserByEmail, getStoredAuthResult } from './localDb';
 
 export type { LoginFormValues, AuthUser, AuthResult };
 
@@ -52,7 +47,6 @@ type BackendAuthResponse = {
 // ---------------------------------------------------------------------------
 
 const normalizeEmail = (value: string) => value.trim().toLowerCase();
-const MOCK_USERS = [mockAuthUser, mockAdminUser, mockBusinessUser];
 
 const toLoginPayload = (values: LoginFormValues): BackendLoginPayload => ({
   email: normalizeEmail(values.email),
@@ -90,13 +84,18 @@ export async function loginUser(values: LoginFormValues): Promise<AuthResult> {
   if (shouldUseMocks()) {
     await new Promise((r) => setTimeout(r, 600));
 
-    const mockUser = MOCK_USERS.find((user) => normalizeEmail(user.email) === email);
+    const mockUser = await findWebUserByEmail(email)
 
     if (!mockUser || values.password !== mockStoredPassword) {
       throw new Error('Invalid email or password.');
     }
 
-    return getMockAuthResult(email);
+    const authResult = await getStoredAuthResult(email)
+    if (!authResult) {
+      throw new Error('Invalid email or password.');
+    }
+
+    return authResult
   }
 
   const payload = toLoginPayload(values);
