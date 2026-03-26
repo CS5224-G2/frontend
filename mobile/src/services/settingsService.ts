@@ -10,6 +10,7 @@ import type {
   PrivacySecuritySettings,
 } from '../../../shared/types/index';
 import { getActiveMockAccountId, getLocalDb } from './localDb';
+import { hashPassword } from '../utils/passwordHash';
 
 export type { ChangePasswordInput, PasswordUpdateResult, PrivacySecuritySettings };
 
@@ -49,7 +50,7 @@ type BackendPrivacySecurityResponse = {
 };
 
 type LocalPasswordRow = {
-  password: string;
+  password_hash: string;
 };
 
 type LocalPrivacySettingsRow = {
@@ -110,19 +111,21 @@ export async function updatePassword(
     const db = await getLocalDb();
     const accountId = await getActiveMockAccountId();
     const row = await db.getFirstAsync<LocalPasswordRow>(
-      'SELECT password FROM users WHERE id = ?',
+      'SELECT password_hash FROM users WHERE id = ?',
       accountId,
     );
 
-    if (!row || input.currentPassword !== row.password) {
+    const currentHash = await hashPassword(input.currentPassword);
+    if (currentHash !== row?.password_hash) {
       throw new Error('Current password is incorrect.');
     }
 
+    const newHash = await hashPassword(input.newPassword);
     await db.runAsync(
       `UPDATE users
-       SET password = ?, updated_at = ?
+       SET password_hash = ?, updated_at = ?
        WHERE id = ?`,
-      input.newPassword,
+      newHash,
       new Date().toISOString(),
       accountId,
     );

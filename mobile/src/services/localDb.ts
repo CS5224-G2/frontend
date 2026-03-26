@@ -1,7 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
+import { hashPassword } from '../utils/passwordHash';
 import {
   mockAdminUser,
-  mockAuthResult,
   mockAuthUser,
   mockBusinessUser,
   mockMonthlyData,
@@ -17,6 +17,9 @@ const DATABASE_NAME = 'cyclelink-local.db';
 const DEFAULT_ACCOUNT_ID = mockAuthUser.id;
 const IS_TEST_ENV = Boolean(process.env.JEST_WORKER_ID);
 
+// Schema version — bump when DDL changes require a migration.
+const SCHEMA_VERSION = 1;
+
 type DatabaseLike = Pick<
   SQLiteDatabase,
   'execAsync' | 'runAsync' | 'getFirstAsync' | 'getAllAsync' | 'withTransactionAsync'
@@ -28,12 +31,9 @@ type UserRow = {
   last_name: string;
   full_name: string;
   email: string;
-  password: string;
+  password_hash: string;
   onboarding_complete: number;
   role: 'user' | 'admin' | 'business';
-  access_token: string;
-  refresh_token: string;
-  expires_in: number;
   created_at: string;
   updated_at: string;
 };
@@ -163,6 +163,12 @@ function sortRoutes(rows: RouteRow[]): RouteRow[] {
   });
 }
 
+// Pre-computed SHA-256 of the seeded mock credential (mockStoredPassword = 'CycleLink123').
+// Used by the in-memory test database so createSeedState() can be synchronous.
+// This is a hash digest, not a credential.
+// Computed via: createHash('sha256').update('CycleLink123').digest('hex')
+const SEED_CREDENTIAL_DIGEST = 'bb63bcbb3d935953e5d2141dda133be2ae42747d439c51c3d5364681a5419916';
+
 function createSeedState(): TestState {
   const createdAt = nowIso();
   const authUsers = [mockAuthUser, mockAdminUser, mockBusinessUser];
@@ -172,12 +178,9 @@ function createSeedState(): TestState {
     last_name: user.lastName,
     full_name: user.fullName,
     email: normalizeEmail(user.email),
-    password: mockStoredPassword,
+    password_hash: SEED_CREDENTIAL_DIGEST,
     onboarding_complete: user.onboardingComplete ? 1 : 0,
     role: user.role,
-    access_token: mockAuthResult.accessToken,
-    refresh_token: mockAuthResult.refreshToken,
-    expires_in: mockAuthResult.expiresIn,
     created_at: createdAt,
     updated_at: createdAt,
   }));
@@ -323,14 +326,11 @@ function createTestDatabase(): DatabaseLike {
           last_name: params[2],
           full_name: params[3],
           email: params[4],
-          password: params[5],
+          password_hash: params[5],
           onboarding_complete: params[6],
           role: params[7],
-          access_token: params[8],
-          refresh_token: params[9],
-          expires_in: params[10],
-          created_at: params[11],
-          updated_at: params[12],
+          created_at: params[8],
+          updated_at: params[9],
         });
         return { lastInsertRowId: 1, changes: 1 } as any;
       }
@@ -379,10 +379,10 @@ function createTestDatabase(): DatabaseLike {
         return { lastInsertRowId: 1, changes: 1 } as any;
       }
 
-      if (sql.startsWith('UPDATE USERS SET PASSWORD')) {
+      if (sql.startsWith('UPDATE USERS SET PASSWORD_HASH')) {
         const user = state.users.find((item) => item.id === params[2]);
         if (user) {
-          user.password = params[0];
+          user.password_hash = params[0];
           user.updated_at = params[1];
         }
         return { lastInsertRowId: 0, changes: user ? 1 : 0 } as any;
@@ -561,8 +561,20 @@ async function openDatabase(): Promise<DatabaseLike> {
   const SQLite = await import('expo-sqlite');
   const db = await SQLite.openDatabaseAsync(DATABASE_NAME);
 
+  // -- Schema migration --
+  // If the stored user_version is below SCHEMA_VERSION the users table has
+  // the old shape (plaintext password + token columns).  Drop it so it gets
+  // recreated below; all other tables are append-only and survive.
+  const versionRow = await db.getFirstAsync<{ user_version: number }>(
+    'PRAGMA user_version',
+  );
+  if ((versionRow?.user_version ?? 0) < SCHEMA_VERSION) {
+    await db.execAsync('DROP TABLE IF EXISTS users;');
+  }
+
   await db.execAsync(`
     PRAGMA journal_mode = WAL;
+    PRAGMA user_version = ${SCHEMA_VERSION};
 
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY NOT NULL,
@@ -570,12 +582,9 @@ async function openDatabase(): Promise<DatabaseLike> {
       last_name TEXT NOT NULL,
       full_name TEXT NOT NULL,
       email TEXT NOT NULL UNIQUE,
-      password TEXT NOT NULL,
+      password_hash TEXT NOT NULL,
       onboarding_complete INTEGER NOT NULL,
       role TEXT NOT NULL,
-      access_token TEXT NOT NULL,
-      refresh_token TEXT NOT NULL,
-      expires_in INTEGER NOT NULL,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -708,6 +717,8 @@ async function seedDatabaseIfEmpty(db: DatabaseLike): Promise<void> {
 
   const createdAt = nowIso();
 
+  const seedHash = await hashPassword(mockStoredPassword);
+
   await db.withTransactionAsync(async () => {
     const authUsers = [mockAuthUser, mockAdminUser, mockBusinessUser];
 
@@ -719,26 +730,20 @@ async function seedDatabaseIfEmpty(db: DatabaseLike): Promise<void> {
           last_name,
           full_name,
           email,
-          password,
+          password_hash,
           onboarding_complete,
           role,
-          access_token,
-          refresh_token,
-          expires_in,
           created_at,
           updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         user.id,
         user.firstName,
         user.lastName,
         user.fullName,
         normalizeEmail(user.email),
-        mockStoredPassword,
+        seedHash,
         user.onboardingComplete ? 1 : 0,
         user.role,
-        mockAuthResult.accessToken,
-        mockAuthResult.refreshToken,
-        mockAuthResult.expiresIn,
         createdAt,
         createdAt,
       );
@@ -994,6 +999,7 @@ export async function createLocalAccount(input: {
   const createdAt = nowIso();
   const email = normalizeEmail(input.email);
   const fullName = `${input.firstName.trim()} ${input.lastName.trim()}`.trim();
+  const newHash = await hashPassword(input.password);
 
   await db.withTransactionAsync(async () => {
     await db.runAsync(
@@ -1003,26 +1009,20 @@ export async function createLocalAccount(input: {
         last_name,
         full_name,
         email,
-        password,
+        password_hash,
         onboarding_complete,
         role,
-        access_token,
-        refresh_token,
-        expires_in,
         created_at,
         updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       accountId,
       input.firstName.trim(),
       input.lastName.trim(),
       fullName,
       email,
-      input.password,
+      newHash,
       0,
       'user',
-      `mock-access-token-${accountId}`,
-      `mock-refresh-token-${accountId}`,
-      mockAuthResult.expiresIn,
       createdAt,
       createdAt,
     );

@@ -2,6 +2,8 @@
 // AUTH SERVICE — Mobile (Expo/React Native)
 // Adapter pattern: maps between backend snake_case and frontend camelCase.
 // Gated by EXPO_PUBLIC_USE_MOCKS — set to 'true' to skip real network calls.
+// Session secrets (access/refresh tokens) are stored in expo-secure-store,
+// never in SQLite.
 // =============================================================================
 
 import type {
@@ -14,6 +16,8 @@ import {
   getLocalDb,
   setActiveMockAccountId,
 } from './localDb';
+import { hashPassword } from '../utils/passwordHash';
+import { saveSession } from './secureSession';
 
 export type { LoginFormValues, RegisterFormValues, AuthResult };
 
@@ -29,12 +33,9 @@ type LocalAuthRow = {
   last_name: string;
   full_name: string;
   email: string;
-  password: string;
+  password_hash: string;
   onboarding_complete: number;
   role: 'user' | 'admin' | 'business';
-  access_token: string;
-  refresh_token: string;
-  expires_in: number;
 };
 
 // ---------------------------------------------------------------------------
@@ -110,10 +111,11 @@ const toAuthResult = (response: BackendAuthResponse): AuthResult => ({
   },
 });
 
+// Tokens are generated at login time and stored in SecureStore, not in SQLite.
 const toAuthResultFromLocalRow = (row: LocalAuthRow): AuthResult => ({
-  accessToken: row.access_token,
-  refreshToken: row.refresh_token,
-  expiresIn: row.expires_in,
+  accessToken: `mock-access-${row.id}`,
+  refreshToken: `mock-refresh-${row.id}`,
+  expiresIn: 3600,
   user: {
     id: row.id,
     firstName: row.first_name,
@@ -150,29 +152,31 @@ export async function loginUser(values: LoginFormValues): Promise<AuthResult> {
         last_name,
         full_name,
         email,
-        password,
+        password_hash,
         onboarding_complete,
-        role,
-        access_token,
-        refresh_token,
-        expires_in
+        role
       FROM users
       WHERE email = ?`,
       normalizeEmail(values.email),
     );
 
-    if (!row || row.password !== values.password) {
+    const inputHash = await hashPassword(values.password);
+    if (!row || row.password_hash !== inputHash) {
       throw new Error('Invalid email or password.');
     }
 
+    const result = toAuthResultFromLocalRow(row);
+    await saveSession(result);
     await setActiveMockAccountId(row.id);
-    return toAuthResultFromLocalRow(row);
+    return result;
   }
 
   const payload = toLoginPayload(values);
   const { httpClient } = await import('./httpClient');
   const response = await httpClient.post<BackendAuthResponse>('/auth/login', payload);
-  return toAuthResult(response);
+  const result = toAuthResult(response);
+  await saveSession(result);
+  return result;
 }
 
 export async function registerUser(values: RegisterFormValues): Promise<AuthResult> {
@@ -221,12 +225,9 @@ export async function registerUser(values: RegisterFormValues): Promise<AuthResu
         last_name,
         full_name,
         email,
-        password,
+        password_hash,
         onboarding_complete,
-        role,
-        access_token,
-        refresh_token,
-        expires_in
+        role
       FROM users
       WHERE id = ?`,
       accountId,
@@ -236,11 +237,15 @@ export async function registerUser(values: RegisterFormValues): Promise<AuthResu
       throw new Error('Unable to create the local account.');
     }
 
-    return toAuthResultFromLocalRow(row);
+    const result = toAuthResultFromLocalRow(row);
+    await saveSession(result);
+    return result;
   }
 
   const { httpClient } = await import('./httpClient');
   const payload = toRegisterPayload(values);
   const response = await httpClient.post<BackendAuthResponse>('/auth/register', payload);
-  return toAuthResult(response);
+  const result = toAuthResult(response);
+  await saveSession(result);
+  return result;
 }
