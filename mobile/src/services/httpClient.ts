@@ -5,12 +5,10 @@
 // =============================================================================
 
 import Constants from 'expo-constants';
+import { assertBackendConfigured, getApiBaseUrl } from '../config/runtime';
 import { logFailure, logStart, logSuccess } from '../utils/apiLogger';
 
-const BASE_URL: string =
-  (Constants.expoConfig?.extra?.apiBaseUrl as string) ||
-  process.env.EXPO_PUBLIC_API_BASE_URL ||
-  'https://api.cyclelink.example.com';
+const BASE_URL = getApiBaseUrl(Constants.expoConfig?.extra?.apiBaseUrl as string | undefined);
 
 type RequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -49,6 +47,8 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   if (body !== undefined) {
     serializedBody = isFormData ? (body as BodyInit) : JSON.stringify(body);
   }
+
+  assertBackendConfigured(BASE_URL);
 
   let response: Response;
   try {
