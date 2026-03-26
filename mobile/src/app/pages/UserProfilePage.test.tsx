@@ -26,6 +26,15 @@ jest.mock('../ThemeContext', () => ({
   }),
 }));
 
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({
+    top: 0,
+    right: 0,
+    bottom: 34,
+    left: 0,
+  }),
+}));
+
 jest.mock('../../services/userService', () => ({
   getUserProfile: jest.fn(),
   serializeUserProfile: jest.fn(() => 'profile-param'),

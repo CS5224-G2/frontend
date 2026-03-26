@@ -1,23 +1,46 @@
 import '../global.css';
+import { useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { StatusBar } from 'expo-status-bar';
 import { Stack } from 'expo-router';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useColorScheme } from 'nativewind';
+
+import { AuthProvider } from '@/app/AuthContext';
+import { ThemeProvider } from '@/app/ThemeContext';
+
+function RootLayoutNav() {
+  const { colorScheme } = useColorScheme();
+
+  useEffect(() => {
+    const initializeData = async () => {
+      const existingRoutes = await AsyncStorage.getItem('favoriteRoutes');
+      if (!existingRoutes) {
+        await AsyncStorage.setItem('favoriteRoutes', JSON.stringify(['1', '3']));
+      }
+    };
+    initializeData();
+  }, []);
+
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="login" />
+        <Stack.Screen name="register" />
+        <Stack.Screen name="(tabs)" />
+      </Stack>
+      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+    </GestureHandlerRootView>
+  );
+}
 
 export default function RootLayout() {
   return (
-    <Stack
-      screenOptions={{
-        headerShown: true,
-        title: 'CycleLink',
-      }}
-    >
-      <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="login" options={{ headerShown: false }} />
-      <Stack.Screen name="register" options={{ headerShown: false }} />
-      <Stack.Screen name="onboarding" options={{ title: 'Onboarding' }} />
-      <Stack.Screen name="home" options={{ title: 'Home' }} />
-      <Stack.Screen name="profile" options={{ title: 'Profile' }} />
-      <Stack.Screen name="edit-profile" options={{ title: 'Edit profile' }} />
-      <Stack.Screen name="route" options={{ title: 'Route' }} />
-      <Stack.Screen name="feedback" options={{ title: 'Rate your ride' }} />
-    </Stack>
+    <ThemeProvider>
+      <AuthProvider>
+        <RootLayoutNav />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useColorScheme } from 'nativewind';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   getUserProfile,
@@ -43,6 +44,7 @@ const statCards = [
 
 export default function UserProfilePage() {
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
   const { preference, setPreference } = useTheme();
   const { colorScheme } = useColorScheme();
   const nextPref = preference === 'system' ? 'light' : preference === 'light' ? 'dark' : 'system';
@@ -126,7 +128,7 @@ export default function UserProfilePage() {
   return (
     <ScrollView
       className="flex-1 bg-[#F3F4F6] dark:bg-black"
-      contentContainerStyle={{ padding: 20, gap: 16 }}
+      contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 120, gap: 16 }}
       refreshControl={
         <RefreshControl refreshing={isRefreshing} onRefresh={() => loadProfile('refresh')} />
       }

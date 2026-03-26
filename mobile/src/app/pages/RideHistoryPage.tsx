@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Animated,
   View,
   Text,
   ScrollView,
@@ -7,19 +8,21 @@ import {
   Pressable,
   Alert,
   ActivityIndicator,
+  LayoutAnimation,
+  Platform,
+  StyleSheet,
+  UIManager,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import {
+  GlassView,
+  isGlassEffectAPIAvailable,
+  isLiquidGlassAvailable,
+} from 'expo-glass-effect';
 import { useColorScheme } from 'nativewind';
-import Animated, {
-  FadeInDown,
-  FadeInRight,
-  FadeOutLeft,
-  FadeOutUp,
-  LinearTransition,
-} from 'react-native-reanimated';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button } from '../components/native/Common';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/native/Common';
 import { type RideHistory, type GraphDataPoint, type GraphPeriod } from '../../../../shared/types/index';
 import { getRideHistory, getDistanceStats } from '../../services/rideService';
 
@@ -30,68 +33,131 @@ const emptyDistanceStats: DistanceStatsByPeriod = {
   week: [],
   month: [],
 };
-
-const cardLayoutTransition = LinearTransition.springify().damping(18).stiffness(220);
-const graphLayoutTransition = LinearTransition.springify().damping(20).stiffness(240);
+const supportsNativeGlass =
+  Platform.OS === 'ios' && isLiquidGlassAvailable() && isGlassEffectAPIAvailable();
 
 function getGraphLabel(item: GraphDataPoint) {
   return 'day' in item ? item.day : item.week;
 }
 
-function AnimatedValueText({
+function AnimatedMetricValue({
   value,
-  transitionKey,
-  className,
+  formatter,
+  style,
+  animationKey,
 }: {
-  value: string;
-  transitionKey: string;
-  className: string;
+  value: number;
+  formatter: (value: number) => string;
+  style?: any;
+  animationKey: string;
+}) {
+  const [displayValue, setDisplayValue] = useState(value);
+  const previousValue = useRef(value);
+
+  useEffect(() => {
+    let frame = 0;
+    let startTime = 0;
+    const from = previousValue.current;
+    const to = value;
+    const duration = 480;
+
+    const step = (timestamp: number) => {
+      if (!startTime) {
+        startTime = timestamp;
+      }
+
+      const progress = Math.min((timestamp - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const nextValue = from + (to - from) * eased;
+      setDisplayValue(nextValue);
+
+      if (progress < 1) {
+        frame = requestAnimationFrame(step);
+      } else {
+        previousValue.current = to;
+      }
+    };
+
+    frame = requestAnimationFrame(step);
+
+    return () => cancelAnimationFrame(frame);
+  }, [animationKey, value]);
+
+  return <Text style={style}>{formatter(displayValue)}</Text>;
+}
+
+function MetricCard({
+  label,
+  value,
+  formatter,
+  isDark,
+}: {
+  label: string;
+  value: number;
+  formatter: (value: number) => string;
+  isDark: boolean;
 }) {
   return (
-    <View style={{ minHeight: 28, overflow: 'hidden', justifyContent: 'center' }}>
-      <Animated.Text
-        key={transitionKey}
-        entering={FadeInDown.duration(220)}
-        exiting={FadeOutUp.duration(160)}
-        className={className}
-      >
-        {value}
-      </Animated.Text>
+    <View style={{ width: '48%' }}>
+      <Card style={{ padding: 10, borderRadius: 12 }}>
+        <CardContent>
+          <Text className="text-xs text-[#64748b] dark:text-slate-400">{label}</Text>
+          <AnimatedMetricValue
+            value={value}
+            formatter={formatter}
+            animationKey={label}
+            style={[styles.metricValue, isDark && styles.metricValueDark]}
+          />
+        </CardContent>
+      </Card>
     </View>
   );
 }
 
 function GraphBar({
-  item,
+  label,
+  distance,
   maxDistance,
-  index,
+  isDark,
 }: {
-  item: GraphDataPoint;
+  label: string;
+  distance: number;
   maxDistance: number;
-  index: number;
+  isDark: boolean;
 }) {
-  const barWidth = `${maxDistance > 0 ? (item.distance / maxDistance) * 100 : 0}%`;
+  const ratio = maxDistance > 0 ? distance / maxDistance : 0;
+  const barProgress = useRef(new Animated.Value(ratio)).current;
+
+  useEffect(() => {
+    Animated.timing(barProgress, {
+      toValue: ratio,
+      duration: 360,
+      useNativeDriver: false,
+    }).start();
+  }, [barProgress, ratio]);
 
   return (
-    <Animated.View
-      entering={FadeInRight.duration(220).delay(index * 36)}
-      exiting={FadeOutLeft.duration(140)}
-      layout={graphLayoutTransition}
-      className="flex-row items-center mb-[6px]"
-    >
-      <Text className="text-xs text-slate-500 dark:text-slate-400" style={{ width: 50 }}>{getGraphLabel(item)}</Text>
+    <View className="flex-row items-center mb-[6px]">
+      <Text className="text-xs text-slate-500 dark:text-slate-400" style={{ width: 50 }}>{label}</Text>
       <View className="flex-1 rounded-full bg-[#e2e8f0] dark:bg-[#2d2d2d] mx-2" style={{ height: 8 }}>
         <Animated.View
-          layout={graphLayoutTransition}
           className="rounded-full bg-[#3b82f6]"
           style={{
             height: 8,
-            width: barWidth,
+            width: barProgress.interpolate({
+              inputRange: [0, 1],
+              outputRange: ['0%', '100%'],
+            }),
           }}
         />
       </View>
-      <Text className="text-[11px] text-slate-500 dark:text-slate-400 text-right" style={{ width: 60 }}>{item.distance.toFixed(1)} km</Text>
-    </Animated.View>
+      <AnimatedMetricValue
+        value={distance}
+        formatter={(value) => `${value.toFixed(1)} km`}
+        animationKey={label}
+        style={[styles.graphValue, isDark && styles.graphValueDark]}
+      />
+    </View>
   );
 }
 
@@ -101,8 +167,16 @@ export default function RideHistoryPage({ navigation }: Props) {
   const [rideHistory, setRideHistory] = useState<RideHistory[]>([]);
   const [distanceStats, setDistanceStats] = useState<DistanceStatsByPeriod>(emptyDistanceStats);
   const [isLoading, setIsLoading] = useState(true);
+  const [periodToggleWidth, setPeriodToggleWidth] = useState(0);
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const periodIndicator = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+      UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+  }, []);
 
   useEffect(() => {
     const loadData = async () => {
@@ -130,11 +204,35 @@ export default function RideHistoryPage({ navigation }: Props) {
   }, []);
 
   const graphData = distanceStats[period];
+  const graphRows = useMemo(
+    () =>
+      graphData.map((item, index) => ({
+        key: `graph-row-${index}`,
+        label: getGraphLabel(item),
+        distance: item.distance,
+      })),
+    [graphData]
+  );
 
   const handlePeriodChange = (nextPeriod: GraphPeriod) => {
     if (nextPeriod === period) {
       return;
     }
+
+    LayoutAnimation.configureNext({
+      duration: 320,
+      create: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+        property: LayoutAnimation.Properties.opacity,
+      },
+      update: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+      },
+      delete: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+        property: LayoutAnimation.Properties.opacity,
+      },
+    });
 
     setPeriod(nextPeriod);
   };
@@ -144,6 +242,17 @@ export default function RideHistoryPage({ navigation }: Props) {
   const totalCheckpoints = rideHistory.reduce((sum, ride) => sum + ride.checkpoints, 0);
   const totalDistance = graphData.reduce((sum, item) => sum + item.distance, 0);
   const maxDistance = Math.max(...graphData.map((item) => item.distance), 1);
+  const periodIndicatorWidth = periodToggleWidth > 0 ? (periodToggleWidth - 10) / 2 : 0;
+
+  useEffect(() => {
+    Animated.spring(periodIndicator, {
+      toValue: period === 'week' ? 0 : 1,
+      damping: 18,
+      mass: 0.8,
+      stiffness: 180,
+      useNativeDriver: true,
+    }).start();
+  }, [period, periodIndicator]);
 
   const toggleFavorite = async (routeId: string, routeName: string) => {
     const isFav = favorites.includes(routeId);
@@ -239,54 +348,30 @@ export default function RideHistoryPage({ navigation }: Props) {
       </View>
 
       <View className="flex-row flex-wrap justify-between mb-[12px]">
-        <Card style={{ width: '48%', padding: 10, borderRadius: 12 }}>
-          <Animated.View layout={cardLayoutTransition}>
-            <CardContent>
-              <Text className="text-xs text-[#64748b] dark:text-slate-400">Total Rides</Text>
-              <AnimatedValueText
-                value={String(rideHistory.length)}
-                transitionKey={`rides-${period}-${rideHistory.length}`}
-                className="text-xl font-bold text-[#1e293b] dark:text-slate-100 mt-[6px]"
-              />
-            </CardContent>
-          </Animated.View>
-        </Card>
-        <Card style={{ width: '48%', padding: 10, borderRadius: 12 }}>
-          <Animated.View layout={cardLayoutTransition}>
-            <CardContent>
-              <Text className="text-xs text-[#64748b] dark:text-slate-400">Distance</Text>
-              <AnimatedValueText
-                value={`${totalDistance.toFixed(1)} km`}
-                transitionKey={`distance-${period}-${totalDistance.toFixed(1)}`}
-                className="text-xl font-bold text-[#1e293b] dark:text-slate-100 mt-[6px]"
-              />
-            </CardContent>
-          </Animated.View>
-        </Card>
-        <Card style={{ width: '48%', padding: 10, borderRadius: 12 }}>
-          <Animated.View layout={cardLayoutTransition}>
-            <CardContent>
-              <Text className="text-xs text-[#64748b] dark:text-slate-400">Total Time</Text>
-              <AnimatedValueText
-                value={formatTime(totalTime)}
-                transitionKey={`time-${period}-${totalTime}`}
-                className="text-xl font-bold text-[#1e293b] dark:text-slate-100 mt-[6px]"
-              />
-            </CardContent>
-          </Animated.View>
-        </Card>
-        <Card style={{ width: '48%', padding: 10, borderRadius: 12 }}>
-          <Animated.View layout={cardLayoutTransition}>
-            <CardContent>
-              <Text className="text-xs text-[#64748b] dark:text-slate-400">Checkpoints</Text>
-              <AnimatedValueText
-                value={String(totalCheckpoints)}
-                transitionKey={`checkpoints-${period}-${totalCheckpoints}`}
-                className="text-xl font-bold text-[#1e293b] dark:text-slate-100 mt-[6px]"
-              />
-            </CardContent>
-          </Animated.View>
-        </Card>
+        <MetricCard
+          label="Total Rides"
+          value={rideHistory.length}
+          formatter={(value) => `${Math.round(value)}`}
+          isDark={isDark}
+        />
+        <MetricCard
+          label="Distance"
+          value={totalDistance}
+          formatter={(value) => `${value.toFixed(1)} km`}
+          isDark={isDark}
+        />
+        <MetricCard
+          label="Total Time"
+          value={totalTime}
+          formatter={(value) => formatTime(Math.round(value))}
+          isDark={isDark}
+        />
+        <MetricCard
+          label="Checkpoints"
+          value={totalCheckpoints}
+          formatter={(value) => `${Math.round(value)}`}
+          isDark={isDark}
+        />
       </View>
 
       <Card>
@@ -294,36 +379,114 @@ export default function RideHistoryPage({ navigation }: Props) {
           <View className="flex-row justify-between items-center">
             <View>
               <CardTitle>Distance Over Time</CardTitle>
-              <View style={{ minHeight: 20, overflow: 'hidden' }}>
-                <Animated.View
-                  key={`graph-total-${period}-${totalGraphDistance.toFixed(1)}`}
-                  entering={FadeInDown.duration(220)}
-                  exiting={FadeOutUp.duration(160)}
-                >
-                  <CardDescription>{`Total ${period === 'week' ? 'this week' : 'this month'}: ${totalGraphDistance.toFixed(1)} km`}</CardDescription>
-                </Animated.View>
-              </View>
+              <CardDescription>
+                {`Total ${period === 'week' ? 'this week' : 'this month'}: `}
+                <AnimatedMetricValue
+                  value={totalGraphDistance}
+                  formatter={(value) => `${value.toFixed(1)} km`}
+                  animationKey="total-graph-distance"
+                />
+              </CardDescription>
             </View>
-            <View className="flex-row gap-2">
-              <Button
-                style={[{ backgroundColor: '#e2e8f0', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 8 }, period === 'week' && { backgroundColor: '#2563eb' }]}
-                onPress={() => handlePeriodChange('week')}
-              >
-                <Text style={[{ color: '#1e293b', fontSize: 13, fontWeight: '600' }, period === 'week' && { color: '#fff' }]}>Week</Text>
-              </Button>
-              <Button
-                style={[{ backgroundColor: '#e2e8f0', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 8 }, period === 'month' && { backgroundColor: '#2563eb' }]}
-                onPress={() => handlePeriodChange('month')}
-              >
-                <Text style={[{ color: '#1e293b', fontSize: 13, fontWeight: '600' }, period === 'month' && { color: '#fff' }]}>Month</Text>
-              </Button>
+            <View
+              onLayout={(event) => setPeriodToggleWidth(event.nativeEvent.layout.width)}
+              style={styles.periodToggle}
+            >
+              {supportsNativeGlass ? (
+                <GlassView
+                  style={styles.periodToggleGlass}
+                  glassEffectStyle="clear"
+                  colorScheme={isDark ? 'dark' : 'light'}
+                  tintColor={isDark ? 'rgba(15, 23, 42, 0.18)' : 'rgba(255, 255, 255, 0.28)'}
+                />
+              ) : (
+                <View
+                  style={[
+                    styles.periodToggleGlass,
+                    isDark ? styles.periodToggleFallbackDark : styles.periodToggleFallbackLight,
+                  ]}
+                />
+              )}
+              {periodIndicatorWidth > 0 ? (
+                <Animated.View
+                  pointerEvents="none"
+                  style={[
+                    styles.periodIndicator,
+                    {
+                      width: periodIndicatorWidth,
+                      transform: [
+                        {
+                          translateX: periodIndicator.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0, periodIndicatorWidth + 2],
+                          }),
+                        },
+                      ],
+                    },
+                  ]}
+                >
+                  {supportsNativeGlass ? (
+                    <GlassView
+                      style={StyleSheet.absoluteFillObject}
+                      glassEffectStyle={{
+                        style: 'regular',
+                        animate: true,
+                        animationDuration: 0.28,
+                      }}
+                      colorScheme={isDark ? 'dark' : 'light'}
+                      tintColor={isDark ? 'rgba(59, 130, 246, 0.22)' : 'rgba(255, 255, 255, 0.62)'}
+                    />
+                  ) : (
+                    <View
+                      style={[
+                        StyleSheet.absoluteFillObject,
+                        styles.periodIndicatorFallback,
+                      ]}
+                    />
+                  )}
+                </Animated.View>
+              ) : null}
+              <Pressable style={styles.periodButton} onPress={() => handlePeriodChange('week')}>
+                <Text
+                  style={[
+                    styles.periodButtonLabel,
+                    period === 'week'
+                      ? styles.periodButtonLabelActive
+                      : isDark
+                        ? styles.periodButtonLabelDark
+                        : styles.periodButtonLabelLight,
+                  ]}
+                >
+                  Week
+                </Text>
+              </Pressable>
+              <Pressable style={styles.periodButton} onPress={() => handlePeriodChange('month')}>
+                <Text
+                  style={[
+                    styles.periodButtonLabel,
+                    period === 'month'
+                      ? styles.periodButtonLabelActive
+                      : isDark
+                        ? styles.periodButtonLabelDark
+                        : styles.periodButtonLabelLight,
+                  ]}
+                >
+                  Month
+                </Text>
+              </Pressable>
             </View>
           </View>
         </CardHeader>
         <CardContent>
           <View className="mt-2 py-1">
-            {graphData.map((item, index) => (
-              <GraphBar key={`${period}-${item.id}`} item={item} maxDistance={maxDistance} index={index} />
+            {graphRows.map((row) => (
+              <GraphBar
+                key={row.key}
+                label={row.label}
+                distance={row.distance}
+                maxDistance={maxDistance}
+                isDark={isDark}
+              />
             ))}
           </View>
         </CardContent>
@@ -345,3 +508,74 @@ export default function RideHistoryPage({ navigation }: Props) {
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  metricValue: {
+    marginTop: 6,
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1e293b',
+  },
+  metricValueDark: {
+    color: '#e2e8f0',
+  },
+  graphValue: {
+    width: 60,
+    textAlign: 'right',
+    fontSize: 11,
+    color: '#64748b',
+  },
+  graphValueDark: {
+    color: '#94a3b8',
+  },
+  periodToggle: {
+    width: 118,
+    height: 38,
+    padding: 4,
+    borderRadius: 14,
+    overflow: 'hidden',
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  periodToggleGlass: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 14,
+  },
+  periodToggleFallbackLight: {
+    backgroundColor: 'rgba(226, 232, 240, 0.72)',
+  },
+  periodToggleFallbackDark: {
+    backgroundColor: 'rgba(30, 41, 59, 0.86)',
+  },
+  periodIndicator: {
+    position: 'absolute',
+    top: 4,
+    bottom: 4,
+    left: 4,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  periodIndicatorFallback: {
+    backgroundColor: 'rgba(255, 255, 255, 0.72)',
+  },
+  periodButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  periodButtonLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  periodButtonLabelActive: {
+    color: '#2563eb',
+  },
+  periodButtonLabelLight: {
+    color: '#334155',
+  },
+  periodButtonLabelDark: {
+    color: '#cbd5e1',
+  },
+});

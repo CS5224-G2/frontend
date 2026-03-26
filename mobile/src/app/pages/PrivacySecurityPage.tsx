@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useColorScheme } from 'nativewind';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../ThemeContext';
 
 import {
@@ -53,6 +54,7 @@ function ToggleRow({ title, description, value, onValueChange }: ToggleRowProps)
 
 export default function PrivacySecurityPage() {
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
   const [settings, setSettings] = useState<PrivacySecuritySettings>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -142,7 +144,10 @@ export default function PrivacySecurityPage() {
   }
 
   return (
-    <ScrollView className="flex-1 bg-[#F3F4F6] dark:bg-black" contentContainerStyle={{ padding: 20, gap: 16 }}>
+    <ScrollView
+      className="flex-1 bg-[#F3F4F6] dark:bg-black"
+      contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 120, gap: 16 }}
+    >
       <View className="bg-white dark:bg-[#111111] rounded-[24px] p-[22px] border border-border dark:border-[#2d2d2d]">
         <Text className="text-[13px] font-bold tracking-[0.6px] uppercase text-primary-dark mb-2">Privacy and device</Text>
         <Text className="text-[28px] font-extrabold text-slate-900 dark:text-slate-100">Privacy & security</Text>

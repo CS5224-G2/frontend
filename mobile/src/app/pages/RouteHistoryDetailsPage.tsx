@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button } from '../components/native/Common';
 import { FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useColorScheme } from 'nativewind';
@@ -11,6 +12,7 @@ import { getRouteById } from '../../services/routeService';
 type Props = NativeStackScreenProps<any, 'HistoryDetails'>;
 
 export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
+  const insets = useSafeAreaInsets();
   const { rideId } = route.params as { rideId: string };
   const [ride, setRide] = useState<RideHistory | null>(null);
   const [routeInfo, setRouteInfo] = useState<Route | null>(null);
@@ -33,7 +35,7 @@ export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
 
   if (isLoading) {
     return (
-      <View className="flex-1 justify-center items-center">
+      <View className="flex-1 justify-center items-center bg-slate-50 dark:bg-black">
         <ActivityIndicator size="large" color={isDark ? '#3b82f6' : '#1D4ED8'} />
       </View>
     );
@@ -41,7 +43,7 @@ export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
 
   if (!ride || !routeInfo) {
     return (
-      <View className="flex-1 justify-center items-center p-cy-lg">
+      <View className="flex-1 justify-center items-center p-cy-lg bg-slate-50 dark:bg-black">
         <Text className="text-[26px] font-bold text-[#1e293b] dark:text-slate-100 mb-2">Ride not found</Text>
         <Text className="text-sm text-[#64748b] dark:text-slate-400 mb-[12px]">Please select a valid ride from history.</Text>
         <Button onPress={() => navigation.goBack()}>Go Back</Button>
@@ -50,7 +52,10 @@ export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
   }
 
   return (
-    <ScrollView className="flex-1 bg-slate-50 dark:bg-black" contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+    <ScrollView
+      className="flex-1 bg-slate-50 dark:bg-black"
+      contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 120 }}
+    >
       <View className="mb-[12px]">
         <Text className="text-[22px] font-bold text-[#1e293b] dark:text-slate-100">{routeInfo.name}</Text>
         <Text className="text-[13px] text-[#64748b] dark:text-slate-400 mt-1">{routeInfo.description}</Text>
@@ -175,14 +180,17 @@ export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
         </CardContent>
       </Card>
 
-      <Button onPress={() => navigation.navigate('HomeTab', { screen: 'RouteDetails', params: { routeId: routeInfo.id } })} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#2563eb', borderRadius: 10, paddingVertical: 12, marginTop: 12, gap: 8 }}>
-        <MaterialCommunityIcons name="play" size={18} color="#fff" />
-        <Text className="text-white text-sm font-bold">Ride This Route Again</Text>
+      <Button
+        onPress={() => navigation.navigate('HomeTab', { screen: 'RouteDetails', params: { routeId: routeInfo.id } })}
+        style={{
+          backgroundColor: '#2563eb',
+          borderRadius: 10,
+          paddingVertical: 12,
+          marginTop: 12,
+        }}
+      >
+        <Text className="text-white text-base font-bold">Ride This Route Again</Text>
       </Button>
-
-      <Pressable onPress={() => navigation.goBack()} className="mt-2 items-center">
-        <Text className="text-[#2563eb] dark:text-blue-400 font-bold">Back to History</Text>
-      </Pressable>
     </ScrollView>
   );
 }
