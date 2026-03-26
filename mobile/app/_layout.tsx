@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useColorScheme } from 'nativewind';
+import { Platform, View, StatusBar as RNStatusBar } from 'react-native';
 
 import { AuthProvider } from '@/app/AuthContext';
 import { ThemeProvider } from '@/app/ThemeContext';
@@ -24,6 +25,9 @@ function RootLayoutNav() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      {Platform.OS === 'android' && (
+        <View style={{ height: RNStatusBar.currentHeight ?? 24, backgroundColor: 'white' }} />
+      )}
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="login" />
