@@ -44,7 +44,8 @@
       "expo-secure-store",
       [
         "expo-apple-authentication"
-      ]
+      ],
+      "expo-web-browser"
     ],
     "extra": {
       "eas": {
