@@ -6,11 +6,11 @@
 // =============================================================================
 
 import type { RideHistory, GraphDataPoint, GraphPeriod, RouteFeedbackPayload } from '../../../shared/types/index';
+import { USE_MOCKS } from '../config/runtime';
 import { getActiveMockAccountId, getLocalDb } from './localDb';
 
 export type { RideHistory, GraphDataPoint, GraphPeriod };
 
-const USE_MOCKS = process.env.EXPO_PUBLIC_USE_MOCKS === 'true';
 const wait = async (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 // ---------------------------------------------------------------------------
