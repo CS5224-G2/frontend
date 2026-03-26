@@ -22,7 +22,6 @@ import {
   isLiquidGlassAvailable,
 } from 'expo-glass-effect';
 import { useColorScheme } from 'nativewind';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/native/Common';
 import { type RideHistory, type GraphDataPoint, type GraphPeriod } from '../../../../shared/types/index';
 import { getRideHistory, getDistanceStats } from '../../services/rideService';
@@ -171,7 +170,6 @@ export default function RideHistoryPage({ navigation }: Props) {
   const [periodToggleWidth, setPeriodToggleWidth] = useState(0);
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
-  const insets = useSafeAreaInsets();
   const periodIndicator = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -343,7 +341,7 @@ export default function RideHistoryPage({ navigation }: Props) {
   }
 
   return (
-    <ScrollView className="flex-1 bg-slate-50 dark:bg-black" contentContainerStyle={{ padding: 16, paddingTop: Platform.OS === 'ios' ? insets.top + 16 : 16, paddingBottom: 36 }}>
+    <ScrollView className="flex-1 bg-slate-50 dark:bg-black" contentContainerStyle={{ padding: 16, paddingBottom: 36 }}>
       <View className="mb-[12px]">
         <Text className="text-[28px] font-bold text-[#1e293b] dark:text-slate-100">Ride History</Text>
         <Text className="text-sm text-[#64748b] dark:text-slate-400 mt-1">Track progress & achievements</Text>

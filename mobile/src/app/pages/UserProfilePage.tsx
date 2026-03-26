@@ -129,7 +129,7 @@ export default function UserProfilePage() {
   return (
     <ScrollView
       className="flex-1 bg-[#F3F4F6] dark:bg-black"
-      contentContainerStyle={{ padding: 20, paddingTop: Platform.OS === 'ios' ? insets.top + 20 : 20, paddingBottom: insets.bottom + 120, gap: 16 }}
+      contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 120, gap: 16 }}
       refreshControl={
         <RefreshControl refreshing={isRefreshing} onRefresh={() => loadProfile('refresh')} />
       }
