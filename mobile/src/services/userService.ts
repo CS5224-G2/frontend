@@ -6,7 +6,7 @@
 
 import type { UserProfile } from '../../../shared/types/index';
 import { USE_MOCKS } from '../config/runtime';
-import { getActiveMockAccountId, getLocalDb } from './localDb';
+import { deleteLocalAccount, getActiveMockAccountId, getLocalDb } from './localDb';
 
 export type { UserProfile };
 
@@ -239,6 +239,18 @@ export async function deleteUserProfileAvatar(token?: string): Promise<void> {
 
   const { httpClient } = await import('./httpClient');
   await httpClient.delete<void>('/user/profile/avatar', token);
+}
+
+export async function deleteAccount(token?: string): Promise<void> {
+  if (USE_MOCKS) {
+    await wait(350);
+    const accountId = await getActiveMockAccountId();
+    await deleteLocalAccount(accountId);
+    return;
+  }
+
+  const { httpClient } = await import('./httpClient');
+  await httpClient.delete<void>('/user/account', token);
 }
 
 // Utility: serialise profile for navigation params

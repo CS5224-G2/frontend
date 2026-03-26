@@ -306,6 +306,27 @@ No body.
 
 ---
 
+### `DELETE /user/account`
+
+**Purpose**: Permanently delete the authenticated user's account and all associated data (profile, ride history, stats, privacy settings).
+**Client(s)**: Mobile
+**Auth**: Bearer token required
+
+> **Note — Sign out**: Sign-out is client-only. The mobile app clears the local session (SecureStore keys) and resets auth state without calling a backend endpoint.
+
+#### Ideal JSON Response — `204 No Content`
+
+No body.
+
+#### Error Responses
+
+| Status | Condition |
+|---|---|
+| `401` | Token missing or expired |
+| `404` | Account not found |
+
+---
+
 ## 3. User Settings
 
 ### `POST /user/password`
@@ -753,6 +774,7 @@ No body.
 | `/auth/apple` *(planned)* | POST | None | ✅ (iOS) | — |
 | `/user/profile` | GET | Token | ✅ | — |
 | `/user/profile` | PUT | Token | ✅ | — |
+| `/user/account` | DELETE | Token | ✅ | — |
 | `/user/password` | POST | Token | ✅ | — |
 | `/user/privacy` | GET | Token | ✅ | — |
 | `/user/privacy` | PUT | Token | ✅ | — |

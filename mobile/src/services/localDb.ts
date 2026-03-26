@@ -448,6 +448,47 @@ function createTestDatabase(): DatabaseLike {
         return { lastInsertRowId: id, changes: 1 } as any;
       }
 
+      if (sql.startsWith('DELETE FROM RIDE_FEEDBACK WHERE ACCOUNT_ID = ?')) {
+        const before = state.rideFeedback.length;
+        state.rideFeedback = state.rideFeedback.filter((r) => r.account_id !== params[0]);
+        return { lastInsertRowId: 0, changes: before - state.rideFeedback.length } as any;
+      }
+
+      if (sql.startsWith('DELETE FROM DISTANCE_STATS WHERE ACCOUNT_ID = ?')) {
+        const before = state.distanceStats.length;
+        state.distanceStats = state.distanceStats.filter((r) => r.account_id !== params[0]);
+        return { lastInsertRowId: 0, changes: before - state.distanceStats.length } as any;
+      }
+
+      if (sql.startsWith('DELETE FROM RIDE_HISTORY WHERE ACCOUNT_ID = ?')) {
+        const before = state.rideHistory.length;
+        state.rideHistory = state.rideHistory.filter((r) => r.account_id !== params[0]);
+        return { lastInsertRowId: 0, changes: before - state.rideHistory.length } as any;
+      }
+
+      if (sql.startsWith('DELETE FROM USER_PRIVACY_SETTINGS WHERE ACCOUNT_ID = ?')) {
+        const before = state.userPrivacySettings.length;
+        state.userPrivacySettings = state.userPrivacySettings.filter((r) => r.account_id !== params[0]);
+        return { lastInsertRowId: 0, changes: before - state.userPrivacySettings.length } as any;
+      }
+
+      if (sql.startsWith('DELETE FROM USER_PROFILES WHERE ACCOUNT_ID = ?')) {
+        const before = state.userProfiles.length;
+        state.userProfiles = state.userProfiles.filter((r) => r.account_id !== params[0]);
+        return { lastInsertRowId: 0, changes: before - state.userProfiles.length } as any;
+      }
+
+      if (sql.startsWith('DELETE FROM USERS WHERE ID = ?')) {
+        const before = state.users.length;
+        state.users = state.users.filter((r) => r.id !== params[0]);
+        return { lastInsertRowId: 0, changes: before - state.users.length } as any;
+      }
+
+      if (sql.startsWith('DELETE FROM APP_SESSION')) {
+        state.appSession = null;
+        return { lastInsertRowId: 0, changes: 1 } as any;
+      }
+
       return { lastInsertRowId: 0, changes: 0 } as any;
     },
     getFirstAsync: async <T>(source: string, ...params: any[]) => {
@@ -1129,4 +1170,18 @@ export async function createLocalAccount(input: {
   });
 
   return { accountId, profileUserId };
+}
+
+export async function deleteLocalAccount(accountId: string): Promise<void> {
+  const db = await getLocalDb();
+  await db.withTransactionAsync(async () => {
+    await db.runAsync('DELETE FROM ride_feedback WHERE account_id = ?', accountId);
+    await db.runAsync('DELETE FROM distance_stats WHERE account_id = ?', accountId);
+    await db.runAsync('DELETE FROM ride_history WHERE account_id = ?', accountId);
+    await db.runAsync('DELETE FROM user_privacy_settings WHERE account_id = ?', accountId);
+    await db.runAsync('DELETE FROM user_profiles WHERE account_id = ?', accountId);
+    await db.runAsync('DELETE FROM users WHERE id = ?', accountId);
+    await db.runAsync('DELETE FROM app_session WHERE current_account_id = ?', accountId);
+  });
+  databasePromise = null;
 }
