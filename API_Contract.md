@@ -570,6 +570,27 @@ No body.
 
 ## 7. Business Dashboard
 
+### `GET /business/landing-stats`
+
+**Purpose**: Fetch public marketing statistics for the business landing page.  
+**Client(s)**: Web App (public landing page)  
+**Auth**: None required
+
+#### Ideal JSON Response — `200 OK`
+
+```json
+{
+  "monthly_users": 5000,
+  "monthly_route_requests": 50000,
+  "active_partners": 8
+}
+```
+
+> These are platform-level summary figures intended for the business landing page's
+> "Platform at a glance" section.
+
+---
+
 ### `GET /business/stats`
 
 **Purpose**: Fetch sponsorship and reach statistics for the Business Overview panel.  

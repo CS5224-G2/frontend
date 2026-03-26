@@ -2,9 +2,25 @@ import { describe, it, expect } from 'vitest'
 
 import.meta.env.VITE_USE_MOCKS = 'true'
 
-import { getBusinessStats, getSponsoredLocations } from './businessService'
+import { getBusinessLandingStats, getBusinessStats, getSponsoredLocations } from './businessService'
 
 describe('businessService (mock mode)', () => {
+  describe('getBusinessLandingStats()', () => {
+    it('returns public-facing landing stats', async () => {
+      const stats = await getBusinessLandingStats()
+      expect(stats).toHaveProperty('monthlyUsers')
+      expect(stats).toHaveProperty('monthlyRouteRequests')
+      expect(stats).toHaveProperty('activePartners')
+    })
+
+    it('returns positive values for landing stats', async () => {
+      const stats = await getBusinessLandingStats()
+      expect(stats.monthlyUsers).toBeGreaterThan(0)
+      expect(stats.monthlyRouteRequests).toBeGreaterThan(0)
+      expect(stats.activePartners).toBeGreaterThan(0)
+    })
+  })
+
   describe('getBusinessStats()', () => {
     it('returns a BusinessStats object', async () => {
       const stats = await getBusinessStats()

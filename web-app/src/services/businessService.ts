@@ -4,13 +4,13 @@
 // Gated by VITE_USE_MOCKS — set to 'true' to skip real network calls.
 // =============================================================================
 
-import type { BusinessStats, SponsoredLocation } from '@shared/types/index';
-import { mockBusinessStats, mockSponsoredLocations } from '@shared/mocks/index';
+import type { BusinessLandingStats, BusinessStats, SponsoredLocation } from '@shared/types/index';
+import { mockBusinessLandingStats, mockBusinessStats, mockSponsoredLocations } from '@shared/mocks/index';
 
-export type { BusinessStats, SponsoredLocation };
+export type { BusinessLandingStats, BusinessStats, SponsoredLocation };
 
-const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'true';
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.cyclelink.example.com';
+const shouldUseMocks = () => import.meta.env.VITE_USE_MOCKS === 'true';
 
 // ---------------------------------------------------------------------------
 // Backend shapes (internal)
@@ -21,6 +21,12 @@ type BackendBusinessStats = {
   data_points_formatted: string;
   total_spent_formatted: string;
   user_reach_formatted: string;
+};
+
+type BackendBusinessLandingStats = {
+  monthly_users: number;
+  monthly_route_requests: number;
+  active_partners: number;
 };
 
 type BackendSponsoredLocation = {
@@ -43,6 +49,12 @@ const toFrontendStats = (s: BackendBusinessStats): BusinessStats => ({
   userReach: s.user_reach_formatted,
 });
 
+const toFrontendLandingStats = (s: BackendBusinessLandingStats): BusinessLandingStats => ({
+  monthlyUsers: s.monthly_users,
+  monthlyRouteRequests: s.monthly_route_requests,
+  activePartners: s.active_partners,
+});
+
 const toFrontendLocation = (l: BackendSponsoredLocation): SponsoredLocation => ({
   id: l.location_id,
   venue: l.venue_name,
@@ -56,9 +68,26 @@ const toFrontendLocation = (l: BackendSponsoredLocation): SponsoredLocation => (
 // Public API
 // ---------------------------------------------------------------------------
 
+/** Fetch public-facing platform statistics for the business landing page. */
+export async function getBusinessLandingStats(): Promise<BusinessLandingStats> {
+  if (shouldUseMocks()) {
+    await new Promise((r) => setTimeout(r, 250));
+    return { ...mockBusinessLandingStats };
+  }
+
+  const response = await fetch(`${BASE_URL}/business/landing-stats`, {
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) throw new Error('Failed to fetch business landing stats.');
+  return toFrontendLandingStats(await response.json() as BackendBusinessLandingStats);
+}
+
 /** Fetch business-level statistics for the Business Overview panel. */
 export async function getBusinessStats(token?: string): Promise<BusinessStats> {
-  if (USE_MOCKS) {
+  if (shouldUseMocks()) {
     await new Promise((r) => setTimeout(r, 300));
     return { ...mockBusinessStats };
   }
@@ -76,7 +105,7 @@ export async function getBusinessStats(token?: string): Promise<BusinessStats> {
 
 /** Fetch the list of sponsored checkpoint locations for the Sponsored Locations table. */
 export async function getSponsoredLocations(token?: string): Promise<SponsoredLocation[]> {
-  if (USE_MOCKS) {
+  if (shouldUseMocks()) {
     await new Promise((r) => setTimeout(r, 350));
     return [...mockSponsoredLocations];
   }

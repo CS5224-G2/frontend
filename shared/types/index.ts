@@ -195,6 +195,12 @@ export type BusinessStats = {
   userReach: string;
 };
 
+export type BusinessLandingStats = {
+  monthlyUsers: number;
+  monthlyRouteRequests: number;
+  activePartners: number;
+};
+
 export type SponsoredLocation = {
   id: string;
   venue: string;
