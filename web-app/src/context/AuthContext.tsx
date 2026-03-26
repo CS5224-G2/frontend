@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { loginUser, type AuthUser, type LoginValues } from '../services/authService'
+import { createContext, useContext, useMemo, useState, ReactNode } from 'react'
+import { loginUser, type AuthUser, type AuthResult, type LoginValues } from '../services/authService'
 
 type AuthContextValue = {
   user: AuthUser | null
@@ -9,38 +9,36 @@ type AuthContextValue = {
 
 export const AuthContext = createContext<AuthContextValue | null>(null)
 
-const STORAGE_KEY = 'cyclelink_web_user'
+const STORAGE_KEY = 'cyclelink_web_session'
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({ children }: { readonly children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY)
-      return raw ? (JSON.parse(raw) as AuthUser) : null
+      if (!raw) return null
+      const session = JSON.parse(raw) as AuthResult
+      return session.user ?? null
     } catch {
       return null
     }
   })
 
-  useEffect(() => {
-    if (user) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(user))
-    } else {
-      localStorage.removeItem(STORAGE_KEY)
-    }
-  }, [user])
-
   async function login(values: LoginValues): Promise<AuthUser> {
     const result = await loginUser(values)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(result))
     setUser(result.user)
     return result.user
   }
 
   function logout() {
+    localStorage.removeItem(STORAGE_KEY)
     setUser(null)
   }
 
+  const value = useMemo<AuthContextValue>(() => ({ user, login, logout }), [user])
+
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   )
