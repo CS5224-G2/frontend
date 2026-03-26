@@ -16,6 +16,7 @@ import { useColorScheme } from 'nativewind';
 import { AuthContext } from '../AuthContext';
 
 import { registerUser } from '../../services/authService';
+import { loginWithApple, loginWithGoogle, OAuthNotImplementedError } from '../../services/oauthService';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -31,6 +32,23 @@ export default function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const handleOAuth = async (provider: 'google' | 'apple') => {
+    setIsSubmitting(true);
+    try {
+      const result = await (provider === 'google' ? loginWithGoogle() : loginWithApple());
+      await login(result);
+    } catch (error) {
+      if (error instanceof OAuthNotImplementedError) {
+        Alert.alert('Coming soon', `${provider === 'google' ? 'Google' : 'Apple'} sign-in will be available once the backend is connected.`);
+      } else {
+        const message = error instanceof Error ? error.message : 'Something went wrong.';
+        Alert.alert('Sign up failed', message);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleRegister = async () => {
     if (!firstName.trim() || !lastName.trim() || !email.trim() || !password || !confirmPassword) {
       Alert.alert('Missing details', 'Please complete every field before continuing.');
@@ -45,7 +63,7 @@ export default function RegisterPage() {
     setIsSubmitting(true);
 
     try {
-      await registerUser({
+      const result = await registerUser({
         firstName,
         lastName,
         email,
@@ -54,7 +72,7 @@ export default function RegisterPage() {
         agreedToTerms,
       });
 
-      login();
+      await login(result);
       // Navigation is now handled by RootNavigator reacting to AuthContext
     } catch (error) {
       const message =
@@ -125,7 +143,7 @@ export default function RegisterPage() {
 
             <Pressable
               className="flex-row items-center justify-center border border-border-light dark:border-[#2d2d2d] rounded-cy-xl py-[14px] px-cy-lg mb-3 bg-bg-base dark:bg-[#111111]"
-              onPress={() => Alert.alert('Google', 'Mock only')}
+              onPress={() => handleOAuth('google')}
             >
               <View
                 className="items-center justify-center mr-3 bg-[#f1f5f9] dark:bg-[#1a1a1a]"
@@ -138,7 +156,7 @@ export default function RegisterPage() {
 
             <Pressable
               className="flex-row items-center justify-center border border-border-light dark:border-[#2d2d2d] rounded-cy-xl py-[14px] px-cy-lg mb-3 bg-bg-base dark:bg-[#111111]"
-              onPress={() => Alert.alert('Apple', 'Mock only')}
+              onPress={() => handleOAuth('apple')}
             >
               <View
                 className="items-center justify-center mr-3 bg-[#111827]"

@@ -65,13 +65,25 @@ describe('AuthContext', () => {
     expect(screen.getByTestId('role').textContent).toBe('none')
   })
 
-  it('hydrates user from localStorage on remount', async () => {
-    const { unmount } = render(<AuthProvider><TestConsumer /></AuthProvider>)
-    await act(async () => {
-      screen.getByText('login').click()
-      await vi.runAllTimersAsync()
-    })
-    unmount()
+  it('hydrates user from localStorage on remount', () => {
+    localStorage.setItem(
+      'cyclelink_web_session',
+      JSON.stringify({
+        accessToken: 'mock-at-admin-1',
+        refreshToken: 'mock-rt-admin-1',
+        expiresIn: 3600,
+        user: {
+          id: 'admin-1',
+          firstName: 'Admin',
+          lastName: 'User',
+          fullName: 'Admin User',
+          email: 'admin@cyclink.com',
+          onboardingComplete: true,
+          role: 'admin',
+        },
+      }),
+    )
+
     render(<AuthProvider><TestConsumer /></AuthProvider>)
     expect(screen.getByTestId('role').textContent).toBe('admin')
   })

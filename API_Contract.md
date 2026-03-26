@@ -1,6 +1,6 @@
 # CycleLink API Contract
 
-> **Revision**: 1.1 · **Date**: 2026-03-26  
+> **Revision**: 1.2 · **Date**: 2026-03-26  
 > **Status**: Design by Contract — Defines the idealised JSON shapes the frontend adapters expect.  
 > Both the Mobile (Expo/React Native) and Web App (Vite/React) frontends are written against this contract.  
 > The backend team MUST conform to these exactly; the adapter layer maps backend → frontend types and will break if shapes deviate.
@@ -113,6 +113,88 @@ Authenticated endpoints require `Authorization: Bearer <access_token>`.
 |---|---|
 | `400` | Passwords do not match / missing fields |
 | `409` | Email already registered |
+
+---
+
+### `POST /auth/google` *(OAuth — not yet live)*
+
+**Purpose**: Exchange a Google ID token for a CycleLink session.
+**Client(s)**: Mobile
+**Auth**: None required
+
+#### Request Body
+
+```json
+{
+  "id_token": "<Google ID token from expo-auth-session>",
+  "client": "mobile_app"
+}
+```
+
+#### Ideal JSON Response — `200 OK`
+
+Same shape as `POST /auth/login`.
+
+#### Error Responses
+
+| Status | Condition |
+|---|---|
+| `400` | Missing or invalid token |
+| `401` | Token verification failed |
+
+---
+
+### `POST /auth/apple` *(OAuth — not yet live)*
+
+**Purpose**: Exchange an Apple identity token for a CycleLink session.
+**Client(s)**: Mobile (iOS only)
+**Auth**: None required
+
+> Apple only returns `full_name` and `email` on the **first** sign-in. Cache them on the backend.
+
+#### Request Body
+
+```json
+{
+  "identity_token": "<Apple identity token>",
+  "authorization_code": "<Apple authorization code>",
+  "full_name": {
+    "givenName": "Alex",
+    "familyName": "Johnson"
+  },
+  "client": "mobile_app"
+}
+```
+
+> `full_name` fields may be `null` on repeat sign-ins.
+
+#### Ideal JSON Response — `200 OK`
+
+Same shape as `POST /auth/login`.
+
+#### Error Responses
+
+| Status | Condition |
+|---|---|
+| `400` | Missing or invalid token |
+| `401` | Token verification failed |
+
+---
+
+### Session & Token Storage (Mobile)
+
+Tokens returned from any `/auth/*` endpoint are stored in **`expo-secure-store`**
+(iOS Keychain / Android Keystore) — never in SQLite.
+
+| SecureStore key    | Contents              |
+|--------------------|-----------------------|
+| `cl_access_token`  | Bearer token          |
+| `cl_refresh_token` | Refresh token         |
+| `cl_expires_in`    | Expiry in seconds     |
+| `cl_user_json`     | Serialised user object|
+
+On app launch `AuthContext` restores the session from these keys automatically.
+Logout wipes all four keys.
 
 ---
 
@@ -667,6 +749,8 @@ No body.
 |---|---|---|---|---|
 | `/auth/login` | POST | None | ✅ | ✅ |
 | `/auth/register` | POST | None | ✅ | — |
+| `/auth/google` *(planned)* | POST | None | ✅ | — |
+| `/auth/apple` *(planned)* | POST | None | ✅ (iOS) | — |
 | `/user/profile` | GET | Token | ✅ | — |
 | `/user/profile` | PUT | Token | ✅ | — |
 | `/user/password` | POST | Token | ✅ | — |
@@ -684,4 +768,4 @@ No body.
 | `/business/stats` | GET | Token (business) | — | ✅ |
 | `/business/locations` | GET | Token (business) | — | ✅ |
 
-**Total: 18 endpoints across 2 clients**
+**Total: 20 endpoints across 2 clients (18 live + 2 planned OAuth)**

@@ -5,6 +5,7 @@
 // =============================================================================
 
 import Constants from 'expo-constants';
+import { logFailure, logStart, logSuccess } from '../utils/apiLogger';
 
 const BASE_URL: string =
   (Constants.expoConfig?.extra?.apiBaseUrl as string) ||
@@ -41,17 +42,39 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     headers['Content-Type'] = 'application/json';
   }
 
-  const response = await fetch(`${BASE_URL}${path}`, {
-    method,
-    headers,
-    body:
-      body === undefined ? undefined : isFormData ? (body as FormData) : JSON.stringify(body),
-  });
+  const startMs = Date.now();
+  logStart(path, method);
+
+  let serializedBody: BodyInit | undefined;
+  if (body !== undefined) {
+    serializedBody = isFormData ? (body as BodyInit) : JSON.stringify(body);
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${BASE_URL}${path}`, {
+      method,
+      headers,
+      body: serializedBody,
+    });
+  } catch (err) {
+    logFailure(path, method, Date.now() - startMs, {
+      error: err instanceof Error ? err.name : 'NetworkError',
+    });
+    throw err;
+  }
+
+  const duration_ms = Date.now() - startMs;
+  const requestId =
+    response.headers.get('x-request-id') ?? response.headers.get('x-correlation-id');
 
   if (!response.ok) {
+    logFailure(path, method, duration_ms, { status: response.status });
     const text = await response.text().catch(() => response.statusText);
     throw new ApiError(response.status, text);
   }
+
+  logSuccess(path, method, response.status, duration_ms, requestId);
 
   // 204 No Content
   if (response.status === 204) {

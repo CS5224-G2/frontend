@@ -16,6 +16,7 @@ import { useColorScheme } from 'nativewind';
 import { AuthContext } from '../AuthContext';
 
 import { loginUser } from '../../services/authService';
+import { loginWithApple, loginWithGoogle, OAuthNotImplementedError } from '../../services/oauthService';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -26,6 +27,23 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleOAuth = async (provider: 'google' | 'apple') => {
+    setIsSubmitting(true);
+    try {
+      const result = await (provider === 'google' ? loginWithGoogle() : loginWithApple());
+      await login(result);
+    } catch (error) {
+      if (error instanceof OAuthNotImplementedError) {
+        Alert.alert('Coming soon', `${provider === 'google' ? 'Google' : 'Apple'} sign-in will be available once the backend is connected.`);
+      } else {
+        const message = error instanceof Error ? error.message : 'Something went wrong.';
+        Alert.alert('Sign in failed', message);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleLogin = async () => {
     if (!email.trim() || !password) {
@@ -42,7 +60,7 @@ export default function LoginPage() {
         rememberMe,
       });
 
-      login(result.user.role);
+      await login(result);
       // Navigation is now handled by RootNavigator reacting to AuthContext
     } catch (error) {
       const message =
@@ -110,7 +128,7 @@ export default function LoginPage() {
 
               <Pressable
                 className="flex-row items-center justify-center border border-border-light dark:border-[#2d2d2d] rounded-cy-xl py-[14px] px-cy-lg mb-3 bg-bg-base dark:bg-[#111111]"
-                onPress={() => Alert.alert('Google', 'Mock only')}
+                onPress={() => handleOAuth('google')}
               >
                 <View className="w-7 h-7 rounded-full items-center justify-center mr-3 bg-[#f1f5f9] dark:bg-[#1a1a1a]">
                   <Text className="text-sm font-bold text-[#0f172a] dark:text-slate-100">G</Text>
@@ -120,7 +138,7 @@ export default function LoginPage() {
 
               <Pressable
                 className="flex-row items-center justify-center border border-border-light dark:border-[#2d2d2d] rounded-cy-xl py-[14px] px-cy-lg mb-3 bg-bg-base dark:bg-[#111111]"
-                onPress={() => Alert.alert('Apple', 'Mock only')}
+                onPress={() => handleOAuth('apple')}
               >
                 <View className="w-7 h-7 rounded-full items-center justify-center mr-3 bg-[#111827]">
                   <Text className="text-sm font-bold text-white">A</Text>

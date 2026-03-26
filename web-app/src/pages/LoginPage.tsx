@@ -89,7 +89,7 @@ export default function LoginPage() {
           <p className="font-semibold text-primary-800 mb-2">Demo credentials</p>
           <p>Admin: <span className="font-mono">admin@cyclink.com</span></p>
           <p>Business: <span className="font-mono">business@cyclink.com</span></p>
-          <p className="text-slate-400 mt-1">Password: any value</p>
+          <p className="text-slate-400 mt-1">Password: <span className="font-mono">CycleLink123</span></p>
         </div>
 
         <Link

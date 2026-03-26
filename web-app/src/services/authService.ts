@@ -5,8 +5,8 @@
 // =============================================================================
 
 import type { LoginFormValues, AuthUser, AuthResult } from '@shared/types/index';
-import { mockStoredPassword } from '@shared/mocks/index';
-import { findWebUserByEmail, getStoredAuthResult } from './localDb';
+import { findWebUserByEmail, getStoredAuthResult, verifyStoredPassword } from './localDb';
+import { apiFetch } from '../utils/apiFetch';
 
 export type { LoginFormValues, AuthUser, AuthResult };
 
@@ -85,8 +85,9 @@ export async function loginUser(values: LoginFormValues): Promise<AuthResult> {
     await new Promise((r) => setTimeout(r, 600));
 
     const mockUser = await findWebUserByEmail(email)
+    const passwordOk = await verifyStoredPassword(email, values.password)
 
-    if (!mockUser || values.password !== mockStoredPassword) {
+    if (!mockUser || !passwordOk) {
       throw new Error('Invalid email or password.');
     }
 
@@ -99,7 +100,7 @@ export async function loginUser(values: LoginFormValues): Promise<AuthResult> {
   }
 
   const payload = toLoginPayload(values);
-  const response = await fetch(`${BASE_URL}/auth/login`, {
+  const response = await apiFetch(`${BASE_URL}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
