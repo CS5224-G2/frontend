@@ -18,7 +18,10 @@ const DEFAULT_ACCOUNT_ID = mockAuthUser.id;
 const IS_TEST_ENV = Boolean(process.env.JEST_WORKER_ID);
 
 // Schema version — bump when DDL changes require a migration.
-const SCHEMA_VERSION = 1;
+// v1: added password_hash, removed plaintext token columns from users.
+// v2: migration now drops ALL seeded tables (not just users) to avoid
+//     UNIQUE constraint failures on user_profiles when reseeding.
+const SCHEMA_VERSION = 2;
 
 type DatabaseLike = Pick<
   SQLiteDatabase,
@@ -569,7 +572,19 @@ async function openDatabase(): Promise<DatabaseLike> {
     'PRAGMA user_version',
   );
   if ((versionRow?.user_version ?? 0) < SCHEMA_VERSION) {
-    await db.execAsync('DROP TABLE IF EXISTS users;');
+    // Drop all seeded tables so the seed function starts from a clean slate.
+    // Non-seeded state (app_session) is also dropped — the seed will recreate it.
+    await db.execAsync(`
+      DROP TABLE IF EXISTS ride_feedback;
+      DROP TABLE IF EXISTS distance_stats;
+      DROP TABLE IF EXISTS ride_history;
+      DROP TABLE IF EXISTS route_checkpoints;
+      DROP TABLE IF EXISTS routes;
+      DROP TABLE IF EXISTS user_privacy_settings;
+      DROP TABLE IF EXISTS user_profiles;
+      DROP TABLE IF EXISTS app_session;
+      DROP TABLE IF EXISTS users;
+    `);
   }
 
   await db.execAsync(`
