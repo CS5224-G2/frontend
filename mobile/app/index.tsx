@@ -1,5 +1,10 @@
+import { useContext } from 'react';
 import { Redirect } from 'expo-router';
 
+import { AuthContext } from '@/app/AuthContext';
+
 export default function IndexScreen() {
-  return <Redirect href="/login" />;
+  const { isLoggedIn } = useContext(AuthContext);
+
+  return <Redirect href={isLoggedIn ? '/(tabs)/home-tab' : '/login'} />;
 }

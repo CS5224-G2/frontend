@@ -28,6 +28,12 @@
     },
     "plugins": [
       [
+        "expo-router",
+        {
+          "root": "app"
+        }
+      ],
+      [
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location"
