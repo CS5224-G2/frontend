@@ -45,7 +45,6 @@ describe('runtime config', () => {
     expect(getApiBaseUrl()).toBe('http://localhost:4000');
   });
 
-  it('throws a clear error when the Google Maps key is missing', () => {
   it('throws a clear error when the OneMap API key is missing', () => {
     const { getOneMapApiKey } = require('./runtime') as typeof import('./runtime');
 
