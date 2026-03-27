@@ -501,6 +501,47 @@ Same shape as a single element from `GET /routes`.
 }
 ```
 
+> This is the payload currently sent by `mobile/src/services/routeService.ts`.
+> The mobile app stores a fuller local request object (`startPoint`, `endPoint`, `checkpoints`, `preferences`) but only `preferences` + `limit` are posted to this endpoint in v1.
+
+#### Planned Extension (v2 — location-aware recommendations)
+
+```json
+{
+  "start_point": {
+    "name": "Raffles Place MRT",
+    "lat": 1.2837,
+    "lng": 103.8515,
+    "source": "search"
+  },
+  "end_point": {
+    "name": "East Coast Park",
+    "lat": 1.3025,
+    "lng": 103.9128,
+    "source": "search"
+  },
+  "checkpoints": [
+    {
+      "id": "checkpoint-1",
+      "name": "Marina Barrage",
+      "lat": 1.2808,
+      "lng": 103.8707,
+      "source": "map"
+    }
+  ],
+  "preferences": {
+    "cyclist_type": "recreational",
+    "preferred_shade": 60,
+    "elevation_preference": 40,
+    "preferred_distance_km": 15,
+    "min_air_quality": 70
+  },
+  "limit": 3
+}
+```
+
+> `source` must be one of: `"search"` | `"map"` | `"current-location"`.
+
 #### Ideal JSON Response — `200 OK`
 
 Array of Route objects (same shape as `GET /routes`), ordered by descending match score.
