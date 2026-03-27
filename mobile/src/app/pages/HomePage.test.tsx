@@ -10,7 +10,8 @@ jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({
     navigate: mockNavigate,
   }),
-  useFocusEffect: jest.fn((callback) => callback()),
+  // Do not run the real focus effect: it async-loads favorites and triggers act() warnings.
+  useFocusEffect: jest.fn(),
 }));
 
 jest.mock('@react-native-async-storage/async-storage', () => ({

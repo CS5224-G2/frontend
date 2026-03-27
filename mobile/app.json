@@ -46,7 +46,8 @@
       [
         "expo-apple-authentication"
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-sqlite"
     ],
     "extra": {
       "eas": {

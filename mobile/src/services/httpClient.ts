@@ -58,8 +58,10 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
       body: serializedBody,
     });
   } catch (err) {
+    const errorDetail =
+      err instanceof Error ? `${err.name}: ${err.message}` : String(err);
     logFailure(path, method, Date.now() - startMs, {
-      error: err instanceof Error ? err.name : 'NetworkError',
+      error: errorDetail,
     });
     throw err;
   }
