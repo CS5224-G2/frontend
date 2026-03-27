@@ -805,7 +805,114 @@ No body.
 
 ---
 
+## 8. External APIs
+
+### OneMap Search API
+
+**Purpose**: Provide Singapore-specific place and address lookup for the mobile route configuration map search.  
+**Client(s)**: Mobile  
+**Owned by**: Singapore Land Authority (OneMap)  
+**CycleLink Auth**: None  
+**Provider Auth**: OneMap API token required in `Authorization` header
+
+> This is a third-party API integration used directly by the mobile client for location search.
+> It is not a CycleLink-owned backend endpoint and must not be implemented by the backend team unless the integration is later proxied server-side.
+
+#### Provider Endpoint
+
+`GET https://www.onemap.gov.sg/api/common/elastic/search`
+
+#### Required Headers
+
+| Header | Value |
+|---|---|
+| `Authorization` | `<EXPO_PUBLIC_ONEMAP_API_KEY>` |
+
+#### Query Parameters
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `searchVal` | string | Yes | Free-text search term entered by the user |
+| `returnGeom` | string | Yes | Must be `Y` |
+| `getAddrDetails` | string | Yes | Must be `Y` |
+| `pageNum` | integer | No | Page number for paginated search results |
+
+#### Example Request
+
+```http
+GET /api/common/elastic/search?searchVal=East%20Coast%20Park&returnGeom=Y&getAddrDetails=Y HTTP/1.1
+Host: www.onemap.gov.sg
+Authorization: <EXPO_PUBLIC_ONEMAP_API_KEY>
+```
+
+#### Provider Response Shape — `200 OK`
+
+```json
+{
+  "found": 2,
+  "totalNumPages": 1,
+  "pageNum": 1,
+  "results": [
+    {
+      "SEARCHVAL": "EAST COAST PARK",
+      "BLK_NO": "",
+      "ROAD_NAME": "EAST COAST PARK SERVICE ROAD",
+      "BUILDING": "EAST COAST PARK",
+      "ADDRESS": "EAST COAST PARK SERVICE ROAD SINGAPORE",
+      "POSTAL": "",
+      "X": "40284.1234",
+      "Y": "30876.5678",
+      "LATITUDE": "1.302500",
+      "LONGITUDE": "103.912800",
+      "LONGTITUDE": "103.912800"
+    }
+  ]
+}
+```
+
+#### Frontend Mapping Rules
+
+The mobile app maps OneMap search results to the internal `RouteRequestLocation` shape as follows:
+
+```json
+{
+  "name": "EAST COAST PARK",
+  "lat": 1.3025,
+  "lng": 103.9128,
+  "source": "search"
+}
+```
+
+Mapping notes:
+
+| OneMap field | Internal field | Rule |
+|---|---|---|
+| `BUILDING` | `name` | Use when present and not `"NIL"` |
+| `ADDRESS` | `name` | Fallback when `BUILDING` is empty or `"NIL"` |
+| `SEARCHVAL` | `name` | Final fallback |
+| `LATITUDE` | `lat` | Parse string to number |
+| `LONGITUDE` | `lng` | Parse string to number |
+| constant | `source` | Always `"search"` |
+
+#### Provider Error Conditions
+
+| Status | Condition |
+|---|---|
+| `400` | Invalid or missing query parameters |
+| `403` | Token does not have access |
+| `429` | Rate limit exceeded |
+| `5xx` | OneMap provider failure |
+
+#### Frontend Fallback Behaviour
+
+- If OneMap search fails, the mobile app shows a search error state in the map modal.
+- Users can still manually drop a pin on the map and continue route configuration.
+
+---
+
 ## Endpoint Summary
+
+> This table lists CycleLink-owned backend endpoints only. External provider APIs used directly by the frontend, such as OneMap Search, are documented separately above.
 
 | Endpoint | Method | Auth | Mobile | Web |
 |---|---|---|---|---|
