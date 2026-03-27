@@ -13,6 +13,7 @@ describe('runtime config', () => {
     process.env = { ...originalEnv };
     delete process.env.EXPO_PUBLIC_USE_MOCKS;
     delete process.env.EXPO_PUBLIC_API_BASE_URL;
+    delete process.env.EXPO_PUBLIC_ONEMAP_API_KEY;
   });
 
   afterAll(() => {
@@ -42,5 +43,23 @@ describe('runtime config', () => {
     const { getApiBaseUrl } = require('./runtime') as typeof import('./runtime');
 
     expect(getApiBaseUrl()).toBe('http://localhost:4000');
+  });
+
+  it('throws a clear error when the Google Maps key is missing', () => {
+  it('throws a clear error when the OneMap API key is missing', () => {
+    const { getOneMapApiKey } = require('./runtime') as typeof import('./runtime');
+
+    expect(() => getOneMapApiKey()).toThrow(
+      'Missing EXPO_PUBLIC_ONEMAP_API_KEY. Add your OneMap API token to mobile/.env to enable live place search.',
+    );
+  });
+
+  it('uses the configured OneMap API key', () => {
+    process.env.EXPO_PUBLIC_ONEMAP_API_KEY = 'onemap-test-token';
+
+    const { getOneMapApiKey, getOneMapApiKeyOptional } = require('./runtime') as typeof import('./runtime');
+
+    expect(getOneMapApiKey()).toBe('onemap-test-token');
+    expect(getOneMapApiKeyOptional()).toBe('onemap-test-token');
   });
 });
