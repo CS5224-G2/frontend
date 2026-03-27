@@ -1,0 +1,43 @@
+mobile/docs/ROUTE_DEMO_RUNBOOK.md
+  9be46efbbe02b4db 1-162
+mobile/src/app/pages/RideHistoryPage.tsx
+  9be46efbbe02b4db 32-34,61-66,141-144,261-264
+mobile/src/app/pages/HomePage.test.tsx
+  9be46efbbe02b4db 13-14
+mobile/src/app/stackNavigators.tsx
+  9be46efbbe02b4db 16,48
+mobile/src/app/pages/LiveMapPage.tsx
+  9be46efbbe02b4db 1-2,4,6-13,15-17,20-21
+mobile/src/app/pages/useLiveMapRideState.ts
+  9be46efbbe02b4db 1-134
+mobile/src/services/httpClient.ts
+  9be46efbbe02b4db 61-62,64
+mobile/src/app/pages/LiveMapMapbox.tsx
+  9be46efbbe02b4db 1-320
+mobile/package.json
+  9be46efbbe02b4db 9-10,33,40,57
+mobile/.env.example
+  9be46efbbe02b4db 1-7,16-18
+mobile/src/app/pages/LiveMapExpoGoScreen.tsx
+  9be46efbbe02b4db 1-261
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.19",
+  "base_commit_sha": "3e08d28054274d5bb4d287d378bdce6ad7891f31",
+  "prompts": {
+    "9be46efbbe02b4db": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "49ee986f-4d63-49dc-a5c1-bd1c8f050205",
+        "model": "default"
+      },
+      "human_author": "Lichen(Jeffrey) Yang <lichen.yang@shopee.com>",
+      "messages": [],
+      "total_additions": 1609,
+      "total_deletions": 429,
+      "accepted_lines": 1586,
+      "overriden_lines": 0
+    }
+  }
+}
