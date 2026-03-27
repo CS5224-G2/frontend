@@ -693,7 +693,12 @@ export default function RouteConfigPage({ navigation }: Props) {
           <View className="flex-row gap-cy-sm mt-cy-md">
             <View className="flex-1">
               <Button onPress={closePicker} variant="secondary">
-                <Text className="text-black text-sm font-semibold">Cancel</Text>
+                <Text
+                  className="text-sm font-semibold"
+                  style={{ color: isDark ? '#ffffff' : '#000000' }}
+                >
+                  Cancel
+                </Text>
               </Button>
             </View>
             <View className="flex-1">
