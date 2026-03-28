@@ -422,39 +422,141 @@ Same shape as `GET /user/privacy`.
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `cyclist_type` | string | No | Filter by `recreational` / `commuter` / `fitness` / `general` |
-| `max_distance` | number | No | Maximum route distance in km |
-| `min_air_quality` | number | No | Minimum air quality index (0–100) |
+| `limit` | number | No | Maximum number of routes to return; max `3`, default `3` |
 
 #### Ideal JSON Response — `200 OK`
 
 ```json
 [
   {
-    "route_id": "1",
-    "route_name": "Riverside Park Loop",
-    "description": "A scenic route along the river.",
-    "distance_km": 12.5,
-    "elevation_m": 45,
-    "estimated_time_min": 45,
-    "rating": 4.8,
+    "route_id": "route_001",
+    "name": "Riverside Park Loop",
+    "description": "A scenic route along the river with plenty of shade.",
+    "distance": 12.5,
+    "estimated_time": 45,
+    "elevation": "dont-care",
+    "shade": "reduce-shade",
+    "air_quality": "care",
+    "cyclist_type": "recreational",
     "review_count": 234,
-    "start_point": { "lat": 40.7829, "lng": -73.9654, "name": "Central Park South" },
-    "end_point": { "lat": 40.7829, "lng": -73.9654, "name": "Central Park South" },
+    "rating": 4.8,
     "checkpoints": [
       {
-        "checkpoint_id": "cp1",
+        "checkpoint_id": "cp_001",
         "checkpoint_name": "Boathouse Cafe",
-        "latitude": 40.7738,
-        "longitude": -73.9686,
-        "description": "Great place for a quick break"
+        "description": "Great place for a quick break",
+        "lat": 40.7738,
+        "lng": -73.9686
+      },
+      {
+        "checkpoint_id": "cp_002",
+        "checkpoint_name": "Bethesda Fountain",
+        "description": "Beautiful fountain and photo spot",
+        "lat": 40.7734,
+        "lng": -73.9714
       }
     ],
-    "cyclist_type": "recreational",
-    "shade_pct": 80,
-    "air_quality_index": 85
+    "points_of_interest_visited": [
+      {
+        "name": "Boathouse Cafe",
+        "description": "Popular stop for drinks and light snacks",
+        "lat": 40.7738,
+        "lng": -73.9686
+      },
+      {
+        "name": "Bethesda Fountain",
+        "description": "Iconic scenic landmark inside the park",
+        "lat": 40.7734,
+        "lng": -73.9714
+      }
+    ],
+    "start_point": { "lat": 40.7829, "lng": -73.9654, "name": "Central Park South" },
+    "end_point": { "lat": 40.7829, "lng": -73.9654, "name": "Central Park South" }
   }
 ]
 ```
+
+> Response is a JSON array of route objects.
+> `elevation` must be: `"lower"` | `"dont-care"` | `"higher"`.
+> `shade` must be: `"reduce-shade"` | `"dont-care"`.
+> `air_quality` must be: `"care"` | `"dont-care"`.
+> `checkpoints` includes `checkpoint_id`, `checkpoint_name`, `description`, `lat`, `lng` for route preview and checkpoint summaries.
+> `points_of_interest_visited` is optional and includes `name`, `description`, `lat`, `lng` for route preview cards and map markers.
+> This is a summary list endpoint; use `GET /routes/:routeId` for full route details including `route_path` and detailed `points_of_interest_visited`.
+
+---
+
+### `GET /routes/popular`
+
+**Purpose**: Fetch the most popular routes for homepage highlights and discovery sections.  
+**Client(s)**: Mobile  
+**Auth**: Optional
+
+#### Query Parameters
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `limit` | number | No | Maximum number of popular routes to return; max `3`, default `3` |
+
+#### Ideal JSON Response — `200 OK`
+
+```json
+[
+  {
+    "route_id": "route_001",
+    "name": "Riverside Park Loop",
+    "description": "A scenic route along the river with plenty of shade.",
+    "distance": 12.5,
+    "estimated_time": 45,
+    "elevation": "dont-care",
+    "shade": "reduce-shade",
+    "air_quality": "care",
+    "cyclist_type": "recreational",
+    "review_count": 234,
+    "rating": 4.8,
+    "checkpoints": [
+      {
+        "checkpoint_id": "cp_001",
+        "checkpoint_name": "Boathouse Cafe",
+        "description": "Great place for a quick break",
+        "lat": 40.7738,
+        "lng": -73.9686
+      }
+    ],
+    "points_of_interest_visited": [
+      {
+        "name": "Boathouse Cafe",
+        "description": "Popular stop for drinks and light snacks",
+        "lat": 40.7738,
+        "lng": -73.9686
+      }
+    ],
+    "start_point": { "lat": 40.7829, "lng": -73.9654, "name": "Central Park South" },
+    "end_point": { "lat": 40.7829, "lng": -73.9654, "name": "Central Park South" }
+  },
+  {
+    "route_id": "route_002",
+    "name": "City Breeze Connector",
+    "description": "Balanced city ride with park connectors and moderate shade.",
+    "distance": 12.4,
+    "estimated_time": 42,
+    "elevation": "higher",
+    "shade": "reduce-shade",
+    "air_quality": "care",
+    "cyclist_type": "recreational",
+    "review_count": 320,
+    "rating": 4.6,
+    "checkpoints": [],
+    "points_of_interest_visited": [],
+    "start_point": { "lat": 1.2837, "lng": 103.8515, "name": "Raffles Place MRT" },
+    "end_point": { "lat": 1.3025, "lng": 103.9128, "name": "East Coast Park" }
+  }
+]
+```
+
+> Response is a JSON array of up to `3` route objects, ordered by popularity.
+> `limit` max is `3` and defaults to `3` when omitted.
+> Response items use the same summary route shape as `GET /routes`.
 
 ---
 
@@ -472,7 +574,65 @@ Same shape as `GET /user/privacy`.
 
 #### Ideal JSON Response — `200 OK`
 
-Same shape as a single element from `GET /routes`.
+```json
+{
+  "route_id": "route_001",
+  "name": "City Breeze Connector",
+  "description": "Balanced city ride with park connectors and moderate shade.",
+  "distance": 12.4,
+  "estimated_time": 42,
+  "elevation": "higher",
+  "shade": "reduce-shade",
+  "air_quality": "care",
+  "cyclist_type": "recreational",
+  "review_count": 320,
+  "rating": 4.6,
+  "checkpoints": [
+    {
+      "checkpoint_id": "cp_001",
+      "checkpoint_name": "Lau Pa Sat Hawker Centre",
+      "description": "Historic outdoor hawker market with diverse local food",
+      "lat": 1.2846,
+      "lng": 103.8498
+    },
+    {
+      "checkpoint_id": "cp_002",
+      "checkpoint_name": "Merlion Park",
+      "description": "Iconic landmark and best photo spot",
+      "lat": 1.2869,
+      "lng": 103.8545
+    }
+  ],
+  "points_of_interest_visited": [
+    {
+      "name": "Lau Pa Sat Hawker Centre",
+      "description": "Historic outdoor hawker market with diverse local food",
+      "lat": 1.2846,
+      "lng": 103.8498
+    },
+    {
+      "name": "Merlion Park",
+      "description": "Iconic landmark and best photo spot",
+      "lat": 1.2869,
+      "lng": 103.8545
+    }
+  ],
+  "route_path": [
+    { "lat": 1.2837, "lng": 103.8515 },
+    { "lat": 1.2840, "lng": 103.8520 },
+    { "lat": 1.2846, "lng": 103.8498 },
+    { "lat": 1.2860, "lng": 103.8530 },
+    { "lat": 1.2869, "lng": 103.8545 },
+    { "lat": 1.2900, "lng": 103.8570 },
+    { "lat": 1.3025, "lng": 103.9128 }
+  ]
+}
+```
+
+> `elevation`, `shade`, and `air_quality` use the same string enums as preference values (not numeric).  
+> `checkpoints` includes `checkpoint_id`, `checkpoint_name`, `description`, `lat`, `lng` for map markers and checkpoint content.  
+> `route_path` is an ordered array of lat/lon coordinate pairs for drawing the route polyline on the map.  
+> `points_of_interest_visited` is optional and includes location coordinates for marking POI on the map.
 
 #### Error Responses
 
@@ -492,22 +652,6 @@ Same shape as a single element from `GET /routes`.
 
 ```json
 {
-  "cyclist_type": "recreational",
-  "preferred_shade": 60,
-  "elevation_preference": 40,
-  "preferred_distance_km": 15,
-  "min_air_quality": 70,
-  "limit": 3
-}
-```
-
-> This is the payload currently sent by `mobile/src/services/routeService.ts`.
-> The mobile app stores a fuller local request object (`startPoint`, `endPoint`, `checkpoints`, `preferences`) but only `preferences` + `limit` are posted to this endpoint in v1.
-
-#### Planned Extension (v2 — location-aware recommendations)
-
-```json
-{
   "start_point": {
     "name": "Raffles Place MRT",
     "lat": 1.2837,
@@ -518,7 +662,7 @@ Same shape as a single element from `GET /routes`.
     "name": "East Coast Park",
     "lat": 1.3025,
     "lng": 103.9128,
-    "source": "search"
+    "source": "current-location"
   },
   "checkpoints": [
     {
@@ -531,24 +675,274 @@ Same shape as a single element from `GET /routes`.
   ],
   "preferences": {
     "cyclist_type": "recreational",
-    "preferred_shade": 60,
-    "elevation_preference": 40,
-    "preferred_distance_km": 15,
-    "min_air_quality": 70
+    "shade_preference": "reduce-shade",
+    "elevation_preference": "higher",
+    "air_quality_preference": "care",
+    "max_distance": 15,
+    "points_of_interest": {
+      "allow_hawker_center": true,
+      "allow_park": false,
+      "allow_historic_site": true,
+      "allow_tourist_attraction": false
+    }
   },
   "limit": 3
 }
 ```
 
-> `source` must be one of: `"search"` | `"map"` | `"current-location"`.
+> `start_point.source` and `end_point.source` must be one of: `"current-location"` | `"search"` | `"map"`.
+> `checkpoints[].source` must be one of: `"search"` | `"map"`.
+> `preferences.shade_preference` must be: `"reduce-shade"` | `"dont-care"`.
+> `preferences.elevation_preference` must be: `"lower"` | `"dont-care"` | `"higher"`.
+> `preferences.air_quality_preference` must be: `"care"` | `"dont-care"`.
+> `limit` max is 3 (default 3).
 
 #### Ideal JSON Response — `200 OK`
 
-Array of Route objects (same shape as `GET /routes`), ordered by descending match score.
+```json
+[
+  {
+    "route_id": "route_001",
+    "name": "City Breeze Connector",
+    "description": "Balanced city ride with park connectors and moderate shade.",
+    "distance": 12.4,
+    "estimated_time": 42,
+    "elevation": "higher",
+    "shade": "reduce-shade",
+    "air_quality": "care",
+    "cyclist_type": "recreational",
+    "review_count": 320,
+    "rating": 4.6,
+    "points_of_interest_visited": [
+      { "name": "Lau Pa Sat Hawker Centre" },
+      { "name": "Merlion Park" }
+    ]
+  },
+  {
+    "route_id": "route_002",
+    "name": "Coastal Easy Loop",
+    "description": "Flatter loop with clean air and optional scenic stopovers.",
+    "distance": 10.1,
+    "estimated_time": 36,
+    "elevation": "lower",
+    "shade": "dont-care",
+    "air_quality": "dont-care",
+    "cyclist_type": "general",
+    "review_count": 579,
+    "rating": 4.8,
+    "points_of_interest_visited": []
+  }
+]
+```
+
+> Response is a JSON array of up to 3 route recommendation objects.
+> `elevation` must be: `"lower"` | `"dont-care"` | `"higher"`.
+> `shade` must be: `"reduce-shade"` | `"dont-care"`.
+> `air_quality` must be: `"care"` | `"dont-care"`.
+> `points_of_interest_visited` is optional.
+
+---
+
+### `POST /routes/save`
+
+**Purpose**: Save a route to the authenticated user's saved routes / favorites list.  
+**Client(s)**: Mobile  
+**Auth**: Bearer token required
+
+#### Request Body
+
+```json
+{
+  "route_id": "route_001",
+  "name": "City Breeze Connector",
+  "description": "Balanced city ride with park connectors and moderate shade.",
+  "distance": 12.4,
+  "estimated_time": 42,
+  "elevation": "higher",
+  "shade": "reduce-shade",
+  "air_quality": "care",
+  "cyclist_type": "recreational",
+  "checkpoints": [
+    {
+      "checkpoint_id": "cp_001",
+      "checkpoint_name": "Lau Pa Sat Hawker Centre",
+      "description": "Historic outdoor hawker market with diverse local food",
+      "lat": 1.2846,
+      "lng": 103.8498
+    },
+    {
+      "checkpoint_id": "cp_002",
+      "checkpoint_name": "Merlion Park",
+      "description": "Iconic landmark and best photo spot",
+      "lat": 1.2869,
+      "lng": 103.8545
+    }
+  ],
+  "points_of_interest_visited": [
+    {
+      "name": "Lau Pa Sat Hawker Centre",
+      "description": "Historic outdoor hawker market with diverse local food",
+      "lat": 1.2846,
+      "lng": 103.8498
+    }
+  ],
+  "route_path": [
+    { "lat": 1.2837, "lng": 103.8515 },
+    { "lat": 1.2840, "lng": 103.8520 },
+    { "lat": 1.2846, "lng": 103.8498 },
+    { "lat": 1.2860, "lng": 103.8530 },
+    { "lat": 1.2869, "lng": 103.8545 }
+  ]
+}
+```
+
+> This endpoint saves the route snapshot so the user can revisit the same route later even if recommendation ordering changes.
+> `elevation`, `shade`, and `air_quality` use the same string enums as the route APIs.
+> `checkpoints`, `points_of_interest_visited`, and `route_path` should be persisted together with the route metadata.
+
+#### Ideal JSON Response — `201 Created`
+
+```json
+{
+  "saved_route_id": "saved_route_001",
+  "route_id": "route_001",
+  "saved_at": "2026-03-28T09:15:00.000Z",
+  "status": "saved"
+}
+```
+
+#### Error Responses
+
+| Status | Condition |
+|---|---|
+| `400` | Missing required route fields |
+| `401` | Token missing or expired |
+| `409` | Route already saved by the user |
 
 ---
 
 ## 5. Ride History
+
+### `POST /rides`
+
+**Purpose**: Save a completed ride to the user's ride history after they finish cycling.  
+**Client(s)**: Mobile  
+**Auth**: Bearer token required
+
+#### Request Body
+
+```json
+{
+  "route_id": "route_001",
+  "start_time": "2026-03-28T09:42:00.000Z",
+  "end_time": "2026-03-28T10:30:00.000Z",
+  "distance": 12.5,
+  "avg_speed": 15.6,
+  "checkpoints_visited": [
+    {
+      "checkpoint_id": "cp_001",
+      "checkpoint_name": "Pier 25",
+      "description": "Waterfront viewing area",
+      "lat": 1.2849,
+      "lng": 103.8501
+    },
+    {
+      "checkpoint_id": "cp_002",
+      "checkpoint_name": "Hudson River Park",
+      "description": "Popular park area along the route",
+      "lat": 1.2862,
+      "lng": 103.8534
+    }
+  ],
+  "points_of_interest_visited": [
+    {
+      "name": "Pier 25",
+      "description": "Waterfront viewing area",
+      "lat": 1.2849,
+      "lng": 103.8501
+    }
+  ]
+}
+```
+
+> `route_id` is required and must reference an existing route.
+> `start_time` and `end_time` are ISO 8601 timestamps; `total_time` (minutes) is calculated server-side.
+> `distance` (km) and `avg_speed` (km/h) are captured from the cycling session.
+> `checkpoints_visited` and `points_of_interest_visited` are optional arrays of checkpoint/POI objects visited during the ride.
+
+#### Ideal JSON Response — `201 Created`
+
+```json
+{
+  "ride_id": "ride_1001",
+  "route_id": "route_001",
+  "route_name": "Waterfront Loop",
+  "completion_date": "March 28, 2026",
+  "completion_time": "10:30 AM",
+  "start_time": "2026-03-28T09:42:00.000Z",
+  "end_time": "2026-03-28T10:30:00.000Z",
+  "total_time": 48,
+  "distance": 12.5,
+  "avg_speed": 15.6,
+  "checkpoints_visited": 2,
+  "status": "completed"
+}
+```
+
+> `ride_id` is auto-generated and unique.
+> `total_time` is calculated from `end_time - start_time` in minutes.
+> `checkpoints_visited` is the count of checkpoints from the request.
+> `status` is always `"completed"` for newly created rides.
+
+#### Error Responses
+
+| Status | Condition |
+|---|---|
+| `400` | Missing required fields (route_id, start_time, end_time) or invalid time range |
+| `401` | Token missing or expired |
+| `404` | Route not found |
+
+---
+
+### `POST /rides/location`
+
+**Purpose**: Post the current location of the user while actively cycling on a route.  
+**Client(s)**: Mobile  
+**Auth**: Bearer token required
+
+#### Request Body
+
+```json
+{
+  "ride_id": "ride_1001",
+  "lat": 1.2849,
+  "lng": 103.8501,
+  "timestamp": "2026-03-28T09:52:30.000Z",
+  "speed": 16.5,
+  "accuracy": 10.5
+}
+```
+
+> `ride_id` is required and must correspond to an active ride in progress.
+> `lat` and `lng` are the current GPS coordinates (WGS84).
+> `timestamp` is the ISO 8601 timestamp when the location was captured.
+> `speed` (km/h) is optional and represents the current/instantaneous speed.
+> `accuracy` (meters) is optional and indicates GPS accuracy/confidence radius.
+
+#### Ideal JSON Response — `204 No Content`
+
+No body. The server acknowledges the location update.
+
+#### Error Responses
+
+| Status | Condition |
+|---|---|
+| `400` | Missing required fields (ride_id, lat, lng, timestamp) or invalid coordinates |
+| `401` | Token missing or expired |
+| `404` | Ride not found or not owned by user |
+| `409` | Ride is not active (already completed) |
+
+---
 
 ### `GET /rides/history`
 
@@ -568,17 +962,44 @@ Array of Route objects (same shape as `GET /routes`), ordered by descending matc
     "completion_time": "10:30 AM",
     "start_time": "9:42 AM",
     "end_time": "10:30 AM",
-    "total_time_min": 48,
-    "distance_km": 12.5,
-    "avg_speed_kmh": 15.6,
+    "total_time": 48,
+    "distance": 12.5,
+    "avg_speed": 15.6,
     "checkpoints_visited": 3,
-    "user_rating": 5,
-    "user_review": "Absolutely loved this route!"
+    "checkpoints": [
+      {
+        "checkpoint_id": "cp_001",
+        "checkpoint_name": "Pier 25",
+        "description": "Waterfront viewing area",
+        "lat": 1.2849,
+        "lng": 103.8501
+      },
+      {
+        "checkpoint_id": "cp_002",
+        "checkpoint_name": "Hudson River Park",
+        "description": "Popular park area along the route",
+        "lat": 1.2862,
+        "lng": 103.8534
+      }
+    ],
+    "points_of_interest_visited": [
+      {
+        "name": "Pier 25",
+        "description": "Waterfront viewing area",
+        "lat": 1.2849,
+        "lng": 103.8501
+      }
+    ],
+    "rating": 5,
+    "review": "Absolutely loved this route!"
   }
 ]
 ```
 
-> `user_rating` and `user_review` are optional — omitted if user has not reviewed.
+> Field names use base units without suffix: `total_time` (minutes), `distance` (km), `avg_speed` (km/h).
+> `checkpoints` includes checkpoint detail objects with `checkpoint_id`, `checkpoint_name`, `description`, `lat`, `lng`.
+> `points_of_interest_visited` is optional and includes `name`, `description`, `lat`, `lng`.
+> `rating` and `review` are optional — omitted if user has not reviewed the ride.
 
 ---
 
@@ -596,7 +1017,74 @@ Array of Route objects (same shape as `GET /routes`), ordered by descending matc
 
 #### Ideal JSON Response — `200 OK`
 
-Same shape as a single element from `GET /rides/history`.
+```json
+{
+  "ride_id": "1",
+  "route_id": "route_001",
+  "route_name": "Waterfront Loop",
+  "completion_date": "March 12, 2026",
+  "completion_time": "10:30 AM",
+  "start_time": "9:42 AM",
+  "end_time": "10:30 AM",
+  "total_time": 48,
+  "distance": 12.5,
+  "avg_speed": 15.6,
+  "checkpoints_visited": 3,
+  "rating": 5,
+  "review": "Absolutely loved this route!",
+  "route_details": {
+    "route_id": "route_001",
+    "name": "Waterfront Loop",
+    "description": "A scenic route along the river with plenty of shade.",
+    "distance": 12.5,
+    "estimated_time": 45,
+    "elevation": "dont-care",
+    "shade": "reduce-shade",
+    "air_quality": "care",
+    "cyclist_type": "recreational",
+    "review_count": 234,
+    "rating": 4.8,
+    "checkpoints": [
+      {
+        "checkpoint_id": "cp_001",
+        "checkpoint_name": "Pier 25",
+        "description": "Waterfront viewing area",
+        "lat": 1.2849,
+        "lng": 103.8501
+      },
+      {
+        "checkpoint_id": "cp_002",
+        "checkpoint_name": "Hudson River Park",
+        "description": "Popular park area along the route",
+        "lat": 1.2862,
+        "lng": 103.8534
+      }
+    ],
+    "points_of_interest_visited": [
+      {
+        "name": "Pier 25",
+        "description": "Waterfront viewing area",
+        "lat": 1.2849,
+        "lng": 103.8501
+      }
+    ],
+    "route_path": [
+      { "lat": 1.3025, "lng": 103.9128 },
+      { "lat": 1.3020, "lng": 103.9120 },
+      { "lat": 1.2849, "lng": 103.8501 },
+      { "lat": 1.2750, "lng": 103.8450 }
+    ]
+  }
+}
+```
+
+> Top-level fields contain ride-specific stats: `total_time` (minutes), `distance` (km), `avg_speed` (km/h), `checkpoints_visited` (count), `rating` (user's post-ride rating), `review` (user's review).
+> Top-level `checkpoints` and `points_of_interest_visited` represent what was actually visited during this ride.
+> `route_details` mirrors the route detail shape needed by the ride detail screen, including `estimated_time`, `rating`, route polyline (`route_path`), and `checkpoints` / `points_of_interest_visited` for map and content rendering.
+> `points_of_interest_visited` (if present) includes `name`, `description`, `lat`, `lng` for marking all visited POI on the map.
+> `checkpoints` includes `checkpoint_id`, `checkpoint_name`, `description`, `lat`, `lng` for the checkpoint list shown on the ride detail page.
+> This endpoint should be sufficient for the ride detail screen without a second `GET /routes/:routeId` request.
+> `rating` and `review` are optional — omitted if user has not reviewed the ride.
 
 #### Error Responses
 
@@ -622,13 +1110,13 @@ Same shape as a single element from `GET /rides/history`.
 
 ```json
 [
-  { "period_id": "mon", "label": "Mon", "distance_km": 0 },
-  { "period_id": "tue", "label": "Tue", "distance_km": 8.2 },
-  { "period_id": "wed", "label": "Wed", "distance_km": 0 },
-  { "period_id": "thu", "label": "Thu", "distance_km": 18.3 },
-  { "period_id": "fri", "label": "Fri", "distance_km": 0 },
-  { "period_id": "sat", "label": "Sat", "distance_km": 12.5 },
-  { "period_id": "sun", "label": "Sun", "distance_km": 0 }
+  { "period_id": "mon", "label": "Mon", "distance": 0 },
+  { "period_id": "tue", "label": "Tue", "distance": 8.2 },
+  { "period_id": "wed", "label": "Wed", "distance": 0 },
+  { "period_id": "thu", "label": "Thu", "distance": 18.3 },
+  { "period_id": "fri", "label": "Fri", "distance": 0 },
+  { "period_id": "sat", "label": "Sat", "distance": 12.5 },
+  { "period_id": "sun", "label": "Sun", "distance": 0 }
 ]
 ```
 
@@ -636,10 +1124,10 @@ Same shape as a single element from `GET /rides/history`.
 
 ```json
 [
-  { "period_id": "week1", "label": "Week 1", "distance_km": 45.5 },
-  { "period_id": "week2", "label": "Week 2", "distance_km": 38.9 },
-  { "period_id": "week3", "label": "Week 3", "distance_km": 52.3 },
-  { "period_id": "week4", "label": "Week 4", "distance_km": 39.0 }
+  { "period_id": "week1", "label": "Week 1", "distance": 45.5 },
+  { "period_id": "week2", "label": "Week 2", "distance": 38.9 },
+  { "period_id": "week3", "label": "Week 3", "distance": 52.3 },
+  { "period_id": "week4", "label": "Week 4", "distance": 39.0 }
 ]
 ```
 
@@ -927,8 +1415,12 @@ Mapping notes:
 | `/user/privacy` | GET | Token | ✅ | — |
 | `/user/privacy` | PUT | Token | ✅ | — |
 | `/routes` | GET | Optional | ✅ | — |
+| `/routes/popular` | GET | Optional | ✅ | — |
 | `/routes/:routeId` | GET | Optional | ✅ | — |
 | `/routes/recommendations` | POST | Optional | ✅ | — |
+| `/routes/save` | POST | Token | ✅ | — |
+| `/rides` | POST | Token | ✅ | — |
+| `/rides/location` | POST | Token | ✅ | — |
 | `/rides/history` | GET | Token | ✅ | — |
 | `/rides/:rideId` | GET | Token | ✅ | — |
 | `/rides/stats/distance` | GET | Token | ✅ | — |
@@ -938,4 +1430,4 @@ Mapping notes:
 | `/business/stats` | GET | Token (business) | — | ✅ |
 | `/business/locations` | GET | Token (business) | — | ✅ |
 
-**Total: 20 endpoints across 2 clients (18 live + 2 planned OAuth)**
+**Total: 24 endpoints across 2 clients (22 live + 2 planned OAuth)**
