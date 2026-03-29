@@ -15,6 +15,14 @@ This is an Expo-based React Native mobile application for cycling route recommen
 
 Run `npm install` or `npm ci` to install dependencies.
 
+To enable live place search in the route planner, add your OneMap API token to `mobile/.env`:
+
+```bash
+EXPO_PUBLIC_ONEMAP_API_KEY=your_onemap_api_token
+```
+
+Get your token from the [OneMap API portal](https://www.onemap.gov.sg/apidocs/register). Place search uses this token. Without it, map search will show a configuration error and users can still drop a custom pin manually.
+
 ### Development
 
 #### Run on Web (Browser)

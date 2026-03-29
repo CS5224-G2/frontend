@@ -110,6 +110,15 @@ export type Checkpoint = {
   description: string;
 };
 
+export type RouteRequestLocationSource = 'search' | 'map' | 'current-location';
+
+export type RouteRequestLocation = {
+  name: string;
+  lat: number;
+  lng: number;
+  source: RouteRequestLocationSource;
+};
+
 export type Route = {
   id: string;
   name: string;
@@ -128,8 +137,9 @@ export type Route = {
 };
 
 export type RouteRecommendationRequest = {
-  startPoint: string;
-  endPoint: string;
+  startPoint: RouteRequestLocation;
+  endPoint: RouteRequestLocation;
+  checkpoints: Array<RouteRequestLocation & { id: string }>;
   preferences: UserPreferences;
 };
 
