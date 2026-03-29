@@ -2,10 +2,10 @@ import '../global.css';
 import { useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
+import { StatusBar as RNStatusBar, Platform, StyleSheet } from 'react-native';
 import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useColorScheme } from 'nativewind';
-import { Platform, StyleSheet } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -26,6 +26,14 @@ function RootLayoutNav() {
     initializeData();
   }, []);
 
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      RNStatusBar.setTranslucent(true);
+      RNStatusBar.setBackgroundColor(colorScheme === 'dark' ? '#000000' : '#ffffff');
+      RNStatusBar.setBarStyle(colorScheme === 'dark' ? 'light-content' : 'dark-content');
+    }
+  }, [colorScheme]);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Stack screenOptions={{ headerShown: false }}>
@@ -42,7 +50,7 @@ function RootLayoutNav() {
           experimentalBlurMethod="dimezisBlurView"
         />
       )}
-      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} backgroundColor="white" />
+      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
     </GestureHandlerRootView>
   );
 }
