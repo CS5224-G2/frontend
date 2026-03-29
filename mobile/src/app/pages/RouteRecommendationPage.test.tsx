@@ -145,7 +145,7 @@ describe('RouteRecommendationPage', () => {
 
     renderPage();
 
-    expect(await screen.findByText('Mock API Request')).toBeTruthy();
+    expect(await screen.findByText('API Request')).toBeTruthy();
     expect(screen.getByText('Show request details')).toBeTruthy();
     expect(screen.queryByText('Marina Bay Sands')).toBeNull();
   }, 10000);
