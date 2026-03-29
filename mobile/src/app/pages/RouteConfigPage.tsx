@@ -2,7 +2,6 @@
 import { Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Slider from '@react-native-community/slider';
 import { useColorScheme } from 'nativewind';
 import * as Location from 'expo-location';
 import MapView, { Marker, type LongPressEvent, type MapPressEvent, type Region } from 'react-native-maps';
@@ -11,11 +10,27 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button } from '../components/native/Common';
 import { searchLocations } from '../../services/locationSearchService';
 import {
+  type AirQualityPreference,
   type CyclistType,
+  type ElevationPreference,
   type RouteRecommendationRequest,
   type RouteRequestLocation,
+  type ShadePreference,
   type UserPreferences,
 } from '../../../../shared/types/index';
+import {
+  AIR_QUALITY_PREFERENCE_OPTIONS,
+  DEFAULT_USER_PREFERENCES,
+  ELEVATION_PREFERENCE_OPTIONS,
+  POINT_OF_INTEREST_LABELS,
+  SHADE_PREFERENCE_OPTIONS,
+  getAirQualityPreferenceLabel,
+  getElevationPreferenceLabel,
+  getSelectedPointOfInterestLabels,
+  getShadePreferenceLabel,
+  hasSelectedPointsOfInterest,
+  normalizeUserPreferences,
+} from '../utils/routePreferences';
 
 type Props = NativeStackScreenProps<any, 'RouteConfig'>;
 type PickerTarget = { kind: 'start' | 'end' | 'checkpoint'; checkpointId?: string };
@@ -81,6 +96,18 @@ function createCheckpointId() {
   return `checkpoint-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 }
 
+function buildCheckpointDescription(location: RouteRequestLocation) {
+  if (location.source === 'map') {
+    return `Pinned on map at ${formatCoordinates(location)}`;
+  }
+
+  if (location.source === 'search') {
+    return `Selected from search: ${location.name}`;
+  }
+
+  return `Selected checkpoint: ${location.name}`;
+}
+
 function buildCurrentLocationLabel(addresses: Location.LocationGeocodedAddress[]) {
   const firstAddress = addresses[0];
 
@@ -96,6 +123,15 @@ function buildCurrentLocationLabel(addresses: Location.LocationGeocodedAddress[]
   ].filter(Boolean);
 
   return nameParts[0] ?? 'Current location';
+}
+
+function normalizeCheckpointInput(
+  checkpoint: RouteCheckpointInput,
+): RouteCheckpointInput {
+  return {
+    ...checkpoint,
+    description: checkpoint.description?.trim() || buildCheckpointDescription(checkpoint),
+  };
 }
 
 function LocationValueCard({
@@ -147,18 +183,167 @@ function ActionPill({
   );
 }
 
+function formatDistanceInputValue(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1).replace(/\.0$/, '');
+}
+
+type IconPreferenceOption<T extends string> = {
+  value: T;
+  icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+};
+
+function SingleIconTogglePreference<T extends string>({
+  title,
+  description,
+  value,
+  onValue,
+  offValue,
+  onChange,
+  icon,
+  getLabel,
+}: {
+  title: string;
+  description: string;
+  value: T;
+  onValue: T;
+  offValue: T;
+  onChange: (value: T) => void;
+  icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+  getLabel: (value: T) => string;
+}) {
+  const isEnabled = value === onValue;
+
+  return (
+    <Pressable
+      onPress={() => onChange(isEnabled ? offValue : onValue)}
+      className={`mb-cy-lg border rounded-[12px] px-cy-md py-cy-md ${
+        isEnabled
+          ? 'border-blue-500 bg-blue-50/40 dark:bg-blue-500/10 dark:border-blue-400'
+          : 'border-slate-200 dark:border-[#2d2d2d] bg-white dark:bg-[#0f0f0f]'
+      }`}
+      style={({ pressed }) => [pressed && { opacity: 0.88, borderColor: '#2563eb' }]}
+    >
+      <View className="flex-row items-start justify-between gap-cy-sm">
+        <View className="flex-1 pr-3">
+          <Text className="text-[15px] font-semibold text-slate-800 dark:text-slate-100">{title}</Text>
+          <Text className="mt-1 text-[12px] leading-4 text-slate-500 dark:text-slate-400">{description}</Text>
+          <Text className="mt-1 text-[12px] font-semibold text-slate-600 dark:text-slate-300">{getLabel(value)}</Text>
+        </View>
+
+        <View
+          className={`h-11 w-11 rounded-full items-center justify-center border ${
+            isEnabled
+              ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/20 dark:border-blue-400'
+              : 'border-slate-300 dark:border-[#2d2d2d] bg-slate-100 dark:bg-[#111111]'
+          }`}
+        >
+          <MaterialCommunityIcons name={icon} size={20} color={isEnabled ? '#2563eb' : '#64748b'} />
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+function IconPreferenceSelector<T extends string>({
+  title,
+  description,
+  options,
+  value,
+  onChange,
+  getLabel,
+}: {
+  title: string;
+  description: string;
+  options: readonly IconPreferenceOption<T>[];
+  value: T;
+  onChange: (value: T) => void;
+  getLabel: (value: T) => string;
+}) {
+  return (
+    <View className="mb-cy-lg">
+      <Text className="text-base font-bold text-[#1e293b] dark:text-slate-100">{title}</Text>
+      <Text className="mt-1 text-sm text-slate-500 dark:text-slate-400">{description}</Text>
+      <Text className="mt-2 text-sm font-semibold text-slate-700 dark:text-slate-200">{getLabel(value)}</Text>
+      <View className="mt-3 flex-row flex-wrap gap-cy-sm">
+        {options.map((option) => {
+          const isSelected = option.value === value;
+
+          return (
+            <Pressable
+              key={option.value}
+              onPress={() => onChange(option.value)}
+              className={`border rounded-[12px] px-cy-md py-3 min-w-[108px] items-center justify-center ${
+                isSelected
+                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/20 dark:border-blue-400'
+                  : 'border-slate-300 dark:border-[#2d2d2d] bg-white dark:bg-[#111111]'
+              }`}
+              style={({ pressed }) => [pressed && { opacity: 0.85, borderColor: '#2563eb' }]}
+            >
+              <MaterialCommunityIcons name={option.icon} size={18} color={isSelected ? '#2563eb' : '#64748b'} />
+              <Text
+                className={`mt-1 text-[12px] font-semibold ${
+                  isSelected ? 'text-blue-700 dark:text-blue-300' : 'text-slate-600 dark:text-slate-300'
+                }`}
+              >
+                {getLabel(option.value)}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+function BinaryPreferenceSlider({
+  title,
+  value,
+  onChange,
+  className,
+}: {
+  title: string;
+  value: boolean;
+  onChange: (value: boolean) => void;
+  className?: string;
+}) {
+  return (
+    <Pressable
+      onPress={() => onChange(!value)}
+      className={`border border-slate-200 dark:border-[#2d2d2d] rounded-[12px] px-3 py-3 bg-white dark:bg-[#0f0f0f] ${className ?? ''}`}
+      style={({ pressed }) => [pressed && { opacity: 0.88, borderColor: '#2563eb' }]}
+    >
+      <View className="flex-row items-center justify-between gap-cy-sm">
+        <Text className="flex-1 text-[13px] font-semibold text-slate-800 dark:text-slate-100" numberOfLines={2}>
+          {title}
+        </Text>
+        <View
+          className={`h-10 w-10 rounded-full items-center justify-center border ${
+            value
+              ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/20 dark:border-blue-400'
+              : 'border-slate-300 dark:border-[#2d2d2d] bg-slate-100 dark:bg-[#111111]'
+          }`}
+        >
+          <MaterialCommunityIcons name="map-marker-check-outline" size={20} color={value ? '#2563eb' : '#64748b'} />
+        </View>
+      </View>
+      <Text className={`mt-1 text-[11px] font-semibold ${value ? 'text-blue-700 dark:text-blue-300' : 'text-slate-500 dark:text-slate-400'}`}>
+        {value ? 'Included' : 'Muted'}
+      </Text>
+    </Pressable>
+  );
+}
+
+function getPoiCardClassName(index: number) {
+  return index % 2 === 0 ? 'w-[48%] mr-[4%] mb-cy-sm' : 'w-[48%] mb-cy-sm';
+}
+
 export default function RouteConfigPage({ navigation }: Props) {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
   const mapRef = useRef<MapView | null>(null);
 
-  const [preferences, setPreferences] = useState<UserPreferences>({
-    cyclistType: 'general',
-    preferredShade: 50,
-    elevation: 50,
-    distance: 10,
-    airQuality: 50,
-  });
+  const [preferences, setPreferences] = useState<UserPreferences>(DEFAULT_USER_PREFERENCES);
+  const [maxDistanceInput, setMaxDistanceInput] = useState(formatDistanceInputValue(DEFAULT_USER_PREFERENCES.maxDistanceKm));
   const [startPoint, setStartPoint] = useState<RouteRequestLocation | null>(null);
   const [endPoint, setEndPoint] = useState<RouteRequestLocation | null>(null);
   const [checkpoints, setCheckpoints] = useState<RouteCheckpointInput[]>([]);
@@ -183,14 +368,19 @@ export default function RouteConfigPage({ navigation }: Props) {
         ]);
 
         if (savedPreferences) {
-          setPreferences(JSON.parse(savedPreferences) as UserPreferences);
+          const normalizedPreferences = normalizeUserPreferences(JSON.parse(savedPreferences) as UserPreferences);
+          setPreferences(normalizedPreferences);
+          setMaxDistanceInput(formatDistanceInputValue(normalizedPreferences.maxDistanceKm));
         }
 
         if (savedRouteRequest) {
           const parsedRequest = JSON.parse(savedRouteRequest) as RouteRecommendationRequest;
+          const normalizedPreferences = normalizeUserPreferences(parsedRequest.preferences);
+          setPreferences(normalizedPreferences);
+          setMaxDistanceInput(formatDistanceInputValue(normalizedPreferences.maxDistanceKm));
           setStartPoint(parsedRequest.startPoint);
           setEndPoint(parsedRequest.endPoint);
-          setCheckpoints(parsedRequest.checkpoints ?? []);
+          setCheckpoints((parsedRequest.checkpoints ?? []).map(normalizeCheckpointInput));
           return;
         }
 
@@ -305,13 +495,26 @@ export default function RouteConfigPage({ navigation }: Props) {
     if (target.checkpointId) {
       setCheckpoints((currentCheckpoints) =>
         currentCheckpoints.map((checkpoint) =>
-          checkpoint.id === target.checkpointId ? { ...checkpoint, ...location } : checkpoint,
+          checkpoint.id === target.checkpointId
+            ? {
+                ...checkpoint,
+                ...location,
+                description: buildCheckpointDescription(location),
+              }
+            : checkpoint,
         ),
       );
       return;
     }
 
-    setCheckpoints((currentCheckpoints) => [...currentCheckpoints, { id: createCheckpointId(), ...location }]);
+    setCheckpoints((currentCheckpoints) => [
+      ...currentCheckpoints,
+      {
+        id: createCheckpointId(),
+        ...location,
+        description: buildCheckpointDescription(location),
+      },
+    ]);
   };
 
   const handleSaveDraftLocation = () => {
@@ -390,17 +593,30 @@ export default function RouteConfigPage({ navigation }: Props) {
       return;
     }
 
+    const parsedMaxDistance = Number(maxDistanceInput);
+    if (!Number.isFinite(parsedMaxDistance) || parsedMaxDistance <= 0) {
+      Alert.alert('Invalid max distance', 'Enter a valid max distance in kilometers before continuing.');
+      return;
+    }
+
+    const nextPreferences = normalizeUserPreferences({
+      ...preferences,
+      maxDistanceKm: parsedMaxDistance,
+      distance: parsedMaxDistance,
+    });
+
     const routeRequest: RouteRecommendationRequest = {
       startPoint,
       endPoint,
       checkpoints,
-      preferences,
+      preferences: nextPreferences,
     };
 
     try {
       setIsSubmitting(true);
+      setPreferences(nextPreferences);
       await Promise.all([
-        AsyncStorage.setItem(USER_PREFERENCES_STORAGE_KEY, JSON.stringify(preferences)),
+        AsyncStorage.setItem(USER_PREFERENCES_STORAGE_KEY, JSON.stringify(nextPreferences)),
         AsyncStorage.setItem(ROUTE_REQUEST_STORAGE_KEY, JSON.stringify(routeRequest)),
         AsyncStorage.setItem(LEGACY_ROUTE_START_STORAGE_KEY, startPoint.name),
         AsyncStorage.setItem(LEGACY_ROUTE_END_STORAGE_KEY, endPoint.name),
@@ -497,7 +713,11 @@ export default function RouteConfigPage({ navigation }: Props) {
                 {cyclistTypes.map((option) => (
                   <Pressable
                     key={option.type}
-                    onPress={() => setPreferences({ ...preferences, cyclistType: option.type })}
+                    onPress={() =>
+                      setPreferences((currentPreferences) =>
+                        normalizeUserPreferences({ ...currentPreferences, cyclistType: option.type }),
+                      )
+                    }
                     className={`border rounded-[10px] py-2 px-cy-md mr-2 mb-2 ${
                       preferences.cyclistType === option.type
                         ? 'bg-[#2563eb] dark:bg-blue-500 border-[#2563eb] dark:border-blue-500'
@@ -516,60 +736,120 @@ export default function RouteConfigPage({ navigation }: Props) {
               </View>
             </View>
 
-            <View className="mb-cy-lg">
-              <Text className="mb-2 text-sm text-slate-500 dark:text-slate-400 font-semibold">Preferred Shade: {preferences.preferredShade}%</Text>
-              <Slider
-                style={{ width: '100%', height: 40 }}
-                value={preferences.preferredShade}
-                onValueChange={(value) => setPreferences({ ...preferences, preferredShade: value })}
-                minimumValue={0}
-                maximumValue={100}
-                step={10}
-                minimumTrackTintColor="#2563eb"
-                maximumTrackTintColor="#d1d5db"
-              />
-            </View>
+            <SingleIconTogglePreference<ShadePreference>
+              title="Shade Preference"
+              description="Tap to switch between muted and reduce shade."
+              value={preferences.shadePreference}
+              onValue={SHADE_PREFERENCE_OPTIONS[0]}
+              offValue={SHADE_PREFERENCE_OPTIONS[1]}
+              icon="weather-sunny-alert"
+              onChange={(shadePreference) =>
+                setPreferences((currentPreferences) =>
+                  normalizeUserPreferences({ ...currentPreferences, shadePreference }),
+                )
+              }
+              getLabel={getShadePreferenceLabel}
+            />
+
+            <SingleIconTogglePreference<AirQualityPreference>
+              title="Air Quality"
+              description="Tap to switch between care and muted."
+              value={preferences.airQualityPreference}
+              onValue={AIR_QUALITY_PREFERENCE_OPTIONS[0]}
+              offValue={AIR_QUALITY_PREFERENCE_OPTIONS[1]}
+              icon="air-filter"
+              onChange={(airQualityPreference) =>
+                setPreferences((currentPreferences) =>
+                  normalizeUserPreferences({ ...currentPreferences, airQualityPreference }),
+                )
+              }
+              getLabel={getAirQualityPreferenceLabel}
+            />
+
+            <IconPreferenceSelector<ElevationPreference>
+              title="Elevation Preference"
+              description="Tell the recommender whether you want flatter routes, steeper climbs, or no elevation preference."
+              options={[
+                { value: ELEVATION_PREFERENCE_OPTIONS[0], icon: 'trending-down' },
+                { value: ELEVATION_PREFERENCE_OPTIONS[1], icon: 'swap-horizontal' },
+                { value: ELEVATION_PREFERENCE_OPTIONS[2], icon: 'trending-up' },
+              ]}
+              value={preferences.elevationPreference}
+              onChange={(elevationPreference) =>
+                setPreferences((currentPreferences) =>
+                  normalizeUserPreferences({ ...currentPreferences, elevationPreference }),
+                )
+              }
+              getLabel={getElevationPreferenceLabel}
+            />
 
             <View className="mb-cy-lg">
-              <Text className="mb-2 text-sm text-slate-500 dark:text-slate-400 font-semibold">Elevation Challenge: {preferences.elevation}%</Text>
-              <Slider
-                style={{ width: '100%', height: 40 }}
-                value={preferences.elevation}
-                onValueChange={(value) => setPreferences({ ...preferences, elevation: value })}
-                minimumValue={0}
-                maximumValue={100}
-                step={10}
-                minimumTrackTintColor="#2563eb"
-                maximumTrackTintColor="#d1d5db"
-              />
+              <Text className="text-base font-bold text-[#1e293b] dark:text-slate-100">Max Distance</Text>
+              <Text className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Type the furthest distance you want the backend to consider for this ride.
+              </Text>
+              <View className="mt-3 flex-row items-center border border-slate-300 dark:border-[#2d2d2d] rounded-[14px] bg-white dark:bg-[#111111] px-cy-md">
+                <TextInput
+                  className="flex-1 py-3 text-[16px] text-slate-900 dark:text-slate-100"
+                  value={maxDistanceInput}
+                  onChangeText={(value) => {
+                    const sanitizedValue = value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+                    setMaxDistanceInput(sanitizedValue);
+
+                    const parsedValue = Number(sanitizedValue);
+                    if (Number.isFinite(parsedValue) && parsedValue > 0) {
+                      setPreferences((currentPreferences) =>
+                        normalizeUserPreferences({
+                          ...currentPreferences,
+                          maxDistanceKm: parsedValue,
+                          distance: parsedValue,
+                        }),
+                      );
+                    }
+                  }}
+                  onBlur={() => {
+                    const parsedValue = Number(maxDistanceInput);
+                    if (Number.isFinite(parsedValue) && parsedValue > 0) {
+                      setMaxDistanceInput(formatDistanceInputValue(parsedValue));
+                    }
+                  }}
+                  placeholder="Enter max distance"
+                  placeholderTextColor={isDark ? '#94a3b8' : '#9ca3af'}
+                  keyboardType="decimal-pad"
+                />
+                <Text className="ml-3 text-sm font-semibold text-slate-500 dark:text-slate-400">km</Text>
+              </View>
             </View>
 
-            <View className="mb-cy-lg">
-              <Text className="mb-2 text-sm text-slate-500 dark:text-slate-400 font-semibold">Preferred Distance: {preferences.distance} km</Text>
-              <Slider
-                style={{ width: '100%', height: 40 }}
-                value={preferences.distance}
-                onValueChange={(value) => setPreferences({ ...preferences, distance: value })}
-                minimumValue={5}
-                maximumValue={50}
-                step={5}
-                minimumTrackTintColor="#2563eb"
-                maximumTrackTintColor="#d1d5db"
-              />
-            </View>
+            <View className="mb-cy-lg gap-cy-sm">
+              <View>
+                <Text className="text-base font-bold text-[#1e293b] dark:text-slate-100">Points of Interest</Text>
+                <Text className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                  Select the categories you want the backend to route past. When selected, the request will ask for the nearest matching point of interest along the ride.
+                </Text>
+              </View>
 
-            <View className="mb-cy-lg">
-              <Text className="mb-2 text-sm text-slate-500 dark:text-slate-400 font-semibold">Minimum Air Quality: {preferences.airQuality}%</Text>
-              <Slider
-                style={{ width: '100%', height: 40 }}
-                value={preferences.airQuality}
-                onValueChange={(value) => setPreferences({ ...preferences, airQuality: value })}
-                minimumValue={0}
-                maximumValue={100}
-                step={10}
-                minimumTrackTintColor="#2563eb"
-                maximumTrackTintColor="#d1d5db"
-              />
+              <View className="flex-row flex-wrap">
+              {(Object.keys(POINT_OF_INTEREST_LABELS) as Array<keyof typeof POINT_OF_INTEREST_LABELS>).map((poiKey, index) => (
+                <BinaryPreferenceSlider
+                  key={poiKey}
+                  title={POINT_OF_INTEREST_LABELS[poiKey]}
+                  value={preferences.pointsOfInterest[poiKey]}
+                  className={getPoiCardClassName(index)}
+                  onChange={(selected) =>
+                    setPreferences((currentPreferences) =>
+                      normalizeUserPreferences({
+                        ...currentPreferences,
+                        pointsOfInterest: {
+                          ...currentPreferences.pointsOfInterest,
+                          [poiKey]: selected,
+                        },
+                      }),
+                    )
+                  }
+                />
+              ))}
+              </View>
             </View>
 
             <Button onPress={handleConfirm} loading={isSubmitting}>Find Routes</Button>

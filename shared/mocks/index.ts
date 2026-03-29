@@ -136,9 +136,20 @@ export const mockRoutes: Route[] = [
       { id: 'cp2', name: 'Bethesda Fountain', lat: 40.7734, lng: -73.9714, description: 'Beautiful fountain and photo spot' },
       { id: 'cp3', name: 'Belvedere Castle', lat: 40.7794, lng: -73.9692, description: 'Scenic viewpoint' },
     ],
+    routePath: [
+      { lat: 40.7829, lng: -73.9654 },
+      { lat: 40.7794, lng: -73.9692 },
+      { lat: 40.7738, lng: -73.9686 },
+      { lat: 40.7734, lng: -73.9714 },
+      { lat: 40.7829, lng: -73.9654 },
+    ],
     cyclistType: 'recreational',
     shade: 80,
     airQuality: 85,
+    pointsOfInterestVisited: [
+      { name: 'Riverside Lookout Deck', description: 'Open river overlook with skyline views.', lat: 40.7762, lng: -73.9702 },
+      { name: 'Cherry Grove Path', description: 'Tree-lined stretch that is especially scenic in spring.', lat: 40.7808, lng: -73.9671 },
+    ],
   },
   {
     id: '2',
@@ -155,9 +166,18 @@ export const mockRoutes: Route[] = [
       { id: 'cp4', name: 'Bryant Park', lat: 40.7536, lng: -73.9832, description: 'Mid-route rest area' },
       { id: 'cp5', name: 'Public Library', lat: 40.7532, lng: -73.9822, description: 'Landmark checkpoint' },
     ],
+    routePath: [
+      { lat: 40.7580, lng: -73.9855 },
+      { lat: 40.7536, lng: -73.9832 },
+      { lat: 40.7532, lng: -73.9822 },
+      { lat: 40.7489, lng: -73.9680 },
+    ],
     cyclistType: 'commuter',
     shade: 40,
     airQuality: 70,
+    pointsOfInterestVisited: [
+      { name: 'Midtown Mural Corridor', description: 'Colorful street-art block along the commuter lane.', lat: 40.7516, lng: -73.9787 },
+    ],
   },
   {
     id: '3',
@@ -175,9 +195,20 @@ export const mockRoutes: Route[] = [
       { id: 'cp7', name: 'Summit Rest Area', lat: 40.8530, lng: -73.9410, description: 'Peak elevation point' },
       { id: 'cp8', name: 'Woodland Trail', lat: 40.8460, lng: -73.9420, description: 'Shaded forest section' },
     ],
+    routePath: [
+      { lat: 40.8448, lng: -73.9386 },
+      { lat: 40.8490, lng: -73.9395 },
+      { lat: 40.8530, lng: -73.9410 },
+      { lat: 40.8460, lng: -73.9420 },
+      { lat: 40.8448, lng: -73.9386 },
+    ],
     cyclistType: 'fitness',
     shade: 60,
     airQuality: 90,
+    pointsOfInterestVisited: [
+      { name: 'Cliffside Panorama Deck', description: 'High-altitude viewing deck with wide skyline panorama.', lat: 40.8518, lng: -73.9404 },
+      { name: 'Ridge Water Refill Station', description: 'Convenient hydration stop near the steepest segment.', lat: 40.8476, lng: -73.9416 },
+    ],
   },
   {
     id: '4',
@@ -187,16 +218,25 @@ export const mockRoutes: Route[] = [
     elevation: 30,
     estimatedTime: 55,
     rating: 4.7,
-    reviewCount: 412,
+    reviewCount: 140,
     startPoint: { lat: 40.7033, lng: -74.0170, name: 'Battery Park' },
     endPoint: { lat: 40.7589, lng: -73.9935, name: 'Chelsea Piers' },
     checkpoints: [
       { id: 'cp9', name: 'Pier 25', lat: 40.7214, lng: -74.0134, description: 'Waterfront viewing area' },
       { id: 'cp10', name: 'Hudson River Park', lat: 40.7389, lng: -74.0089, description: 'Popular park area' },
     ],
+    routePath: [
+      { lat: 40.7033, lng: -74.0170 },
+      { lat: 40.7214, lng: -74.0134 },
+      { lat: 40.7389, lng: -74.0089 },
+      { lat: 40.7589, lng: -73.9935 },
+    ],
     cyclistType: 'general',
     shade: 50,
     airQuality: 95,
+    pointsOfInterestVisited: [
+      { name: 'Sunset Pier Promenade', description: 'Long waterfront boardwalk ideal for a quick scenic pause.', lat: 40.7442, lng: -74.0045 },
+    ],
   },
   {
     id: '5',
@@ -213,9 +253,19 @@ export const mockRoutes: Route[] = [
       { id: 'cp11', name: 'Conservatory Garden', lat: 40.7945, lng: -73.9520, description: 'Beautiful gardens' },
       { id: 'cp12', name: 'Harlem Meer', lat: 40.7972, lng: -73.9520, description: 'Peaceful lakeside' },
     ],
+    routePath: [
+      { lat: 40.7812, lng: -73.9665 },
+      { lat: 40.7945, lng: -73.9520 },
+      { lat: 40.7972, lng: -73.9520 },
+      { lat: 40.7812, lng: -73.9665 },
+    ],
     cyclistType: 'recreational',
     shade: 75,
     airQuality: 88,
+    pointsOfInterestVisited: [
+      { name: 'Rose Terrace Walk', description: 'Quiet flower-lined terrace path with shaded seating.', lat: 40.7931, lng: -73.9589 },
+      { name: 'North Meadow Viewpoint', description: 'Broad green-space overlook with open lawn vistas.', lat: 40.7958, lng: -73.9604 },
+    ],
   },
   {
     id: '6',
@@ -231,9 +281,17 @@ export const mockRoutes: Route[] = [
     checkpoints: [
       { id: 'cp13', name: 'Penn Station', lat: 40.7506, lng: -73.9935, description: 'Major transit hub' },
     ],
+    routePath: [
+      { lat: 40.7614, lng: -73.9776 },
+      { lat: 40.7506, lng: -73.9935 },
+      { lat: 40.7425, lng: -74.0064 },
+    ],
     cyclistType: 'commuter',
     shade: 35,
     airQuality: 68,
+    pointsOfInterestVisited: [
+      { name: 'Hudson Greenway Connector', description: 'Fast connector segment used by weekday commuters.', lat: 40.7468, lng: -73.9996 },
+    ],
   },
 ];
 
@@ -245,64 +303,81 @@ export const mockRideHistory: RideHistory[] = [
   {
     id: '1',
     routeId: '1',
-    routeName: 'Waterfront Loop',
-    completionDate: 'March 12, 2026',
-    completionTime: '10:30 AM',
-    startTime: '9:42 AM',
-    endTime: '10:30 AM',
-    totalTime: 48,
+    routeName: 'Riverside Park Loop',
+    completionDate: 'March 28, 2026',
+    completionTime: '6:30 PM',
+    startTime: '5:45 PM',
+    endTime: '6:30 PM',
+    totalTime: 45,
     distance: 12.5,
-    avgSpeed: 15.6,
+    avgSpeed: 16.7,
     checkpoints: 3,
     userRating: 5,
-    userReview: 'Absolutely loved this route! The waterfront views were stunning and the path was well-maintained.',
+    userReview: 'Perfect evening ride! Great weather and smooth paths throughout.',
   },
   {
     id: '2',
     routeId: '2',
-    routeName: 'Mountain Ridge Trail',
-    completionDate: 'March 10, 2026',
-    completionTime: '2:15 PM',
-    startTime: '12:40 PM',
-    endTime: '2:15 PM',
-    totalTime: 95,
-    distance: 18.3,
-    avgSpeed: 11.6,
-    checkpoints: 5,
+    routeName: 'City Commuter Express',
+    completionDate: 'March 26, 2026',
+    completionTime: '8:30 AM',
+    startTime: '8:00 AM',
+    endTime: '8:30 AM',
+    totalTime: 30,
+    distance: 9.4,
+    avgSpeed: 18.8,
+    checkpoints: 2,
     userRating: 4,
-    userReview: 'Challenging but rewarding! The elevation was tough but the views made it worthwhile.',
+    userReview: 'Quick commute to work. Bike lanes are clear and traffic was light.',
   },
   {
     id: '3',
     routeId: '3',
-    routeName: 'City Express',
-    completionDate: 'March 8, 2026',
-    completionTime: '8:45 AM',
-    startTime: '8:13 AM',
-    endTime: '8:45 AM',
-    totalTime: 32,
-    distance: 8.2,
-    avgSpeed: 15.4,
-    checkpoints: 2,
-    userRating: 4,
+    routeName: 'Hill Challenge Trail',
+    completionDate: 'March 24, 2026',
+    completionTime: '2:45 PM',
+    startTime: '12:30 PM',
+    endTime: '2:45 PM',
+    totalTime: 135,
+    distance: 21.8,
+    avgSpeed: 9.7,
+    checkpoints: 3,
+    userRating: 5,
+    userReview: 'Challenging elevation but absolutely worth it. Stunning summit views and well-marked trail.',
   },
 ];
 
+export const mockRideHistoryById: Record<string, RideHistory> = Object.fromEntries(
+  mockRideHistory.map((ride) => {
+    const route = mockRoutes.find((item) => item.id === ride.routeId);
+
+    return [
+      ride.id,
+      {
+        ...ride,
+        visitedCheckpoints: route?.checkpoints,
+        pointsOfInterestVisited: route?.pointsOfInterestVisited,
+        routeDetails: route,
+      } satisfies RideHistory,
+    ];
+  }),
+);
+
 export const mockWeeklyData: GraphDataPoint[] = [
-  { id: 'mon', day: 'Mon', distance: 0 },
-  { id: 'tue', day: 'Tue', distance: 8.2 },
-  { id: 'wed', day: 'Wed', distance: 0 },
-  { id: 'thu', day: 'Thu', distance: 18.3 },
-  { id: 'fri', day: 'Fri', distance: 0 },
-  { id: 'sat', day: 'Sat', distance: 12.5 },
+  { id: 'mon', day: 'Mon', distance: 21.8 },
+  { id: 'tue', day: 'Tue', distance: 0 },
+  { id: 'wed', day: 'Wed', distance: 9.4 },
+  { id: 'thu', day: 'Thu', distance: 0 },
+  { id: 'fri', day: 'Fri', distance: 12.5 },
+  { id: 'sat', day: 'Sat', distance: 0 },
   { id: 'sun', day: 'Sun', distance: 0 },
 ];
 
 export const mockMonthlyData: GraphDataPoint[] = [
-  { id: 'week1', week: 'Week 1', distance: 45.5 },
-  { id: 'week2', week: 'Week 2', distance: 38.9 },
-  { id: 'week3', week: 'Week 3', distance: 52.3 },
-  { id: 'week4', week: 'Week 4', distance: 39.0 },
+  { id: 'week1', week: 'Week 1', distance: 28.5 },
+  { id: 'week2', week: 'Week 2', distance: 42.1 },
+  { id: 'week3', week: 'Week 3', distance: 48.8 },
+  { id: 'week4', week: 'Week 4', distance: 43.7 },
 ];
 
 // ---------------------------------------------------------------------------

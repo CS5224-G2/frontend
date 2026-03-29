@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import MapView, { Marker, Polyline, type LatLng, type Region } from 'react-native-maps';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button } from '../components/native/Common';
 import { FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useColorScheme } from 'nativewind';
-import { type RideHistory, type Route } from '../../../../shared/types/index';
+import { type RideHistory } from '../../../../shared/types/index';
 import { getRideById } from '../../services/rideService';
-import { getRouteById } from '../../services/routeService';
 
 type Props = NativeStackScreenProps<any, 'HistoryDetails'>;
 
@@ -15,7 +15,6 @@ export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
   const { rideId } = route.params as { rideId: string };
   const [ride, setRide] = useState<RideHistory | null>(null);
-  const [routeInfo, setRouteInfo] = useState<Route | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -23,15 +22,61 @@ export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
   useEffect(() => {
     const loadData = async () => {
       const rideData = await getRideById(rideId);
-      if (rideData) {
-        const [routeData] = await Promise.all([getRouteById(rideData.routeId)]);
-        setRide(rideData);
-        setRouteInfo(routeData);
-      }
+      if (rideData) setRide(rideData);
       setIsLoading(false);
     };
     loadData();
   }, [rideId]);
+
+  const routeInfo = ride?.routeDetails ?? null;
+  const visitedCheckpoints = ride?.visitedCheckpoints ?? routeInfo?.checkpoints ?? [];
+  const visitedPois = ride?.pointsOfInterestVisited ?? routeInfo?.pointsOfInterestVisited ?? [];
+  const routePath = routeInfo?.routePath ?? [];
+  const visitedPoisWithCoords = (ride?.pointsOfInterestVisited ?? []).filter(
+    (poi): poi is { name: string; description?: string; lat: number; lng: number } =>
+      typeof poi.lat === 'number' && typeof poi.lng === 'number',
+  );
+
+  const checkpointCoords = useMemo(
+    () => visitedCheckpoints.map((cp) => ({ latitude: cp.lat, longitude: cp.lng })),
+    [visitedCheckpoints],
+  );
+
+  const poiCoords = useMemo(
+    () => visitedPoisWithCoords.map((poi) => ({ latitude: poi.lat, longitude: poi.lng })),
+    [visitedPoisWithCoords],
+  );
+
+  const pathCoords = useMemo(
+    () => routePath.map((point) => ({ latitude: point.lat, longitude: point.lng })),
+    [routePath],
+  );
+
+  const mapRegion = useMemo<Region>(() => {
+    const points: LatLng[] = [...pathCoords, ...checkpointCoords, ...poiCoords];
+    if (points.length === 0) {
+      return {
+        latitude: 40.758,
+        longitude: -73.9855,
+        latitudeDelta: 0.08,
+        longitudeDelta: 0.08,
+      };
+    }
+
+    const lats = points.map((p) => p.latitude);
+    const lngs = points.map((p) => p.longitude);
+    const minLat = Math.min(...lats);
+    const maxLat = Math.max(...lats);
+    const minLng = Math.min(...lngs);
+    const maxLng = Math.max(...lngs);
+
+    return {
+      latitude: (minLat + maxLat) / 2,
+      longitude: (minLng + maxLng) / 2,
+      latitudeDelta: Math.max((maxLat - minLat) * 1.6, 0.02),
+      longitudeDelta: Math.max((maxLng - minLng) * 1.6, 0.02),
+    };
+  }, [checkpointCoords, pathCoords, poiCoords]);
 
   if (isLoading) {
     return (
@@ -60,6 +105,56 @@ export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
         <Text className="text-[22px] font-bold text-[#1e293b] dark:text-slate-100">{routeInfo.name}</Text>
         <Text className="text-[13px] text-[#64748b] dark:text-slate-400 mt-1">{routeInfo.description}</Text>
       </View>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Route Map</CardTitle>
+          <CardDescription>Blue pins are checkpoints, amber pins are points of interest.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <View className="rounded-[12px] overflow-hidden border border-[#e2e8f0] dark:border-[#2d2d2d]">
+            <MapView
+              style={{ width: '100%', height: 240 }}
+              initialRegion={mapRegion}
+              scrollEnabled={false}
+              zoomEnabled={false}
+              rotateEnabled={false}
+              pitchEnabled={false}
+              toolbarEnabled={false}
+            >
+              {pathCoords.length > 1 ? (
+                <Polyline
+                  coordinates={pathCoords}
+                  strokeColor="#22c55e"
+                  strokeWidth={4}
+                />
+              ) : null}
+
+              {visitedCheckpoints.map((checkpoint) => (
+                <Marker
+                  key={`checkpoint-${checkpoint.id}`}
+                  coordinate={{ latitude: checkpoint.lat, longitude: checkpoint.lng }}
+                  title={checkpoint.name}
+                  description={checkpoint.description}
+                >
+                  <MaterialCommunityIcons name="map-marker" size={30} color="#2563eb" />
+                </Marker>
+              ))}
+
+              {visitedPoisWithCoords.map((poi, index) => (
+                <Marker
+                  key={`poi-${poi.name}-${index}`}
+                  coordinate={{ latitude: poi.lat, longitude: poi.lng }}
+                  title={poi.name}
+                  description={poi.description}
+                >
+                  <MaterialCommunityIcons name="map-marker" size={30} color="#f59e0b" />
+                </Marker>
+              ))}
+            </MapView>
+          </View>
+        </CardContent>
+      </Card>
 
       <Card style={{ marginBottom: 12, backgroundColor: isDark ? '#1e293b' : '#e0f2fe', borderColor: isDark ? '#2d2d2d' : '#bae6fd' }}>
         <CardHeader>
@@ -160,8 +255,8 @@ export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
               <Text className="text-[#1e3a8a] dark:text-slate-100 text-xs font-semibold">Air {routeInfo.airQuality}/100</Text>
             </View>
           </View>
-          <Text className="mt-2 mb-1 text-[#334155] dark:text-slate-100 font-bold">Points of Interest</Text>
-          {routeInfo.checkpoints.map((checkpoint) => (
+          <Text className="mt-2 mb-1 text-[#334155] dark:text-slate-100 font-bold">Checkpoints Visited</Text>
+          {visitedCheckpoints.map((checkpoint) => (
             <View key={checkpoint.id} className="flex-row items-start gap-2 mb-[8px]">
               <MaterialCommunityIcons
                 name="map-marker-radius"
@@ -173,10 +268,31 @@ export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
                 className="flex-1 text-[#475569] dark:text-slate-400 text-[13px] leading-5"
                 style={{ flexShrink: 1 }}
               >
-                {checkpoint.name} — {checkpoint.description}
+                {checkpoint.name}
               </Text>
             </View>
           ))}
+          <Text className="mt-2 mb-1 text-[#334155] dark:text-slate-100 font-bold">Points of Interest</Text>
+          {visitedPois.length > 0 ? (
+            visitedPois.map((point) => (
+              <View key={point.name} className="flex-row items-start gap-2 mb-[8px]">
+                <MaterialCommunityIcons
+                  name="star-circle"
+                  size={16}
+                  color="#f59e0b"
+                  style={{ marginTop: 2 }}
+                />
+                <Text
+                  className="flex-1 text-[#475569] dark:text-slate-400 text-[13px] leading-5"
+                  style={{ flexShrink: 1 }}
+                >
+                  {point.name} - {point.description ?? 'No description available.'}
+                </Text>
+              </View>
+            ))
+          ) : (
+            <Text className="text-[#475569] dark:text-slate-400 text-[13px] leading-5">No points of interest recorded.</Text>
+          )}
         </CardContent>
       </Card>
 

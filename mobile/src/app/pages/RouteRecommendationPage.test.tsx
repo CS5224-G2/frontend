@@ -127,7 +127,7 @@ describe('RouteRecommendationPage', () => {
     expect(mockNavigate).toHaveBeenCalledWith('RouteDetails', { routeId: '1' });
   }, 10000);
 
-  it('shows the route request details card when a saved request exists', async () => {
+  it('shows a collapsed mock request dropdown when a saved request exists', async () => {
     const AsyncStorage = require('@react-native-async-storage/async-storage');
     const savedRequest = {
       startPoint: { name: 'Marina Bay Sands', lat: 1.2834, lng: 103.8607, source: 'search' },
@@ -145,8 +145,35 @@ describe('RouteRecommendationPage', () => {
 
     renderPage();
 
+    expect(await screen.findByText('API Request')).toBeTruthy();
+    expect(screen.getByText('Show request details')).toBeTruthy();
+    expect(screen.queryByText('Marina Bay Sands')).toBeNull();
+  }, 10000);
+
+  it('expands mock request dropdown to show details when pressed', async () => {
+    const AsyncStorage = require('@react-native-async-storage/async-storage');
+    const savedRequest = {
+      startPoint: { name: 'Marina Bay Sands', lat: 1.2834, lng: 103.8607, source: 'search' },
+      endPoint: { name: 'Sentosa', lat: 1.2494, lng: 103.8303, source: 'map' },
+      checkpoints: [],
+      preferences: {
+        cyclistType: 'commuter',
+        preferredShade: 60,
+        elevation: 40,
+        distance: 15,
+        airQuality: 70,
+      },
+    };
+    AsyncStorage.getItem.mockResolvedValue(JSON.stringify(savedRequest));
+
+    renderPage();
+
+    const toggle = await screen.findByText('Show request details');
+    fireEvent.press(toggle);
+
     expect(await screen.findByText('Marina Bay Sands')).toBeTruthy();
     expect(screen.getByText('Sentosa')).toBeTruthy();
+    expect(screen.getByText('Hide request details')).toBeTruthy();
   }, 10000);
 
   it('uses getRouteRecommendations when preferences are present', async () => {
@@ -175,5 +202,75 @@ describe('RouteRecommendationPage', () => {
     renderPage();
     expect(await screen.findByText('Jurong Lake Loop')).toBeTruthy();
     expect(mockGetRoutes).toHaveBeenCalled();
+  }, 10000);
+
+  it('renders contract-style recommendation fields from POST /routes/recommendations output', async () => {
+    const AsyncStorage = require('@react-native-async-storage/async-storage');
+    const savedRequest = {
+      startPoint: { name: 'Start', lat: 1.3, lng: 103.8, source: 'search' },
+      endPoint: { name: 'End', lat: 1.31, lng: 103.81, source: 'current-location' },
+      checkpoints: [],
+      preferences: {
+        cyclistType: 'recreational',
+        preferredShade: 50,
+        elevation: 50,
+        distance: 10,
+        airQuality: 50,
+      },
+    };
+    AsyncStorage.getItem.mockResolvedValue(JSON.stringify(savedRequest));
+
+    mockGetRouteRecommendations.mockResolvedValue([
+      {
+        id: 'route_001',
+        name: 'City Breeze Connector',
+        description: 'Balanced city ride with park connectors and moderate shade.',
+        distance: 12.4,
+        estimatedTime: 42,
+        elevation: 'higher',
+        shade: 'dont-care',
+        airQuality: 'care',
+        cyclistType: 'recreational',
+        reviewCount: 320,
+        rating: 4.6,
+        checkpoints: [],
+        startPoint: { lat: 1.2837, lng: 103.8515, name: 'Raffles Place MRT' },
+        endPoint: { lat: 1.3025, lng: 103.9128, name: 'East Coast Park' },
+        pointsOfInterestVisited: [{ name: 'Lau Pa Sat Hawker Centre' }, { name: 'Merlion Park' }],
+      },
+    ]);
+
+    renderPage();
+
+    expect(await screen.findByText('City Breeze Connector')).toBeTruthy();
+    expect(screen.getByText('Higher')).toBeTruthy();
+    expect(screen.getByText('Dont Care')).toBeTruthy();
+    expect(screen.getByText('Care')).toBeTruthy();
+    expect(screen.getByText('Lau Pa Sat Hawker Centre, Merlion Park')).toBeTruthy();
+  }, 10000);
+
+  it('shows current location label for end point source in expanded request details', async () => {
+    const AsyncStorage = require('@react-native-async-storage/async-storage');
+    const savedRequest = {
+      startPoint: { name: 'Start', lat: 1.3, lng: 103.8, source: 'search' },
+      endPoint: { name: 'Current End', lat: 1.31, lng: 103.81, source: 'current-location' },
+      checkpoints: [],
+      preferences: {
+        cyclistType: 'recreational',
+        preferredShade: 50,
+        elevation: 50,
+        distance: 10,
+        airQuality: 50,
+      },
+    };
+    AsyncStorage.getItem.mockResolvedValue(JSON.stringify(savedRequest));
+
+    renderPage();
+
+    const toggle = await screen.findByText('Show request details');
+    fireEvent.press(toggle);
+
+    expect(await screen.findByText('Current End')).toBeTruthy();
+    expect(screen.getByText(/Current location/i)).toBeTruthy();
   }, 10000);
 });
