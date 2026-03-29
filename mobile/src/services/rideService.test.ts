@@ -44,6 +44,10 @@ describe('rideService (mock mode)', () => {
       const ride = await getRideById('1');
       expect(ride).not.toBeNull();
       expect(ride?.id).toBe('1');
+      expect(ride?.routeDetails).toBeDefined();
+      expect(ride?.routeDetails?.id).toBe('1');
+      expect(ride?.visitedCheckpoints?.length).toBeGreaterThan(0);
+      expect(ride?.pointsOfInterestVisited?.length).toBeGreaterThan(0);
     });
 
     it('returns null for an unknown ride ID', async () => {

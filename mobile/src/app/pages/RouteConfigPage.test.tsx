@@ -205,7 +205,9 @@ describe('RouteConfigPage', () => {
     const savedRequest = {
       startPoint: { name: 'Marina Bay Sands', lat: 1.2834, lng: 103.8607, source: 'search' },
       endPoint: { name: 'Sentosa', lat: 1.2494, lng: 103.8303, source: 'search' },
-      checkpoints: [],
+      checkpoints: [
+        { id: 'checkpoint-1', name: 'Marina Barrage', lat: 1.2808, lng: 103.8707, source: 'map' },
+      ],
       preferences: {
         cyclistType: 'general',
         preferredShade: 50,
@@ -227,5 +229,20 @@ describe('RouteConfigPage', () => {
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith('Recommendation');
     });
+
+    const persistedRouteRequestCall = AsyncStorage.setItem.mock.calls.find(
+      ([key]: [string]) => key === 'routeRecommendationRequest',
+    );
+    expect(persistedRouteRequestCall).toBeDefined();
+
+    const persistedRouteRequest = JSON.parse(persistedRouteRequestCall[1]);
+    expect(persistedRouteRequest.preferences).toMatchObject({
+      cyclistType: 'general',
+      maxDistanceKm: 10,
+      shadePreference: 'dont-care',
+      elevationPreference: 'dont-care',
+      airQualityPreference: 'care',
+    });
+    expect(persistedRouteRequest.checkpoints[0].description).toContain('Pinned on map at');
   });
 });
