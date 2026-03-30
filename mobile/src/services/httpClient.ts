@@ -6,6 +6,7 @@
 
 import { getApiBaseUrl } from '../config/runtime';
 import { logFailure, logStart, logSuccess } from '../utils/apiLogger';
+import { getAccessToken } from './secureSession';
 
 type RequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -29,8 +30,9 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
   const headers: Record<string, string> = {};
 
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+  const resolvedToken = token ?? (await getAccessToken());
+  if (resolvedToken) {
+    headers['Authorization'] = `Bearer ${resolvedToken}`;
   }
 
   if (body !== undefined && !isFormData) {
