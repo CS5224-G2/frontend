@@ -58,3 +58,12 @@ export async function clearSession(): Promise<void> {
   const SecureStore = await getSecureStore();
   await Promise.all(ALL_KEYS.map((key) => SecureStore.deleteItemAsync(key)));
 }
+
+/**
+ * Returns the stored access token, or null if not logged in.
+ * Used by httpClient for automatic auth header injection.
+ */
+export async function getAccessToken(): Promise<string | null> {
+  const SecureStore = await getSecureStore();
+  return SecureStore.getItemAsync(KEY_ACCESS_TOKEN);
+}
