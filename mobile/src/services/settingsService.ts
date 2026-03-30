@@ -1,17 +1,10 @@
 // =============================================================================
 // SETTINGS SERVICE — Mobile (Expo/React Native)
 // Adapter pattern: maps between backend snake_case and frontend camelCase.
-// Gated by EXPO_PUBLIC_USE_MOCKS — set to 'true' to skip real network calls.
 // =============================================================================
 
-import type {
-  ChangePasswordInput,
-  PasswordUpdateResult,
-  PrivacySecuritySettings,
-} from '../../../shared/types/index';
-import { USE_MOCKS } from '../config/runtime';
-import { getActiveMockAccountId, getLocalDb } from './localDb';
-import { hashPassword } from '../utils/passwordHash';
+import type { ChangePasswordInput, PasswordUpdateResult, PrivacySecuritySettings } from '../../../shared/types/index';
+import { httpClient } from './httpClient';
 
 export type { ChangePasswordInput, PasswordUpdateResult, PrivacySecuritySettings };
 
@@ -48,16 +41,6 @@ type BackendPrivacySecurityResponse = {
   };
 };
 
-type LocalPasswordRow = {
-  password_hash: string;
-};
-
-type LocalPrivacySettingsRow = {
-  third_party_ads_opt_out: number;
-  data_improvement_opt_out: number;
-  notifications_managed_in_os: number;
-};
-
 // ---------------------------------------------------------------------------
 // Mappers
 // ---------------------------------------------------------------------------
@@ -68,17 +51,13 @@ const toBackendPasswordPayload = (input: ChangePasswordInput): BackendPasswordUp
   confirm_new_password: input.confirmNewPassword.trim(),
 });
 
-const toFrontendPrivacySettings = (
-  payload: BackendPrivacySecurityResponse,
-): PrivacySecuritySettings => ({
+const toFrontendPrivacySettings = (payload: BackendPrivacySecurityResponse): PrivacySecuritySettings => ({
   noThirdPartyAds: payload.privacy_controls.third_party_ads_opt_out,
   noDataImprovement: payload.privacy_controls.data_improvement_opt_out,
   notificationsManagedInDeviceSettings: payload.device_permissions.notifications_managed_in_os,
 });
 
-const toBackendPrivacyPayload = (
-  settings: PrivacySecuritySettings,
-): BackendPrivacySecurityPayload => ({
+const toBackendPrivacyPayload = (settings: PrivacySecuritySettings): BackendPrivacySecurityPayload => ({
   privacy_controls: {
     third_party_ads_opt_out: settings.noThirdPartyAds,
     data_improvement_opt_out: settings.noDataImprovement,
@@ -91,88 +70,17 @@ const toPasswordUpdateResult = (r: BackendPasswordUpdateResponse): PasswordUpdat
   updatedAt: r.updated_at,
 });
 
-const wait = async (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
-
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
-export async function updatePassword(
-  input: ChangePasswordInput,
-  token?: string,
-): Promise<PasswordUpdateResult> {
-  if (USE_MOCKS) {
-    await wait(600);
-    if (input.newPassword !== input.confirmNewPassword) {
-      throw new Error('New password confirmation does not match.');
-    }
-
-    const db = await getLocalDb();
-    const accountId = await getActiveMockAccountId();
-    const row = await db.getFirstAsync<LocalPasswordRow>(
-      'SELECT password_hash FROM users WHERE id = ?',
-      accountId,
-    );
-
-    const currentHash = await hashPassword(input.currentPassword);
-    if (currentHash !== row?.password_hash) {
-      throw new Error('Current password is incorrect.');
-    }
-
-    const newHash = await hashPassword(input.newPassword);
-    await db.runAsync(
-      `UPDATE users
-       SET password_hash = ?, updated_at = ?
-       WHERE id = ?`,
-      newHash,
-      new Date().toISOString(),
-      accountId,
-    );
-
-    return { status: 'ok', message: 'Password updated successfully.', updatedAt: new Date().toISOString() };
-  }
-
-  const { httpClient } = await import('./httpClient');
+export async function updatePassword(input: ChangePasswordInput, token?: string): Promise<PasswordUpdateResult> {
   const payload = toBackendPasswordPayload(input);
-  const response = await httpClient.post<BackendPasswordUpdateResponse>(
-    '/user/password',
-    payload,
-    token,
-  );
+  const response = await httpClient.post<BackendPasswordUpdateResponse>('/user/password', payload, token);
   return toPasswordUpdateResult(response);
 }
 
 export async function getPrivacySecuritySettings(token?: string): Promise<PrivacySecuritySettings> {
-  if (USE_MOCKS) {
-    await wait(300);
-    const db = await getLocalDb();
-    const accountId = await getActiveMockAccountId();
-    const row = await db.getFirstAsync<LocalPrivacySettingsRow>(
-      `SELECT
-        third_party_ads_opt_out,
-        data_improvement_opt_out,
-        notifications_managed_in_os
-      FROM user_privacy_settings
-      WHERE account_id = ?`,
-      accountId,
-    );
-
-    if (!row) {
-      throw new Error('Privacy settings not found in the local database.');
-    }
-
-    return toFrontendPrivacySettings({
-      privacy_controls: {
-        third_party_ads_opt_out: Boolean(row.third_party_ads_opt_out),
-        data_improvement_opt_out: Boolean(row.data_improvement_opt_out),
-      },
-      device_permissions: {
-        notifications_managed_in_os: Boolean(row.notifications_managed_in_os),
-      },
-    });
-  }
-
-  const { httpClient } = await import('./httpClient');
   const response = await httpClient.get<BackendPrivacySecurityResponse>('/user/privacy', token);
   return toFrontendPrivacySettings(response);
 }
@@ -181,36 +89,7 @@ export async function updatePrivacySecuritySettings(
   settings: PrivacySecuritySettings,
   token?: string,
 ): Promise<PrivacySecuritySettings> {
-  if (USE_MOCKS) {
-    await wait(450);
-    const payload = toBackendPrivacyPayload(settings);
-    const db = await getLocalDb();
-    const accountId = await getActiveMockAccountId();
-
-    await db.runAsync(
-      `UPDATE user_privacy_settings
-       SET
-         third_party_ads_opt_out = ?,
-         data_improvement_opt_out = ?,
-         notifications_managed_in_os = ?,
-         updated_at = ?
-       WHERE account_id = ?`,
-      payload.privacy_controls.third_party_ads_opt_out ? 1 : 0,
-      payload.privacy_controls.data_improvement_opt_out ? 1 : 0,
-      settings.notificationsManagedInDeviceSettings ? 1 : 0,
-      new Date().toISOString(),
-      accountId,
-    );
-
-    return getPrivacySecuritySettings(token);
-  }
-
-  const { httpClient } = await import('./httpClient');
   const payload = toBackendPrivacyPayload(settings);
-  const response = await httpClient.put<BackendPrivacySecurityResponse>(
-    '/user/privacy',
-    payload,
-    token,
-  );
+  const response = await httpClient.put<BackendPrivacySecurityResponse>('/user/privacy', payload, token);
   return toFrontendPrivacySettings(response);
 }
