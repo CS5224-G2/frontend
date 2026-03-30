@@ -2,7 +2,6 @@
 // ROUTE SERVICE — Mobile (Expo/React Native)
 // Centralises all Route data access. UI components MUST use this service —
 // they must NOT import mock data or call fetch directly.
-// Gated by EXPO_PUBLIC_USE_MOCKS — set to 'true' to skip real network calls.
 // =============================================================================
 
 import type {
@@ -378,7 +377,7 @@ export async function getRouteRecommendations(
   token?: string,
 ): Promise<Route[]> {
   const routeRequest = isRouteRecommendationRequest(input) ? input : null;
-  const prefs = getNormalizedPreferences(routeRequest ? routeRequest.preferences : input);
+  const prefs = getNormalizedPreferences(routeRequest ? routeRequest.preferences : (input as UserPreferences));
 
   const payload = buildRecommendationPayload(routeRequest, prefs, limit);
   const response = await httpClient.post<BackendRecommendationRoute[]>(

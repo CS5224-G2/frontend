@@ -203,6 +203,7 @@ export async function saveRide(payload: SaveRidePayload, token?: string): Promis
     avg_speed: payload.avgSpeed,
     checkpoints_visited: payload.checkpointsVisited,
   };
+  // TODO: Verify endpoint against API docs — spec says /routes/save but /rides may be correct for ride completion
   const response = await httpClient.post<BackendRide>('/routes/save', backendPayload, token);
   return toFrontendRide(response);
 }
