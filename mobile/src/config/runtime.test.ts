@@ -20,10 +20,10 @@ describe('runtime config', () => {
     process.env = originalEnv;
   });
 
-  it('defaults to mock mode when EXPO_PUBLIC_USE_MOCKS is unset', () => {
+  it('defaults to network mode when EXPO_PUBLIC_USE_MOCKS is unset', () => {
     const { USE_MOCKS } = require('./runtime') as typeof import('./runtime');
 
-    expect(USE_MOCKS).toBe(true);
+    expect(USE_MOCKS).toBe(false);
   });
 
   it('throws a clear error when network mode is enabled without a real API base URL', () => {
