@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useNavigation } from '@react-navigation/native';
 import { useColorScheme } from 'nativewind';
 import { AuthContext } from '../AuthContext';
 
@@ -21,7 +20,6 @@ import { loginWithApple, loginWithGoogle, OAuthNotImplementedError } from '../..
 
 export default function RegisterPage() {
   const router = useRouter();
-  const navigation = useNavigation<any>();
   const { login } = useContext(AuthContext);
   const { colorScheme } = useColorScheme();
   const [firstName, setFirstName] = useState('');
@@ -65,7 +63,7 @@ export default function RegisterPage() {
     setIsSubmitting(true);
 
     try {
-      const result = await registerUser({
+      await registerUser({
         firstName,
         lastName,
         email,
@@ -74,7 +72,7 @@ export default function RegisterPage() {
         agreedToTerms,
       });
 
-      navigation.navigate('Onboarding', { authResult: result });
+      router.push('/onboarding');
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Something went wrong while creating the account.';

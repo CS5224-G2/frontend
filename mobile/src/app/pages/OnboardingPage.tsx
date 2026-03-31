@@ -1,4 +1,4 @@
-import { useContext, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -11,22 +11,29 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRoute } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 import { useColorScheme } from 'nativewind';
 import * as Location from 'expo-location';
 
 import { AuthContext } from '../AuthContext';
 import { updateUserProfile } from '../../services/userService';
+import { loadSession } from '../../services/secureSession';
 import type { AuthResult, CyclingPreference, UserProfile } from '../../../../shared/types/index';
 
 const PREFERENCE_OPTIONS: CyclingPreference[] = ['Leisure', 'Commuter', 'Performance'];
 
 export default function OnboardingPage() {
-  const route = useRoute<any>();
   const { login } = useContext(AuthContext);
   const { colorScheme } = useColorScheme();
+  const router = useRouter();
 
-  const authResult: AuthResult | undefined = route.params?.authResult;
+  const [authResult, setAuthResult] = useState<AuthResult | undefined>(undefined);
+
+  useEffect(() => {
+    loadSession().then((session) => {
+      if (session) setAuthResult(session);
+    });
+  }, []);
 
   const [location, setLocation] = useState('');
   const [isLocating, setIsLocating] = useState(false);
@@ -91,7 +98,8 @@ export default function OnboardingPage() {
         stats: { totalRides: 0, totalDistanceKm: 0, favoriteTrails: 0 },
       };
       await updateUserProfile(profile, authResult.accessToken);
-      await login(authResult);
+      await login({ ...authResult, user: { ...authResult.user, onboardingComplete: true } });
+      router.replace('/(tabs)/home-tab');
     } catch (error) {
       Alert.alert(
         'Setup failed',

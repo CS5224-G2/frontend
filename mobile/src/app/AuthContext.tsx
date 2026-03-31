@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
 import type { AuthResult, AuthUser } from '../../../shared/types/index';
+import { registerSessionExpiredHandler } from '../services/authEvents';
 import { clearSession, loadSession, saveSession } from '../services/secureSession';
 
 interface AuthContextType {
@@ -28,6 +29,15 @@ export function AuthProvider({ children }: Readonly<{ children: React.ReactNode 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [role, setRole] = useState<'user' | 'admin' | 'business' | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
+
+  // Register the session-expired handler so httpClient can trigger logout on 401.
+  useEffect(() => {
+    registerSessionExpiredHandler(() => {
+      setIsLoggedIn(false);
+      setRole(null);
+      setUser(null);
+    });
+  }, []);
 
   // Restore session from SecureStore on mount.
   useEffect(() => {
