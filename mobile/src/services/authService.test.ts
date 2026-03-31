@@ -56,6 +56,16 @@ describe('loginUser()', () => {
   it('throws when email is missing', async () => {
     await expect(loginUser({ email: '', password: 'pw' })).rejects.toThrow('Email and password are required.');
   });
+
+  it('normalises invalid credential errors from the backend', async () => {
+    const backendError = new Error('Invalid credentials');
+    Object.assign(backendError, { status: 401 });
+    mockPost.mockRejectedValueOnce(backendError);
+
+    await expect(loginUser({ email: 'alice@test.com', password: 'wrong-pass' })).rejects.toThrow(
+      'Wrong email or password',
+    );
+  });
 });
 
 describe('registerUser()', () => {

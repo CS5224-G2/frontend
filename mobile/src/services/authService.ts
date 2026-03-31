@@ -83,6 +83,31 @@ const toAuthResult = (response: BackendAuthResponse): AuthResult => ({
   },
 });
 
+const INVALID_LOGIN_PATTERNS = [
+  /invalid credentials/i,
+  /invalid email or password/i,
+  /wrong email or password/i,
+  /incorrect email or password/i,
+  /incorrect password/i,
+  /user not found/i,
+];
+
+function isInvalidLoginError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const status = typeof (error as { status?: unknown }).status === 'number'
+    ? (error as { status: number }).status
+    : null;
+
+  if (status === 401) {
+    return true;
+  }
+
+  return INVALID_LOGIN_PATTERNS.some((pattern) => pattern.test(error.message));
+}
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -93,10 +118,19 @@ export async function loginUser(values: LoginFormValues): Promise<AuthResult> {
   }
 
   const payload = toLoginPayload(values);
-  const response = await httpClient.post<BackendAuthResponse>('/auth/login', payload);
-  const result = toAuthResult(response);
-  await saveSession(result);
-  return result;
+
+  try {
+    const response = await httpClient.post<BackendAuthResponse>('/auth/login', payload);
+    const result = toAuthResult(response);
+    await saveSession(result);
+    return result;
+  } catch (error) {
+    if (isInvalidLoginError(error)) {
+      throw new Error('Wrong email or password');
+    }
+
+    throw error;
+  }
 }
 
 export async function registerUser(values: RegisterFormValues): Promise<AuthResult> {
