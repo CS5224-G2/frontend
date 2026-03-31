@@ -26,7 +26,7 @@ export default function OnboardingPage() {
   const { login } = useContext(AuthContext);
   const { colorScheme } = useColorScheme();
 
-  const authResult: AuthResult = route.params?.authResult;
+  const authResult: AuthResult | undefined = route.params?.authResult;
 
   const [location, setLocation] = useState('');
   const [isLocating, setIsLocating] = useState(false);
@@ -58,6 +58,9 @@ export default function OnboardingPage() {
   };
 
   const handleSubmit = async () => {
+    if (!authResult) {
+      return;
+    }
     if (!location.trim()) {
       Alert.alert('Missing location', 'Please enter your neighbourhood or tap Use Current Location.');
       return;
@@ -75,9 +78,9 @@ export default function OnboardingPage() {
     setIsSubmitting(true);
     try {
       const profile: UserProfile = {
-        userId: authResult.user.id,
-        fullName: authResult.user.fullName,
-        email: authResult.user.email,
+        userId: authResult!.user.id,
+        fullName: authResult!.user.fullName,
+        email: authResult!.user.email,
         location: location.trim(),
         memberSince: '',
         cyclingPreference,
@@ -87,8 +90,8 @@ export default function OnboardingPage() {
         avatarColor: '#3b82f6',
         stats: { totalRides: 0, totalDistanceKm: 0, favoriteTrails: 0 },
       };
-      await updateUserProfile(profile, authResult.accessToken);
-      await login(authResult);
+      await updateUserProfile(profile, authResult!.accessToken);
+      await login(authResult!);
     } catch (error) {
       Alert.alert(
         'Setup failed',
@@ -211,10 +214,10 @@ export default function OnboardingPage() {
             </View>
 
             <Pressable
-              disabled={isSubmitting}
+              disabled={isSubmitting || !authResult}
               onPress={handleSubmit}
               className="bg-primary dark:bg-blue-500 rounded-[18px] items-center justify-center py-cy-lg"
-              style={isSubmitting ? { opacity: 0.7 } : undefined}
+              style={isSubmitting || !authResult ? { opacity: 0.7 } : undefined}
             >
               {isSubmitting ? (
                 <ActivityIndicator color="#ffffff" />

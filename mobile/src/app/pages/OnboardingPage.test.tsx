@@ -118,6 +118,19 @@ describe('OnboardingPage', () => {
     });
   });
 
+  it('shows alert if Get Started pressed with invalid weekly goal', async () => {
+    const alertSpy = jest.spyOn(require('react-native').Alert, 'alert');
+    renderWithAuth(<OnboardingPage />);
+    fireEvent.changeText(screen.getByPlaceholderText('Neighbourhood, Singapore'), 'Tampines, Singapore');
+    fireEvent.press(screen.getByText('Leisure'));
+    fireEvent.changeText(screen.getByPlaceholderText('80'), '0');
+    fireEvent.press(screen.getByText('Get Started'));
+
+    await waitFor(() => {
+      expect(alertSpy).toHaveBeenCalledWith('Invalid goal', expect.any(String));
+    });
+  });
+
   it('calls updateUserProfile then login on valid submit', async () => {
     renderWithAuth(<OnboardingPage />);
 
