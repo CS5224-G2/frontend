@@ -1,188 +1,230 @@
-import React, { useState, useContext } from 'react';
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Bike, Trees, Mountain, Route, Wind, Info } from 'lucide-react-native';
-import Slider from '@react-native-community/slider';
+import { useContext, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRoute } from '@react-navigation/native';
+import { useColorScheme } from 'nativewind';
+import * as Location from 'expo-location';
+
 import { AuthContext } from '../AuthContext';
+import { updateUserProfile } from '../../services/userService';
+import type { AuthResult, CyclingPreference, UserProfile } from '../../../../shared/types/index';
 
-type Props = NativeStackScreenProps<any, any>;
+const PREFERENCE_OPTIONS: CyclingPreference[] = ['Leisure', 'Commuter', 'Performance'];
 
-interface UserPreferences {
-  cyclistType: 'recreational' | 'commuter' | 'fitness' | 'general';
-  preferredShade: number;
-  elevation: number;
-  distance: number;
-  airQuality: number;
-}
-
-export default function OnboardingPage({ navigation }: Props) {
+export default function OnboardingPage() {
+  const route = useRoute<any>();
   const { login } = useContext(AuthContext);
-  const [preferences, setPreferences] = useState<UserPreferences>({
-    cyclistType: 'general',
-    preferredShade: 50,
-    elevation: 50,
-    distance: 10,
-    airQuality: 50,
-  });
+  const { colorScheme } = useColorScheme();
 
-  const cyclistTypes = [
-    { type: 'recreational' as const, label: 'Recreational', icon: Trees, description: 'Leisurely rides for enjoyment' },
-    { type: 'commuter' as const, label: 'Commuter', icon: Route, description: 'Fast routes for daily travel' },
-    { type: 'fitness' as const, label: 'Fitness', icon: Mountain, description: 'Challenging routes for training' },
-    { type: 'general' as const, label: 'General', icon: Bike, description: 'Balanced all-purpose cycling' },
-  ];
+  const authResult: AuthResult = route.params?.authResult;
 
-  const handleConfirm = () => {
-    console.log('User preferences:', preferences);
-    login();
+  const [location, setLocation] = useState('');
+  const [isLocating, setIsLocating] = useState(false);
+  const [cyclingPreference, setCyclingPreference] = useState<CyclingPreference | null>(null);
+  const [weeklyGoalKm, setWeeklyGoalKm] = useState('80');
+  const [bio, setBio] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleUseCurrentLocation = async () => {
+    setIsLocating(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Location access denied', 'Enter your neighbourhood manually.');
+        return;
+      }
+      const { coords } = await Location.getCurrentPositionAsync({});
+      const [geocode] = await Location.reverseGeocodeAsync({
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+      });
+      const area = geocode?.district ?? geocode?.subregion ?? geocode?.city ?? '';
+      setLocation(area ? `${area}, Singapore` : 'Singapore');
+    } catch {
+      Alert.alert('Location unavailable', 'Enter your neighbourhood manually.');
+    } finally {
+      setIsLocating(false);
+    }
   };
 
-  const CyclistTypeButton = ({ type, label, icon: Icon, description, isSelected }: any) => (
-    <TouchableOpacity
-      className={`flex-1 p-cy-lg rounded-cy-md border-2 items-center ${isSelected ? 'border-[#3b82f6] bg-[#eff6ff] dark:bg-[#1e293b]' : 'border-[#d1d5db] bg-white dark:bg-[#111111]'}`}
-      style={{ minWidth: '45%' }}
-      onPress={() => setPreferences({ ...preferences, cyclistType: type })}
-    >
-      <Icon size={24} color={isSelected ? '#3b82f6' : '#6b7280'} />
-      <Text className={`text-base font-semibold mt-2 mb-1 ${isSelected ? 'text-[#3b82f6] dark:text-blue-400' : 'text-[#1e293b] dark:text-slate-100'}`}>{label}</Text>
-      <Text className="text-sm text-[#6b7280] dark:text-slate-400 text-center">{description}</Text>
-    </TouchableOpacity>
-  );
+  const handleSubmit = async () => {
+    if (!location.trim()) {
+      Alert.alert('Missing location', 'Please enter your neighbourhood or tap Use Current Location.');
+      return;
+    }
+    if (!cyclingPreference) {
+      Alert.alert('Missing preference', 'Please select a cycling preference before continuing.');
+      return;
+    }
+    const goal = parseInt(weeklyGoalKm, 10);
+    if (!goal || goal <= 0) {
+      Alert.alert('Invalid goal', 'Please enter a weekly goal greater than 0 km.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const profile: UserProfile = {
+        userId: authResult.user.id,
+        fullName: authResult.user.fullName,
+        email: authResult.user.email,
+        location: location.trim(),
+        memberSince: '',
+        cyclingPreference,
+        weeklyGoalKm: goal,
+        bio: bio.trim(),
+        avatarUrl: null,
+        avatarColor: '#3b82f6',
+        stats: { totalRides: 0, totalDistanceKm: 0, favoriteTrails: 0 },
+      };
+      await updateUserProfile(profile, authResult.accessToken);
+      await login(authResult);
+    } catch (error) {
+      Alert.alert(
+        'Setup failed',
+        error instanceof Error ? error.message : 'Something went wrong. Please try again.',
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const inputClass =
+    'border border-border-light dark:border-[#2d2d2d] rounded-cy-xl px-cy-lg py-[15px] text-[15px] text-slate-900 dark:text-slate-100 bg-bg-light dark:bg-[#1a1a1a]';
 
   return (
-    <ScrollView className="flex-1 bg-[#DBEAFE] dark:bg-[#1e293b]">
-      <View className="flex-1 p-cy-xl pt-[60px]">
-        {/* Info Button */}
-        <TouchableOpacity
-          className="absolute top-10 right-6 flex-row items-center bg-white dark:bg-[#111111] px-cy-md py-cy-sm rounded-cy-md border border-[#d1d5db] dark:border-[#2d2d2d]"
-          onPress={() => navigation.navigate('UserJourneyPage')}
+    <SafeAreaView className="flex-1 bg-bg-page dark:bg-black">
+      <KeyboardAvoidingView
+        className="flex-1"
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 32 }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <Info size={16} color="#6b7280" />
-          <Text className="ml-2 text-sm text-[#6b7280] dark:text-slate-400">View Journey</Text>
-        </TouchableOpacity>
-
-        <View className="bg-white dark:bg-[#111111] rounded-cy-lg" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4 }}>
-          <View className="items-center p-cy-xl">
-            <Text className="text-[28px] font-bold text-[#1e293b] dark:text-slate-100 text-center">Welcome to CycleLink</Text>
-            <Text className="text-base text-[#64748b] dark:text-slate-400 mt-2 text-center">Let's personalize your cycling experience</Text>
+          <View className="items-center mb-7">
+            <View
+              className="items-center justify-center mb-4 bg-primary dark:bg-blue-500"
+              style={{ width: 72, height: 72, borderRadius: 36, shadowColor: '#1d4ed8', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.22, shadowRadius: 18, elevation: 8 }}
+            >
+              <Text className="text-white text-[22px] font-extrabold tracking-widest">CL</Text>
+            </View>
+            <Text className="text-[34px] font-extrabold text-[#2563eb] dark:text-blue-400 mb-2">CycleLink</Text>
+            <Text className="text-[15px] leading-[22px] text-[#475569] dark:text-slate-400 text-center" style={{ maxWidth: 300 }}>
+              Let's personalise your experience before you start.
+            </Text>
           </View>
 
-          <View className="p-cy-xl">
-            {/* Cyclist Type Selection */}
-            <View className="mb-[24px]">
-              <Text className="text-lg font-semibold text-[#1e293b] dark:text-slate-100 mb-cy-lg">What type of cyclist are you?</Text>
-              <View className="flex-row flex-wrap gap-cy-md">
-                {cyclistTypes.map(({ type, label, icon, description }) => (
-                  <CyclistTypeButton
-                    key={type}
-                    type={type}
-                    label={label}
-                    icon={icon}
-                    description={description}
-                    isSelected={preferences.cyclistType === type}
-                  />
-                ))}
+          <View
+            className="bg-bg-base dark:bg-[#111111] rounded-cy-2xl px-[22px] py-cy-xl"
+            style={{ shadowColor: '#0f172a', shadowOffset: { width: 0, height: 16 }, shadowOpacity: 0.08, shadowRadius: 24, elevation: 8 }}
+          >
+            <Text className="text-[24px] font-bold text-slate-900 dark:text-slate-100 mb-1.5">Your Profile</Text>
+            <Text className="text-[14px] text-text-secondary mb-[18px]">Takes about 30 seconds. You can update everything later.</Text>
+
+            {/* Location */}
+            <View className="mb-4">
+              <Text className="text-[14px] font-semibold text-[#334155] dark:text-slate-100 mb-2">Location</Text>
+              <View className="flex-row" style={{ gap: 8 }}>
+                <TextInput
+                  value={location}
+                  onChangeText={setLocation}
+                  placeholder="Neighbourhood, Singapore"
+                  placeholderTextColor={colorScheme === 'dark' ? '#64748b' : '#94a3b8'}
+                  className={`flex-1 ${inputClass}`}
+                />
+                <Pressable
+                  onPress={handleUseCurrentLocation}
+                  disabled={isLocating}
+                  className="items-center justify-center rounded-cy-xl px-cy-md bg-[#DBEAFE] dark:bg-[#1e293b] border border-[#2563eb]"
+                  style={{ minWidth: 56 }}
+                >
+                  {isLocating ? (
+                    <ActivityIndicator size="small" color="#2563eb" />
+                  ) : (
+                    <Text className="text-[#2563eb] dark:text-blue-400 text-[12px] font-bold text-center">Use Current Location</Text>
+                  )}
+                </Pressable>
               </View>
             </View>
 
-            {/* Preferred Shade */}
-            <View className="mb-[24px]">
-              <View className="flex-row items-center mb-cy-md">
-                <Trees size={20} color="#6b7280" />
-                <Text className="text-base font-semibold text-[#1e293b] dark:text-slate-100 ml-2">Preferred Shade: {preferences.preferredShade}%</Text>
+            {/* Cycling Preference */}
+            <View className="mb-4">
+              <Text className="text-[14px] font-semibold text-[#334155] dark:text-slate-100 mb-2">Cycling Preference</Text>
+              <View className="flex-row flex-wrap" style={{ gap: 8 }}>
+                {PREFERENCE_OPTIONS.map((option) => {
+                  const isSelected = cyclingPreference === option;
+                  return (
+                    <Pressable
+                      key={option}
+                      onPress={() => setCyclingPreference(option)}
+                      className={`px-cy-lg py-cy-md rounded-full border ${isSelected ? 'bg-[#DBEAFE] dark:bg-[#1e293b] border-[#2563eb]' : 'bg-bg-light dark:bg-[#1a1a1a] border-border-light dark:border-[#2d2d2d]'}`}
+                    >
+                      <Text className={`text-[14px] font-semibold ${isSelected ? 'text-[#2563eb] dark:text-blue-400' : 'text-text-secondary dark:text-slate-400'}`}>
+                        {option}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
               </View>
-              <Slider
-                style={{ width: '100%', height: 40 }}
-                minimumValue={0}
-                maximumValue={100}
-                step={10}
-                value={preferences.preferredShade}
-                onValueChange={(value) => setPreferences({ ...preferences, preferredShade: value })}
-                minimumTrackTintColor="#3b82f6"
-                maximumTrackTintColor="#d1d5db"
-                thumbTintColor="#3b82f6"
+            </View>
+
+            {/* Weekly Goal */}
+            <View className="mb-4">
+              <Text className="text-[14px] font-semibold text-[#334155] dark:text-slate-100 mb-2">Weekly Goal (km)</Text>
+              <TextInput
+                value={weeklyGoalKm}
+                onChangeText={setWeeklyGoalKm}
+                placeholder="80"
+                placeholderTextColor={colorScheme === 'dark' ? '#64748b' : '#94a3b8'}
+                keyboardType="number-pad"
+                className={inputClass}
               />
-              <View className="flex-row justify-between mt-2">
-                <Text className="text-xs text-[#6b7280] dark:text-slate-400">Full Sun</Text>
-                <Text className="text-xs text-[#6b7280] dark:text-slate-400">Full Shade</Text>
-              </View>
             </View>
 
-            {/* Elevation Preference */}
-            <View className="mb-[24px]">
-              <View className="flex-row items-center mb-cy-md">
-                <Mountain size={20} color="#6b7280" />
-                <Text className="text-base font-semibold text-[#1e293b] dark:text-slate-100 ml-2">Elevation Challenge: {preferences.elevation}%</Text>
-              </View>
-              <Slider
-                style={{ width: '100%', height: 40 }}
-                minimumValue={0}
-                maximumValue={100}
-                step={10}
-                value={preferences.elevation}
-                onValueChange={(value) => setPreferences({ ...preferences, elevation: value })}
-                minimumTrackTintColor="#3b82f6"
-                maximumTrackTintColor="#d1d5db"
-                thumbTintColor="#3b82f6"
+            {/* Bio */}
+            <View className="mb-5">
+              <Text className="text-[14px] font-semibold text-[#334155] dark:text-slate-100 mb-2">
+                Bio <Text className="text-text-secondary font-normal">(optional)</Text>
+              </Text>
+              <TextInput
+                value={bio}
+                onChangeText={setBio}
+                placeholder="Tell other riders about your style..."
+                placeholderTextColor={colorScheme === 'dark' ? '#64748b' : '#94a3b8'}
+                multiline
+                textAlignVertical="top"
+                className={inputClass}
+                style={{ minHeight: 80 }}
               />
-              <View className="flex-row justify-between mt-2">
-                <Text className="text-xs text-[#6b7280] dark:text-slate-400">Flat</Text>
-                <Text className="text-xs text-[#6b7280] dark:text-slate-400">Hilly</Text>
-              </View>
             </View>
 
-            {/* Distance */}
-            <View className="mb-[24px]">
-              <View className="flex-row items-center mb-cy-md">
-                <Route size={20} color="#6b7280" />
-                <Text className="text-base font-semibold text-[#1e293b] dark:text-slate-100 ml-2">Preferred Distance: {preferences.distance} km</Text>
-              </View>
-              <Slider
-                style={{ width: '100%', height: 40 }}
-                minimumValue={5}
-                maximumValue={50}
-                step={5}
-                value={preferences.distance}
-                onValueChange={(value) => setPreferences({ ...preferences, distance: value })}
-                minimumTrackTintColor="#3b82f6"
-                maximumTrackTintColor="#d1d5db"
-                thumbTintColor="#3b82f6"
-              />
-              <View className="flex-row justify-between mt-2">
-                <Text className="text-xs text-[#6b7280] dark:text-slate-400">5 km</Text>
-                <Text className="text-xs text-[#6b7280] dark:text-slate-400">50 km</Text>
-              </View>
-            </View>
-
-            {/* Air Quality */}
-            <View className="mb-[24px]">
-              <View className="flex-row items-center mb-cy-md">
-                <Wind size={20} color="#6b7280" />
-                <Text className="text-base font-semibold text-[#1e293b] dark:text-slate-100 ml-2">Minimum Air Quality: {preferences.airQuality}%</Text>
-              </View>
-              <Slider
-                style={{ width: '100%', height: 40 }}
-                minimumValue={0}
-                maximumValue={100}
-                step={10}
-                value={preferences.airQuality}
-                onValueChange={(value) => setPreferences({ ...preferences, airQuality: value })}
-                minimumTrackTintColor="#3b82f6"
-                maximumTrackTintColor="#d1d5db"
-                thumbTintColor="#3b82f6"
-              />
-              <View className="flex-row justify-between mt-2">
-                <Text className="text-xs text-[#6b7280] dark:text-slate-400">Any</Text>
-                <Text className="text-xs text-[#6b7280] dark:text-slate-400">Pristine</Text>
-              </View>
-            </View>
-
-            <TouchableOpacity className="bg-[#3b82f6] dark:bg-blue-500 py-cy-lg px-cy-xl rounded-cy-md items-center mt-[24px]" onPress={handleConfirm}>
-              <Text className="text-white text-lg font-semibold">Confirm & Continue</Text>
-            </TouchableOpacity>
+            <Pressable
+              disabled={isSubmitting}
+              onPress={handleSubmit}
+              className="bg-primary dark:bg-blue-500 rounded-[18px] items-center justify-center py-cy-lg"
+              style={isSubmitting ? { opacity: 0.7 } : undefined}
+            >
+              {isSubmitting ? (
+                <ActivityIndicator color="#ffffff" />
+              ) : (
+                <Text className="text-white text-[16px] font-bold">Get Started</Text>
+              )}
+            </Pressable>
           </View>
-        </View>
-      </View>
-    </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
