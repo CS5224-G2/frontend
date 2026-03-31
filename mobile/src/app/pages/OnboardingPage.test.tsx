@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import OnboardingPage from './OnboardingPage';
 import { AuthContext } from '../AuthContext';
 import * as userService from '../../services/userService';
@@ -12,22 +12,25 @@ const mockGoBack = jest.fn();
 jest.mock('@react-navigation/native', () => ({
   ...jest.requireActual('@react-navigation/native'),
   useNavigation: () => ({ navigate: mockNavigate, goBack: mockGoBack }),
-  useRoute: () => ({
-    params: {
-      authResult: {
-        accessToken: 'mock-token',
-        refreshToken: 'mock-refresh',
-        expiresIn: 3600,
-        user: {
-          id: 'user_001',
-          firstName: 'Alex',
-          lastName: 'Tan',
-          fullName: 'Alex Tan',
-          email: 'alex@example.com',
-          onboardingComplete: false,
-          role: 'user' as const,
-        },
-      },
+}));
+
+jest.mock('expo-router', () => ({
+  useRouter: () => ({ replace: jest.fn() }),
+}));
+
+jest.mock('../../services/secureSession', () => ({
+  loadSession: jest.fn().mockResolvedValue({
+    accessToken: 'mock-token',
+    refreshToken: 'mock-refresh',
+    expiresIn: 3600,
+    user: {
+      id: 'user_001',
+      firstName: 'Alex',
+      lastName: 'Tan',
+      fullName: 'Alex Tan',
+      email: 'alex@example.com',
+      onboardingComplete: false,
+      role: 'user',
     },
   }),
 }));
@@ -49,8 +52,8 @@ jest.mock('react-native-safe-area-context', () => {
   };
 });
 
-const renderWithAuth = (component: React.ReactElement) =>
-  render(
+const renderWithAuth = async (component: React.ReactElement) => {
+  const result = render(
     <AuthContext.Provider
       value={{
         isRestoring: false,
@@ -64,6 +67,9 @@ const renderWithAuth = (component: React.ReactElement) =>
       {component}
     </AuthContext.Provider>,
   );
+  await act(async () => {});
+  return result;
+};
 
 describe('OnboardingPage', () => {
   const mockedUpdateUserProfile = userService.updateUserProfile as jest.MockedFunction<
@@ -76,8 +82,8 @@ describe('OnboardingPage', () => {
     mockedUpdateUserProfile.mockResolvedValue({} as any);
   });
 
-  it('renders all onboarding fields', () => {
-    renderWithAuth(<OnboardingPage />);
+  it('renders all onboarding fields', async () => {
+    await renderWithAuth(<OnboardingPage />);
     expect(screen.getByPlaceholderText('Neighbourhood, Singapore')).toBeTruthy();
     expect(screen.getByText('Leisure')).toBeTruthy();
     expect(screen.getByText('Commuter')).toBeTruthy();
@@ -88,7 +94,7 @@ describe('OnboardingPage', () => {
   });
 
   it('fills location field when Use Current Location is pressed and permission is granted', async () => {
-    renderWithAuth(<OnboardingPage />);
+    await renderWithAuth(<OnboardingPage />);
     fireEvent.press(screen.getByText('Use Current Location'));
 
     await waitFor(() => {
@@ -98,7 +104,7 @@ describe('OnboardingPage', () => {
 
   it('shows alert if Get Started pressed with empty location', async () => {
     const alertSpy = jest.spyOn(require('react-native').Alert, 'alert');
-    renderWithAuth(<OnboardingPage />);
+    await renderWithAuth(<OnboardingPage />);
     fireEvent.press(screen.getByText('Performance'));
     fireEvent.press(screen.getByText('Get Started'));
 
@@ -109,7 +115,7 @@ describe('OnboardingPage', () => {
 
   it('shows alert if Get Started pressed with no cycling preference selected', async () => {
     const alertSpy = jest.spyOn(require('react-native').Alert, 'alert');
-    renderWithAuth(<OnboardingPage />);
+    await renderWithAuth(<OnboardingPage />);
     fireEvent.changeText(screen.getByPlaceholderText('Neighbourhood, Singapore'), 'Tampines, Singapore');
     fireEvent.press(screen.getByText('Get Started'));
 
@@ -120,7 +126,7 @@ describe('OnboardingPage', () => {
 
   it('shows alert if Get Started pressed with invalid weekly goal', async () => {
     const alertSpy = jest.spyOn(require('react-native').Alert, 'alert');
-    renderWithAuth(<OnboardingPage />);
+    await renderWithAuth(<OnboardingPage />);
     fireEvent.changeText(screen.getByPlaceholderText('Neighbourhood, Singapore'), 'Tampines, Singapore');
     fireEvent.press(screen.getByText('Leisure'));
     fireEvent.changeText(screen.getByPlaceholderText('80'), '0');
@@ -132,7 +138,7 @@ describe('OnboardingPage', () => {
   });
 
   it('calls updateUserProfile then login on valid submit', async () => {
-    renderWithAuth(<OnboardingPage />);
+    await renderWithAuth(<OnboardingPage />);
 
     fireEvent.changeText(screen.getByPlaceholderText('Neighbourhood, Singapore'), 'Tampines, Singapore');
     fireEvent.press(screen.getByText('Leisure'));
