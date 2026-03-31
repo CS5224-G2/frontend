@@ -1,11 +1,14 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react-native';
+import { LayoutAnimation } from 'react-native';
 import RideHistoryPage from './RideHistoryPage';
 import { AuthContext } from '../AuthContext';
 
 const mockNavigate = jest.fn();
 const mockGetRideHistory = jest.fn();
 const mockGetDistanceStats = jest.fn();
+const mockGetItem = jest.fn();
+const mockSetItem = jest.fn();
 
 jest.mock('@react-navigation/native', () => ({
   ...jest.requireActual('@react-navigation/native'),
@@ -15,8 +18,8 @@ jest.mock('@react-navigation/native', () => ({
 }));
 
 jest.mock('@react-native-async-storage/async-storage', () => ({
-  getItem: jest.fn().mockResolvedValue(null),
-  setItem: jest.fn().mockResolvedValue(null),
+  getItem: (...args: unknown[]) => mockGetItem(...args),
+  setItem: (...args: unknown[]) => mockSetItem(...args),
 }));
 
 jest.mock('@expo/vector-icons', () => {
@@ -81,7 +84,9 @@ jest.mock('../../services/rideService', () => ({
 
 describe('RideHistoryPage', () => {
   beforeEach(() => {
+    jest.useFakeTimers();
     jest.clearAllMocks();
+    jest.spyOn(LayoutAnimation, 'configureNext').mockImplementation(() => {});
 
     mockGetRideHistory.mockResolvedValue([
       { id: '1', routeId: '1', routeName: 'Waterfront Loop', completionDate: 'March 12, 2026', completionTime: '10:30 AM', totalTime: 48, distance: 12.5, avgSpeed: 15.6, checkpoints: 3, userRating: 5 },
@@ -102,6 +107,16 @@ describe('RideHistoryPage', () => {
             { id: 'week3', week: 'Week 3', distance: 52.3 }, { id: 'week4', week: 'Week 4', distance: 39.0 },
           ]
     ));
+    mockGetItem.mockResolvedValue(null);
+    mockSetItem.mockResolvedValue(null);
+  });
+
+  afterEach(async () => {
+    await act(async () => {
+      jest.runOnlyPendingTimers();
+    });
+    jest.useRealTimers();
+    jest.restoreAllMocks();
   });
 
   const renderWithAuth = (component: React.ReactElement) => {
@@ -112,41 +127,67 @@ describe('RideHistoryPage', () => {
     );
   };
 
-  it('renders correctly', async () => {
-    renderWithAuth(<RideHistoryPage navigation={{ navigate: mockNavigate } as any} route={{} as any} />);
+  const flushUi = async () => {
+    await act(async () => {});
+    await act(async () => {
+      jest.runOnlyPendingTimers();
+    });
+    await act(async () => {});
+  };
 
-    expect(await screen.findByText('Ride History')).toBeTruthy();
-    expect(screen.getByText('Total Rides')).toBeTruthy();
+  const renderRideHistoryPage = async () => {
+    renderWithAuth(<RideHistoryPage navigation={{ navigate: mockNavigate } as any} route={{} as any} />);
+    await flushUi();
+    await screen.findByText('Ride History');
+    await flushUi();
+  };
+
+  it('renders loaded weekly ride history data', async () => {
+    await renderRideHistoryPage();
+
+    expect(screen.getByText('Ride History')).toBeTruthy();
     expect(screen.getByText('Distance Over Time')).toBeTruthy();
     expect(screen.getByText('Recent Rides')).toBeTruthy();
+    expect(screen.getByText(/Total this week/i)).toBeTruthy();
+    expect(screen.getByText('Waterfront Loop')).toBeTruthy();
+    expect(screen.getByText('Mountain Ridge Trail')).toBeTruthy();
+    expect(screen.getByText('City Express')).toBeTruthy();
+    expect(screen.getByText('2h 55m')).toBeTruthy();
   }, 10000);
 
-  it('renders summary values', async () => {
-    renderWithAuth(<RideHistoryPage navigation={{ navigate: mockNavigate } as any} route={{} as any} />);
+  it('shows the empty state when no rides are returned', async () => {
+    mockGetRideHistory.mockResolvedValueOnce([]);
 
-    expect(await screen.findByText('3')).toBeTruthy();
+    await renderRideHistoryPage();
+
+    expect(screen.getByText('Start your first ride!')).toBeTruthy();
+    expect(screen.queryByText('Recent Rides')).toBeNull();
   }, 10000);
 
-  it('toggles period without reloading the screen', async () => {
-    renderWithAuth(<RideHistoryPage navigation={{ navigate: mockNavigate } as any} route={{} as any} />);
+  it('toggles from week to month without reloading data', async () => {
+    await renderRideHistoryPage();
 
-    const monthButton = await screen.findByText('Month');
+    const monthButton = screen.getByText('Month');
+    expect(screen.getByText('Mon')).toBeTruthy();
     expect(mockGetDistanceStats).toHaveBeenCalledTimes(2);
 
     fireEvent.press(monthButton);
+    await flushUi();
 
-    expect(await screen.findByText(/Total this month/i)).toBeTruthy();
+    expect(screen.getByText(/Total this month/i)).toBeTruthy();
     expect(screen.queryByTestId('ride-history-loading')).toBeNull();
 
     await waitFor(() => {
+      expect(screen.getByText('Week 1')).toBeTruthy();
+      expect(screen.queryByText('Mon')).toBeNull();
       expect(mockGetDistanceStats).toHaveBeenCalledTimes(2);
     });
   }, 10000);
 
   it('navigates to ride details when a ride item is pressed', async () => {
-    renderWithAuth(<RideHistoryPage navigation={{ navigate: mockNavigate } as any} route={{} as any} />);
+    await renderRideHistoryPage();
 
-    const rideItem = await screen.findByText('Waterfront Loop');
+    const rideItem = screen.getByText('Waterfront Loop');
     fireEvent.press(rideItem);
 
     expect(mockNavigate).toHaveBeenCalledWith('HistoryDetails', { rideId: '1' });
