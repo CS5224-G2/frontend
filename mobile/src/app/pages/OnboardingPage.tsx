@@ -78,9 +78,9 @@ export default function OnboardingPage() {
     setIsSubmitting(true);
     try {
       const profile: UserProfile = {
-        userId: authResult!.user.id,
-        fullName: authResult!.user.fullName,
-        email: authResult!.user.email,
+        userId: authResult.user.id,
+        fullName: authResult.user.fullName,
+        email: authResult.user.email,
         location: location.trim(),
         memberSince: '',
         cyclingPreference,
@@ -90,8 +90,8 @@ export default function OnboardingPage() {
         avatarColor: '#3b82f6',
         stats: { totalRides: 0, totalDistanceKm: 0, favoriteTrails: 0 },
       };
-      await updateUserProfile(profile, authResult!.accessToken);
-      await login(authResult!);
+      await updateUserProfile(profile, authResult.accessToken);
+      await login(authResult);
     } catch (error) {
       Alert.alert(
         'Setup failed',
