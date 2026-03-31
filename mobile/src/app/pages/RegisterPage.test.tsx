@@ -125,7 +125,7 @@ describe('RegisterPage', () => {
     });
   });
 
-  it('calls login from AuthContext with the full AuthResult upon successful registration', async () => {
+  it('navigates to Onboarding with authResult upon successful registration', async () => {
     renderWithAuth(<RegisterPage />);
     const submitButton = screen.getAllByText('Create Account')[1];
 
@@ -138,7 +138,7 @@ describe('RegisterPage', () => {
     fireEvent.press(submitButton);
 
     await waitFor(() => {
-      expect(mockLogin).toHaveBeenCalledWith(mockAuthResult);
+      expect(mockNavigate).toHaveBeenCalledWith('Onboarding', { authResult: mockAuthResult });
     });
   });
 });
