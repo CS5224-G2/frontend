@@ -3,11 +3,11 @@ import { render, screen } from '@testing-library/react-native';
 
 import { AuthContext } from '@/app/AuthContext';
 
-import ChangePasswordRoute from './change-password';
-import EditProfileRoute from './edit-profile';
-import HomeRoute from './home';
-import PrivacySecurityRoute from './privacy-security';
-import ProfileRoute from './profile';
+import ChangePasswordRoute from '../../app/change-password';
+import EditProfileRoute from '../../app/edit-profile';
+import HomeRoute from '../../app/home';
+import PrivacySecurityRoute from '../../app/privacy-security';
+import ProfileRoute from '../../app/profile';
 
 jest.mock('expo-router', () => {
   const React = require('react');
