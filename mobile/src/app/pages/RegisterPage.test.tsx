@@ -5,13 +5,10 @@ import RegisterPage from './RegisterPage';
 import { AuthContext } from '../AuthContext';
 import * as authService from '../../services/authService';
 
-const mockNavigate = jest.fn();
+const mockPush = jest.fn();
 
-jest.mock('@react-navigation/native', () => ({
-  ...jest.requireActual('@react-navigation/native'),
-  useNavigation: () => ({
-    navigate: mockNavigate,
-  }),
+jest.mock('expo-router', () => ({
+  useRouter: () => ({ push: mockPush }),
 }));
 
 const mockLogin = jest.fn().mockResolvedValue(undefined);
@@ -138,7 +135,7 @@ describe('RegisterPage', () => {
     fireEvent.press(submitButton);
 
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith('Onboarding', { authResult: mockAuthResult });
+      expect(mockPush).toHaveBeenCalledWith('/onboarding');
     });
   });
 });
