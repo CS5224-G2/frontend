@@ -1,3 +1,53 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --dashboard-bg: #f4f6f4;
+  --dashboard-card: #ffffff;
+  --dashboard-muted-surface: #eef2ec;
+  --dashboard-divider: rgba(15, 23, 42, 0.08);
+  --dashboard-grid: rgba(100, 116, 139, 0.18);
+  --dashboard-text: #111827;
+  --dashboard-muted-text: #6b7280;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --dashboard-bg: #0f1720;
+    --dashboard-card: #111a25;
+    --dashboard-muted-surface: #17212e;
+    --dashboard-divider: rgba(148, 163, 184, 0.16);
+    --dashboard-grid: rgba(148, 163, 184, 0.22);
+    --dashboard-text: #e5eef7;
+    --dashboard-muted-text: #94a3b8;
+  }
+}
+
+body {
+  background: var(--dashboard-bg);
+  color: var(--dashboard-text);
+}
+
+.dashboard-skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(148, 163, 184, 0.12) 0%,
+    rgba(148, 163, 184, 0.22) 50%,
+    rgba(148, 163, 184, 0.12) 100%
+  );
+  background-size: 200% 100%;
+  animation: dashboard-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes dashboard-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
