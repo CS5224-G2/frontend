@@ -1,87 +1,105 @@
-// =============================================================================
-// RIDE SERVICE TESTS — Mobile
-// Tests the rideService in mock mode (EXPO_PUBLIC_USE_MOCKS=true).
-// Env var must be set BEFORE the service module is evaluated.
-// =============================================================================
+jest.mock('./httpClient', () => ({
+  httpClient: { get: jest.fn(), post: jest.fn() },
+}));
 
-let getRideHistory: typeof import('./rideService').getRideHistory;
-let getRideById: typeof import('./rideService').getRideById;
-let getDistanceStats: typeof import('./rideService').getDistanceStats;
-let submitRideFeedback: typeof import('./rideService').submitRideFeedback;
+import { httpClient } from './httpClient';
+import { getRideHistory, getRideById, getDistanceStats, submitRideFeedback, saveRide } from './rideService';
 
-beforeAll(() => {
-  process.env.EXPO_PUBLIC_USE_MOCKS = 'true';
-  jest.isolateModules(() => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const svc = require('./rideService') as typeof import('./rideService');
-    getRideHistory = svc.getRideHistory;
-    getRideById = svc.getRideById;
-    getDistanceStats = svc.getDistanceStats;
-    submitRideFeedback = svc.submitRideFeedback;
+const mockGet = httpClient.get as jest.Mock;
+const mockPost = httpClient.post as jest.Mock;
+
+const backendRide = {
+  ride_id: 'r1',
+  route_id: 'rt1',
+  route_name: 'Park Connector',
+  completion_date: '2026-03-01',
+  completion_time: '45:30',
+  total_time: 2730,
+  distance: 12.5,
+  avg_speed: 18.2,
+  checkpoints_visited: 3,
+  rating: 4,
+  review: 'Great ride!',
+};
+
+beforeEach(() => jest.clearAllMocks());
+
+describe('getRideHistory()', () => {
+  it('maps BackendRide array to RideHistory array', async () => {
+    mockGet.mockResolvedValueOnce([backendRide]);
+    const history = await getRideHistory();
+    expect(history).toHaveLength(1);
+    expect(history[0].id).toBe('r1');
+    expect(history[0].routeId).toBe('rt1');
+    expect(history[0].totalTime).toBe(2730);
+    expect(history[0].avgSpeed).toBe(18.2);
+    expect(history[0].checkpoints).toBe(3);
+    expect(history[0].userRating).toBe(4);
+    expect(mockGet).toHaveBeenCalledWith('/rides/history', undefined);
   });
 });
 
-describe('rideService (mock mode)', () => {
-  describe('getRideHistory()', () => {
-    it('returns an array of ride history entries', async () => {
-      const history = await getRideHistory();
-      expect(Array.isArray(history)).toBe(true);
-      expect(history.length).toBeGreaterThan(0);
-    });
-
-    it('returns RideHistory objects with correct camelCase shape', async () => {
-      const [ride] = await getRideHistory();
-      expect(ride).toHaveProperty('id');
-      expect(ride).toHaveProperty('routeId');
-      expect(ride).toHaveProperty('totalTime');
-      expect(ride).toHaveProperty('avgSpeed');
-      expect(ride).toHaveProperty('checkpoints');
-    });
+describe('getRideById()', () => {
+  it('returns mapped RideHistory for a valid ID', async () => {
+    mockGet.mockResolvedValueOnce(backendRide);
+    const ride = await getRideById('r1');
+    expect(ride).not.toBeNull();
+    expect(ride?.id).toBe('r1');
   });
 
-  describe('getRideById()', () => {
-    it('returns the correct ride for a valid ID', async () => {
-      const ride = await getRideById('1');
-      expect(ride).not.toBeNull();
-      expect(ride?.id).toBe('1');
-      expect(ride?.routeDetails).toBeDefined();
-      expect(ride?.routeDetails?.id).toBe('1');
-      expect(ride?.visitedCheckpoints?.length).toBeGreaterThan(0);
-      expect(ride?.pointsOfInterestVisited?.length).toBeGreaterThan(0);
-    });
+  it('returns null when the API throws (e.g. 404)', async () => {
+    mockGet.mockRejectedValueOnce(new Error('Not found'));
+    const ride = await getRideById('nonexistent');
+    expect(ride).toBeNull();
+  });
+});
 
-    it('returns null for an unknown ride ID', async () => {
-      const ride = await getRideById('nonexistent-99');
-      expect(ride).toBeNull();
-    });
+describe('getDistanceStats()', () => {
+  it('maps weekly stats to GraphDataPoint with day field', async () => {
+    mockGet.mockResolvedValueOnce([
+      { period_id: 'w1', label: 'Mon', distance: 5.0 },
+      { period_id: 'w2', label: 'Tue', distance: 8.2 },
+    ]);
+    const stats = await getDistanceStats('week');
+    expect(stats[0]).toEqual({ id: 'w1', day: 'Mon', distance: 5.0 });
+    expect(stats[1]).toEqual({ id: 'w2', day: 'Tue', distance: 8.2 });
   });
 
-  describe('getDistanceStats()', () => {
-    it('returns weekly data points when period is "week"', async () => {
-      const points = await getDistanceStats('week');
-      expect(Array.isArray(points)).toBe(true);
-      expect(points.length).toBe(7);
-      points.forEach((p) => expect(p).toHaveProperty('distance'));
-    });
-
-    it('returns monthly data points when period is "month"', async () => {
-      const points = await getDistanceStats('month');
-      expect(Array.isArray(points)).toBe(true);
-      expect(points.length).toBe(4);
-    });
+  it('maps monthly stats to GraphDataPoint with week field', async () => {
+    mockGet.mockResolvedValueOnce([{ period_id: 'm1', label: 'Week 1', distance: 42.0 }]);
+    const stats = await getDistanceStats('month');
+    expect(stats[0]).toEqual({ id: 'm1', week: 'Week 1', distance: 42.0 });
   });
+});
 
-  describe('submitRideFeedback()', () => {
-    it('resolves without throwing in mock mode', async () => {
-      await expect(
-        submitRideFeedback({ routeId: '1', rating: 5, review: 'Great ride!' }),
-      ).resolves.toBeUndefined();
-    });
+describe('submitRideFeedback()', () => {
+  it('posts snake_case payload to /rides/feedback', async () => {
+    mockPost.mockResolvedValueOnce(undefined);
+    await submitRideFeedback({ routeId: 'rt1', rating: 5, review: 'Amazing!' });
+    expect(mockPost).toHaveBeenCalledWith(
+      '/rides/feedback',
+      { route_id: 'rt1', rating: 5, review_text: 'Amazing!' },
+      undefined,
+    );
+  });
+});
 
-    it('resolves even with empty review text', async () => {
-      await expect(
-        submitRideFeedback({ routeId: '2', rating: 3, review: '' }),
-      ).resolves.toBeUndefined();
+describe('saveRide()', () => {
+  it('posts to /routes/save and returns mapped RideHistory', async () => {
+    mockPost.mockResolvedValueOnce(backendRide);
+    const result = await saveRide({
+      routeId: 'rt1',
+      completionDate: '2026-03-01',
+      totalTime: 2730,
+      distance: 12.5,
+      avgSpeed: 18.2,
+      checkpointsVisited: 3,
     });
+    expect(mockPost).toHaveBeenCalledWith(
+      '/routes/save',
+      expect.objectContaining({ route_id: 'rt1', total_time: 2730, distance: 12.5 }),
+      undefined,
+    );
+    expect(result.id).toBe('r1');
   });
 });

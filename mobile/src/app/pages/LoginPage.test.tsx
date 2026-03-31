@@ -1,4 +1,5 @@
 import React from 'react';
+import { Alert } from 'react-native';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 
 import LoginPage from './LoginPage';
@@ -70,6 +71,7 @@ describe('LoginPage', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
     mockLogin.mockResolvedValue(undefined);
     mockedLoginUser.mockResolvedValue(mockAuthResult);
   });
@@ -130,6 +132,20 @@ describe('LoginPage', () => {
 
     await waitFor(() => {
       expect(mockLogin).toHaveBeenCalledWith(mockAuthResult);
+    });
+  });
+
+  it('shows a friendly message when the credentials are invalid', async () => {
+    mockedLoginUser.mockRejectedValueOnce(new Error('Wrong email or password'));
+
+    renderWithAuth(<LoginPage />);
+    const submitButton = screen.getAllByText('Sign In')[1];
+    fireEvent.changeText(screen.getByPlaceholderText('you@example.com'), 'alex@example.com');
+    fireEvent.changeText(screen.getByPlaceholderText('Enter your password'), TEST_CRED);
+    fireEvent.press(submitButton);
+
+    await waitFor(() => {
+      expect(Alert.alert).toHaveBeenCalledWith('Sign in failed', 'Wrong email or password');
     });
   });
 });

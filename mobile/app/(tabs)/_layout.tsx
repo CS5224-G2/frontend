@@ -1,7 +1,5 @@
-import { useContext } from 'react';
 import { DynamicColorIOS, Platform } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { Redirect } from 'expo-router';
 import {
   Icon,
   Label,
@@ -10,7 +8,7 @@ import {
 } from 'expo-router/unstable-native-tabs';
 import { useColorScheme } from 'nativewind';
 
-import { AuthContext } from '@/app/AuthContext';
+import RequireAuth from '@/app/RequireAuth';
 
 const selectedTintColor =
   Platform.OS === 'ios'
@@ -21,7 +19,6 @@ const selectedTintColor =
     : '#2563eb';
 
 export default function TabsLayout() {
-  const { isLoggedIn } = useContext(AuthContext);
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
 
@@ -38,45 +35,43 @@ export default function TabsLayout() {
   const tabBarBackgroundColor = Platform.OS === 'android' ? (isDark ? '#111111' : '#ffffff') : null;
   const tabBarIconColor = Platform.OS === 'android' ? (isDark ? '#d4d4d8' : '#52525b') : undefined;
 
-  if (!isLoggedIn) {
-    return <Redirect href="/login" />;
-  }
-
   return (
-    <NativeTabs
-      tintColor={selectedTintColor}
-      iconColor={tabBarIconColor}
-      backgroundColor={tabBarBackgroundColor}
-      labelStyle={{
-        color: labelColor,
-        fontSize: 11,
-        fontWeight: '700',
-      }}
-      minimizeBehavior="never"
-    >
-      <NativeTabs.Trigger name="history-tab">
-        <Icon
-          sf={{ default: 'clock.arrow.circlepath', selected: 'clock.arrow.circlepath' }}
-          androidSrc={<VectorIcon family={MaterialCommunityIcons} name="history" />}
-        />
-        <Label>History</Label>
-      </NativeTabs.Trigger>
+    <RequireAuth>
+      <NativeTabs
+        tintColor={selectedTintColor}
+        iconColor={tabBarIconColor}
+        backgroundColor={tabBarBackgroundColor}
+        labelStyle={{
+          color: labelColor,
+          fontSize: 11,
+          fontWeight: '700',
+        }}
+        minimizeBehavior="never"
+      >
+        <NativeTabs.Trigger name="history-tab">
+          <Icon
+            sf={{ default: 'clock.arrow.circlepath', selected: 'clock.arrow.circlepath' }}
+            androidSrc={<VectorIcon family={MaterialCommunityIcons} name="history" />}
+          />
+          <Label>History</Label>
+        </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="home-tab">
-        <Icon
-          sf={{ default: 'house', selected: 'house.fill' }}
-          androidSrc={<VectorIcon family={MaterialCommunityIcons} name="home" />}
-        />
-        <Label>Home</Label>
-      </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="home-tab">
+          <Icon
+            sf={{ default: 'house', selected: 'house.fill' }}
+            androidSrc={<VectorIcon family={MaterialCommunityIcons} name="home" />}
+          />
+          <Label>Home</Label>
+        </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="profile-tab">
-        <Icon
-          sf={{ default: 'person', selected: 'person.fill' }}
-          androidSrc={<VectorIcon family={MaterialCommunityIcons} name="account-outline" />}
-        />
-        <Label>Profile</Label>
-      </NativeTabs.Trigger>
-    </NativeTabs>
+        <NativeTabs.Trigger name="profile-tab">
+          <Icon
+            sf={{ default: 'person', selected: 'person.fill' }}
+            androidSrc={<VectorIcon family={MaterialCommunityIcons} name="account-outline" />}
+          />
+          <Label>Profile</Label>
+        </NativeTabs.Trigger>
+      </NativeTabs>
+    </RequireAuth>
   );
 }
