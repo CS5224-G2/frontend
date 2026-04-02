@@ -7,6 +7,7 @@ import {
   getPrivacySecuritySettings,
   updatePrivacySecuritySettings,
 } from '@/services/settingsService';
+import * as userService from '@/services/userService';
 
 const mockGoBack = jest.fn();
 
@@ -25,6 +26,15 @@ jest.mock('@/services/settingsService', () => ({
   getPrivacySecuritySettings: jest.fn(),
   updatePrivacySecuritySettings: jest.fn(),
 }));
+
+jest.mock('@/services/userService', () => ({
+  deleteAccount: jest.fn(),
+}));
+
+jest.mock('../AuthContext', () => {
+  const { createContext } = jest.requireActual('react');
+  return { AuthContext: createContext({ logout: jest.fn() }) };
+});
 
 jest.mock('../ThemeContext', () => ({
   useTheme: () => ({
@@ -120,6 +130,57 @@ describe('PrivacySecurityPage', () => {
 
     await waitFor(() => {
       expect(Linking.openSettings).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('renders the Danger zone section with a delete account button', async () => {
+    const screen = render(<PrivacySecurityPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Danger zone')).toBeTruthy();
+    });
+
+    expect(screen.getByTestId('delete-account-button')).toBeTruthy();
+    expect(screen.getByText('Delete account')).toBeTruthy();
+  });
+
+  it('shows a confirmation alert when delete account is pressed', async () => {
+    (userService.deleteAccount as jest.Mock).mockResolvedValue(undefined);
+    const screen = render(<PrivacySecurityPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('delete-account-button')).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId('delete-account-button'));
+
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Delete account',
+      expect.stringContaining('permanently delete'),
+      expect.arrayContaining([
+        expect.objectContaining({ text: 'Cancel', style: 'cancel' }),
+        expect.objectContaining({ text: 'Delete account', style: 'destructive' }),
+      ])
+    );
+  });
+
+  it('calls deleteAccount and logout when deletion is confirmed', async () => {
+    (userService.deleteAccount as jest.Mock).mockResolvedValue(undefined);
+    jest.spyOn(Alert, 'alert').mockImplementation((_title, _msg, buttons) => {
+      const destructive = buttons?.find((b) => b.style === 'destructive');
+      destructive?.onPress?.();
+    });
+
+    const screen = render(<PrivacySecurityPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('delete-account-button')).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId('delete-account-button'));
+
+    await waitFor(() => {
+      expect(userService.deleteAccount).toHaveBeenCalledTimes(1);
     });
   });
 });

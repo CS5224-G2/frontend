@@ -71,7 +71,7 @@ export default function RouteFeedbackPage({ navigation, route }: Props) {
   }
 
   return (
-    <ScrollView className="flex-1 bg-[#f9fafb] dark:bg-black">
+    <ScrollView className="flex-1 bg-[#f9fafb] dark:bg-black" contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
       <View className="p-cy-lg pt-10">
         <Text className="text-[28px] font-bold text-[#1e293b] dark:text-slate-100 text-center">Rate Your Experience</Text>
         <Text className="text-sm text-[#64748b] dark:text-slate-400 mt-2 text-center">How was your ride on {routeData.name}?</Text>

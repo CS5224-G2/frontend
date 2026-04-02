@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -235,7 +236,14 @@ export default function EditProfilePage() {
   }
 
   return (
-    <ScrollView className="flex-1 bg-[#F3F4F6] dark:bg-black" contentContainerStyle={{ padding: 20, gap: 16 }}>
+    <ScrollView 
+      className="flex-1 bg-[#F3F4F6] dark:bg-black" 
+      contentContainerStyle={{ 
+        padding: 20, 
+        gap: 16,
+        paddingBottom: Platform.OS === 'android' ? 100 : 20,
+      }}
+    >
       <View className="bg-white dark:bg-[#111111] rounded-[24px] p-cy-xl items-center border border-border dark:border-[#2d2d2d]">
         <Pressable
           testID="edit-profile-avatar-button"

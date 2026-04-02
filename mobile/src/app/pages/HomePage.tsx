@@ -1,22 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { type Route, type UserPreferences } from '../../../../shared/types/index';
-import { getRoutes, getRouteRecommendations } from '../../services/routeService';
+import { normalizeUserPreferences } from '../utils/routePreferences';
+import { getPopularRoutes, getRoutes } from '../../services/routeService';
+import { getUserProfile } from '../../services/userService';
 import { FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useColorScheme } from 'nativewind';
 
 type Props = NativeStackScreenProps<any, 'HomePage'>;
 
+function mapProfileCyclingPreferenceToCyclistType(
+  preference: 'Leisure' | 'Commuter' | 'Performance',
+): UserPreferences['cyclistType'] {
+  if (preference === 'Leisure') return 'recreational';
+  if (preference === 'Commuter') return 'commuter';
+  return 'fitness';
+}
+
 export default function HomeScreen({ navigation }: Props) {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const insets = useSafeAreaInsets();
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [allRoutes, setAllRoutes] = useState<Route[]>([]);
+  const [popularRoutes, setPopularRoutes] = useState<Route[]>([]);
   const [suggestedRoutes, setSuggestedRoutes] = useState<(Route & { matchScore: number })[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -24,18 +37,34 @@ export default function HomeScreen({ navigation }: Props) {
     const loadData = async () => {
       try {
         setIsLoading(true);
-        const savedPrefs = await AsyncStorage.getItem('userPreferences');
-        const prefs: UserPreferences | null = savedPrefs ? JSON.parse(savedPrefs) : null;
+        const [savedPrefs, profile] = await Promise.all([
+          AsyncStorage.getItem('userPreferences'),
+          getUserProfile().catch(() => null),
+        ]);
+
+        const storedPreferences = savedPrefs ? normalizeUserPreferences(JSON.parse(savedPrefs)) : null;
+        const profileCyclistType = profile
+          ? mapProfileCyclingPreferenceToCyclistType(profile.cyclingPreference)
+          : null;
+
+        const prefs: UserPreferences | null = profileCyclistType
+          ? normalizeUserPreferences({ ...(storedPreferences ?? {}), cyclistType: profileCyclistType })
+          : storedPreferences;
+
         setPreferences(prefs);
 
-        const [routes, suggested] = await Promise.all([
-          getRoutes(),
-          prefs ? getRouteRecommendations(prefs, 3) : Promise.resolve([]),
+        const [routes, popular] = await Promise.all([
+          getRoutes(undefined, undefined, 3),
+          getPopularRoutes(3),
         ]);
 
         setAllRoutes(routes);
+        setPopularRoutes(popular);
         setSuggestedRoutes(
-          suggested.map((r) => ({ ...r, matchScore: calculateMatchScore(r, prefs) })),
+          routes
+            .map((r) => ({ ...r, matchScore: calculateMatchScore(r, prefs) }))
+            .sort((a, b) => b.matchScore - a.matchScore)
+            .slice(0, 3),
         );
       } finally {
         setIsLoading(false);
@@ -61,18 +90,42 @@ export default function HomeScreen({ navigation }: Props) {
   // Match score helper (mirrors routeService logic, for badge display)
   const calculateMatchScore = (route: Route, prefs: UserPreferences | null): number => {
     if (!prefs) return route.rating * 20;
+
     let score = route.rating * 10 + Math.min(route.reviewCount / 100, 10);
     if (route.cyclistType === prefs.cyclistType) score += 20;
-    score += Math.max(10 - Math.abs(route.distance - prefs.distance) / 2, 0);
-    score += Math.max(10 - Math.abs(route.elevation - prefs.elevation * 3) / 30, 0);
-    score += Math.max(10 - Math.abs(route.shade - prefs.preferredShade) / 10, 0);
-    score += Math.max(10 - Math.abs(route.airQuality - prefs.airQuality) / 10, 0);
+
+    if (route.distance <= prefs.maxDistanceKm) {
+      score += 10;
+    } else {
+      score += Math.max(10 - (route.distance - prefs.maxDistanceKm) * 2, 0);
+    }
+
+    if (typeof route.elevation === 'number') {
+      if (prefs.elevationPreference === 'lower') {
+        score += Math.max(10 - route.elevation / 30, 0);
+      }
+
+      if (prefs.elevationPreference === 'higher') {
+        score += Math.min(route.elevation / 30, 10);
+      }
+    }
+
+    if (typeof route.shade === 'number' && prefs.shadePreference === 'reduce-shade') {
+      score += Math.max(route.shade / 10, 0);
+    }
+
+    if (typeof route.airQuality === 'number' && prefs.airQualityPreference === 'care') {
+      score += Math.max(10 - Math.abs(route.airQuality - prefs.airQuality) / 10, 0);
+    }
+
     return score;
   };
-
   // Derived state from service data
-  const favoriteRoutes = allRoutes.filter((route) => favorites.includes(route.id));
-  const recommendedRoutes = allRoutes.slice(0, 6);
+  const routesById = new Map<string, Route>([...allRoutes, ...popularRoutes].map((route) => [route.id, route]));
+  const favoriteRoutes = favorites
+    .map((routeId) => routesById.get(routeId))
+    .filter((route): route is Route => Boolean(route));
+  const recommendedRoutes = popularRoutes;
 
   const getMatchPercentage = (score: number): number => {
     return Math.min(Math.round(score), 100);
@@ -177,7 +230,7 @@ export default function HomeScreen({ navigation }: Props) {
                   <Text className="text-[11px] text-[#6b7280] dark:text-slate-400">Your style</Text>
                 </View>
               )}
-              {preferences && Math.abs(route.distance - preferences.distance) < 3 && (
+              {preferences && route.distance <= preferences.maxDistanceKm && (
                 <View className="border border-[#d1d5db] dark:border-[#2d2d2d] px-[6px] py-[2px] rounded">
                   <Text className="text-[11px] text-[#6b7280] dark:text-slate-400">Perfect distance</Text>
                 </View>
@@ -198,9 +251,9 @@ export default function HomeScreen({ navigation }: Props) {
   }
 
   return (
-    <ScrollView className="flex-1 bg-[#f3f4f6] dark:bg-black" scrollIndicatorInsets={{ right: 1 }}>
+    <ScrollView className="flex-1 bg-[#f3f4f6] dark:bg-black" scrollIndicatorInsets={{ right: 1 }} >
       {/* Header */}
-      <View className="bg-white dark:bg-[#111111] px-cy-lg py-cy-md flex-row justify-between items-center border-b border-[#e5e7eb] dark:border-[#2d2d2d]">
+      <View className="bg-[#f3f4f6] dark:bg-black px-cy-lg pb-cy-md flex-row justify-between items-center" style={{ paddingTop: insets.top }}>
         <Text className="text-2xl font-bold text-[#2563eb]">CycleLink</Text>
         <View className="flex-row items-center gap-cy-sm">
           {/* <Pressable onPress={() => navigation.navigate('UserJourneyPage')} className="flex-row items-center gap-1 px-cy-sm py-1">
@@ -325,3 +378,4 @@ export default function HomeScreen({ navigation }: Props) {
     </ScrollView>
   );
 }
+

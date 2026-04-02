@@ -94,12 +94,31 @@ export type PrivacySecuritySettings = {
 
 export type CyclistType = 'recreational' | 'commuter' | 'fitness' | 'general';
 
+export type ShadePreference = 'reduce-shade' | 'dont-care';
+
+export type ElevationPreference = 'lower' | 'dont-care' | 'higher';
+
+export type AirQualityPreference = 'care' | 'dont-care';
+
+export type PointOfInterestCategory =
+  | 'hawkerCenter'
+  | 'historicSite'
+  | 'park'
+  | 'touristAttraction';
+
+export type PointOfInterestPreferences = Record<PointOfInterestCategory, boolean>;
+
 export type UserPreferences = {
   cyclistType: CyclistType;
-  preferredShade: number;   // 0–100
-  elevation: number;        // 0–100 (preference scale)
-  distance: number;         // km
-  airQuality: number;       // 0–100
+  preferredShade: number;   // legacy backend field derived from shadePreference
+  elevation: number;        // legacy backend field derived from elevationPreference
+  distance: number;         // legacy backend field derived from maxDistanceKm
+  airQuality: number;       // legacy backend field derived from airQualityPreference
+  shadePreference: ShadePreference;
+  elevationPreference: ElevationPreference;
+  maxDistanceKm: number;
+  airQualityPreference: AirQualityPreference;
+  pointsOfInterest: PointOfInterestPreferences;
 };
 
 export type Checkpoint = {
@@ -110,26 +129,38 @@ export type Checkpoint = {
   description: string;
 };
 
+export type RouteRequestLocationSource = 'search' | 'map' | 'current-location';
+
+export type RouteRequestLocation = {
+  name: string;
+  lat: number;
+  lng: number;
+  source: RouteRequestLocationSource;
+};
+
 export type Route = {
   id: string;
   name: string;
   description: string;
   distance: number;         // km
-  elevation: number;        // meters
+  elevation: number | 'higher' | 'lower' | 'dont-care';  // meters or preference string
   estimatedTime: number;    // minutes
   rating: number;
   reviewCount: number;
   startPoint: { lat: number; lng: number; name: string };
   endPoint: { lat: number; lng: number; name: string };
   checkpoints: Checkpoint[];
+  routePath?: Array<{ lat: number; lng: number }>;
   cyclistType: CyclistType;
-  shade: number;            // 0–100
-  airQuality: number;       // 0–100
+  shade: number | 'reduce-shade' | 'dont-care';  // 0–100 or preference string
+  airQuality: number | 'care' | 'dont-care';     // 0–100 or preference string
+  pointsOfInterestVisited?: Array<{ name: string; description?: string; lat?: number; lng?: number }>;
 };
 
 export type RouteRecommendationRequest = {
-  startPoint: string;
-  endPoint: string;
+  startPoint: RouteRequestLocation;
+  endPoint: RouteRequestLocation;
+  checkpoints: Array<RouteRequestLocation & { id: string; description?: string }>;
   preferences: UserPreferences;
 };
 
@@ -157,6 +188,14 @@ export type RideHistory = {
   checkpoints: number;
   userRating?: number;
   userReview?: string;
+  visitedCheckpoints?: Checkpoint[];
+  pointsOfInterestVisited?: Array<{
+    name: string;
+    description?: string;
+    lat?: number;
+    lng?: number;
+  }>;
+  routeDetails?: Route;
 };
 
 export type GraphPeriod = 'week' | 'month';

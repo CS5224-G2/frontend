@@ -16,6 +16,7 @@ import {
   getLocalDb,
   setActiveMockAccountId,
 } from './localDb';
+import { USE_MOCKS } from '../config/runtime';
 import { hashPassword } from '../utils/passwordHash';
 import { saveSession } from './secureSession';
 
@@ -24,7 +25,6 @@ export type { LoginFormValues, RegisterFormValues, AuthResult };
 // Re-export AuthUser for backwards-compat with existing consumers
 export type { AuthUser } from '../../../shared/types/index';
 
-const USE_MOCKS = process.env.EXPO_PUBLIC_USE_MOCKS === 'true';
 const MOCK_LATENCY_MS = 850;
 
 type LocalAuthRow = {

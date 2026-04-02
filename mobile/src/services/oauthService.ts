@@ -12,9 +12,8 @@
 // =============================================================================
 
 import type { AuthResult } from '../../../shared/types/index';
+import { USE_MOCKS } from '../config/runtime';
 import { saveSession } from './secureSession';
-
-const USE_MOCKS = process.env.EXPO_PUBLIC_USE_MOCKS === 'true';
 
 // ---------------------------------------------------------------------------
 // Google — replace with real client IDs from Google Cloud Console

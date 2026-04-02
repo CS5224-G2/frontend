@@ -106,7 +106,16 @@ describe('RideHistoryPage', () => {
 
   const renderWithAuth = (component: React.ReactElement) => {
     return render(
-      <AuthContext.Provider value={{ isRestoring: false, isLoggedIn: true, role: 'user', user: null, login: async () => {}, logout: async () => {} }}>
+      <AuthContext.Provider
+        value={{
+          login: jest.fn(),
+          logout: jest.fn(),
+          isLoggedIn: true,
+          isRestoring: false,
+          role: 'user',
+          user: null,
+        }}
+      >
         {component}
       </AuthContext.Provider>
     );
@@ -141,5 +150,14 @@ describe('RideHistoryPage', () => {
     await waitFor(() => {
       expect(mockGetDistanceStats).toHaveBeenCalledTimes(2);
     });
+  }, 10000);
+
+  it('navigates to ride details when a ride item is pressed', async () => {
+    renderWithAuth(<RideHistoryPage navigation={{ navigate: mockNavigate } as any} route={{} as any} />);
+
+    const rideItem = await screen.findByText('Waterfront Loop');
+    fireEvent.press(rideItem);
+
+    expect(mockNavigate).toHaveBeenCalledWith('HistoryDetails', { rideId: '1' });
   }, 10000);
 });

@@ -6,6 +6,7 @@
 
 // Declare typed service at the top — will be assigned inside isolateModules
 let getRoutes: typeof import('./routeService').getRoutes;
+let getPopularRoutes: typeof import('./routeService').getPopularRoutes;
 let getRouteById: typeof import('./routeService').getRouteById;
 let getRouteRecommendations: typeof import('./routeService').getRouteRecommendations;
 
@@ -15,6 +16,7 @@ beforeAll(() => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const svc = require('./routeService') as typeof import('./routeService');
     getRoutes = svc.getRoutes;
+    getPopularRoutes = svc.getPopularRoutes;
     getRouteById = svc.getRouteById;
     getRouteRecommendations = svc.getRouteRecommendations;
   });
@@ -64,6 +66,21 @@ describe('routeService (mock mode)', () => {
     });
   });
 
+  describe('getPopularRoutes()', () => {
+    it('returns at most the requested limit', async () => {
+      const routes = await getPopularRoutes(2);
+      expect(routes.length).toBeLessThanOrEqual(2);
+    });
+
+    it('returns routes in route shape', async () => {
+      const [route] = await getPopularRoutes(1);
+      expect(route).toHaveProperty('id');
+      expect(route).toHaveProperty('name');
+      expect(route).toHaveProperty('estimatedTime');
+      expect(route).toHaveProperty('reviewCount');
+    });
+  });
+
   describe('getRouteRecommendations()', () => {
     it('returns at most `limit` routes', async () => {
       const routes = await getRouteRecommendations(
@@ -84,3 +101,4 @@ describe('routeService (mock mode)', () => {
     });
   });
 });
+

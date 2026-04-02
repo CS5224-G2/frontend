@@ -4,13 +4,8 @@
 // auth headers. Services use this when EXPO_PUBLIC_USE_MOCKS !== 'true'.
 // =============================================================================
 
-import Constants from 'expo-constants';
+import { getApiBaseUrl } from '../config/runtime';
 import { logFailure, logStart, logSuccess } from '../utils/apiLogger';
-
-const BASE_URL: string =
-  (Constants.expoConfig?.extra?.apiBaseUrl as string) ||
-  process.env.EXPO_PUBLIC_API_BASE_URL ||
-  'https://api.cyclelink.example.com';
 
 type RequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -52,7 +47,8 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
   let response: Response;
   try {
-    response = await fetch(`${BASE_URL}${path}`, {
+    const baseUrl = getApiBaseUrl();
+    response = await fetch(`${baseUrl}${path}`, {
       method,
       headers,
       body: serializedBody,
