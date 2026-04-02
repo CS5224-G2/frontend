@@ -1,0 +1,25 @@
+mobile/src/app/pages/RouteRecommendationPage.test.tsx
+  9be46efbbe02b4db 104,125-126
+mobile/src/app/pages/RouteDetailsPage.test.tsx
+  9be46efbbe02b4db 2,6-7,11-12,17-18,21-29,32-36,39-47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.4",
+  "base_commit_sha": "450763478f33d959a767758dbe2494e244f0fc84",
+  "prompts": {
+    "9be46efbbe02b4db": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "49ee986f-4d63-49dc-a5c1-bd1c8f050205",
+        "model": "default"
+      },
+      "human_author": "Lichen(Jeffrey) Yang",
+      "messages": [],
+      "total_additions": 64,
+      "total_deletions": 58,
+      "accepted_lines": 33,
+      "overriden_lines": 0
+    }
+  }
+}
