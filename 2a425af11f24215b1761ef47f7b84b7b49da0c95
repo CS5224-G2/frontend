@@ -1,0 +1,25 @@
+mobile/src/app/navigation.tsx
+  7a7b63d8e597f586 238
+mobile/.env.example
+  7a7b63d8e597f586 14-20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.4",
+  "base_commit_sha": "2a425af11f24215b1761ef47f7b84b7b49da0c95",
+  "prompts": {
+    "7a7b63d8e597f586": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "6f0914df-bb27-4a19-8c7e-b574c76d09d5",
+        "model": "default"
+      },
+      "human_author": "Lichen(Jeffrey) Yang",
+      "messages": [],
+      "total_additions": 41,
+      "total_deletions": 1,
+      "accepted_lines": 21,
+      "overriden_lines": 0
+    }
+  }
+}
