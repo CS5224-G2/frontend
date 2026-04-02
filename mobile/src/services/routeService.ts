@@ -2,7 +2,6 @@
 // ROUTE SERVICE — Mobile (Expo/React Native)
 // Centralises all Route data access. UI components MUST use this service —
 // they must NOT import mock data or call fetch directly.
-// Gated by EXPO_PUBLIC_USE_MOCKS — set to 'true' to skip real network calls.
 // =============================================================================
 
 import type {
@@ -12,12 +11,9 @@ import type {
   UserPreferences,
 } from '../../../shared/types/index';
 import { normalizeUserPreferences } from '../app/utils/routePreferences';
-import { USE_MOCKS } from '../config/runtime';
-import { getLocalDb } from './localDb';
+import { httpClient } from './httpClient';
 
 export type { Route };
-
-const wait = async (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 // ---------------------------------------------------------------------------
 // Backend shapes (internal)
@@ -113,36 +109,6 @@ type BackendRecommendationRoute = {
   start_point?: { lat: number; lng: number; name: string };
   end_point?: { lat: number; lng: number; name: string };
   checkpoints?: BackendCheckpoint[];
-};
-
-type LocalRouteRow = {
-  id: string;
-  name: string;
-  description: string;
-  distance_km: number;
-  elevation_m: number;
-  estimated_time_min: number;
-  rating: number;
-  review_count: number;
-  start_lat: number;
-  start_lng: number;
-  start_name: string;
-  end_lat: number;
-  end_lng: number;
-  end_name: string;
-  cyclist_type: 'recreational' | 'commuter' | 'fitness' | 'general';
-  shade_pct: number;
-  air_quality_index: number;
-};
-
-type LocalCheckpointRow = {
-  id: string;
-  route_id: string;
-  sort_order: number;
-  name: string;
-  lat: number;
-  lng: number;
-  description: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -350,63 +316,6 @@ function toFrontendRecommendedRoute(
   };
 }
 
-const toFrontendRouteFromLocalRows = (
-  route: LocalRouteRow,
-  checkpoints: LocalCheckpointRow[],
-): Route => ({
-  id: route.id,
-  name: route.name,
-  description: route.description,
-  distance: route.distance_km,
-  elevation: route.elevation_m,
-  estimatedTime: route.estimated_time_min,
-  rating: route.rating,
-  reviewCount: route.review_count,
-  startPoint: {
-    lat: route.start_lat,
-    lng: route.start_lng,
-    name: route.start_name,
-  },
-  endPoint: {
-    lat: route.end_lat,
-    lng: route.end_lng,
-    name: route.end_name,
-  },
-  checkpoints: checkpoints.map((checkpoint) => ({
-    id: checkpoint.id,
-    name: checkpoint.name,
-    lat: checkpoint.lat,
-    lng: checkpoint.lng,
-    description: checkpoint.description,
-  })),
-  cyclistType: route.cyclist_type,
-  shade: route.shade_pct,
-  airQuality: route.air_quality_index,
-});
-
-async function loadCheckpoints(routeId: string): Promise<LocalCheckpointRow[]> {
-  const db = await getLocalDb();
-  return db.getAllAsync<LocalCheckpointRow>(
-    `SELECT
-      id,
-      route_id,
-      sort_order,
-      name,
-      lat,
-      lng,
-      description
-    FROM route_checkpoints
-    WHERE route_id = ?
-    ORDER BY sort_order ASC`,
-    routeId,
-  );
-}
-
-async function buildRoute(route: LocalRouteRow): Promise<Route> {
-  const checkpoints = await loadCheckpoints(route.id);
-  return toFrontendRouteFromLocalRows(route, checkpoints);
-}
-
 type RecommendationInput = UserPreferences | RouteRecommendationRequest;
 
 function isRouteRecommendationRequest(
@@ -427,64 +336,6 @@ function getNormalizedPreferences(input: UserPreferences): UserPreferences {
 export async function getRoutes(prefs?: UserPreferences, token?: string, limit?: number): Promise<Route[]> {
   const normalizedPrefs = prefs ? getNormalizedPreferences(prefs) : undefined;
 
-  if (USE_MOCKS) {
-    await wait(300);
-    const db = await getLocalDb();
-    const rows = normalizedPrefs
-      ? await db.getAllAsync<LocalRouteRow>(
-          `SELECT
-            id,
-            name,
-            description,
-            distance_km,
-            elevation_m,
-            estimated_time_min,
-            rating,
-            review_count,
-            start_lat,
-            start_lng,
-            start_name,
-            end_lat,
-            end_lng,
-            end_name,
-            cyclist_type,
-            shade_pct,
-            air_quality_index
-          FROM routes
-          WHERE cyclist_type = ?
-            AND distance_km <= ?
-            AND air_quality_index >= ?
-          ORDER BY rating DESC, review_count DESC`,
-          normalizedPrefs.cyclistType,
-          normalizedPrefs.maxDistanceKm,
-          normalizedPrefs.airQuality,
-        )
-      : await db.getAllAsync<LocalRouteRow>(
-          `SELECT
-            id,
-            name,
-            description,
-            distance_km,
-            elevation_m,
-            estimated_time_min,
-            rating,
-            review_count,
-            start_lat,
-            start_lng,
-            start_name,
-            end_lat,
-            end_lng,
-            end_name,
-            cyclist_type,
-            shade_pct,
-            air_quality_index
-          FROM routes
-          ORDER BY rating DESC, review_count DESC`,
-        );
-
-    return Promise.all(rows.map(buildRoute));
-  }
-
   const params = new URLSearchParams();
   if (normalizedPrefs) {
     params.set('cyclist_type', normalizedPrefs.cyclistType);
@@ -494,7 +345,6 @@ export async function getRoutes(prefs?: UserPreferences, token?: string, limit?:
   }
 
   const qs = params.toString();
-  const { httpClient } = await import('./httpClient');
   const response = await httpClient.get<BackendRoute[]>(`/routes${qs ? `?${qs}` : ''}`, token);
   return response.map(toFrontendRoute);
 }
@@ -503,74 +353,13 @@ export async function getRoutes(prefs?: UserPreferences, token?: string, limit?:
 export async function getPopularRoutes(limit = 3, token?: string): Promise<Route[]> {
   const normalizedLimit = Math.min(Math.max(limit, 1), 3);
 
-  if (USE_MOCKS) {
-    await wait(250);
-    const db = await getLocalDb();
-    const rows = await db.getAllAsync<LocalRouteRow>(
-      `SELECT
-        id,
-        name,
-        description,
-        distance_km,
-        elevation_m,
-        estimated_time_min,
-        rating,
-        review_count,
-        start_lat,
-        start_lng,
-        start_name,
-        end_lat,
-        end_lng,
-        end_name,
-        cyclist_type,
-        shade_pct,
-        air_quality_index
-      FROM routes
-      ORDER BY review_count DESC, rating DESC`,
-    );
-
-    return Promise.all(rows.slice(0, normalizedLimit).map(buildRoute));
-  }
-
-  const { httpClient } = await import('./httpClient');
   const response = await httpClient.get<BackendRoute[]>(`/routes/popular?limit=${normalizedLimit}`, token);
   return response.map(toFrontendRoute);
 }
 
 /** Fetch a single route by ID. */
 export async function getRouteById(id: string, token?: string): Promise<Route | null> {
-  if (USE_MOCKS) {
-    await wait(200);
-    const db = await getLocalDb();
-    const row = await db.getFirstAsync<LocalRouteRow>(
-      `SELECT
-        id,
-        name,
-        description,
-        distance_km,
-        elevation_m,
-        estimated_time_min,
-        rating,
-        review_count,
-        start_lat,
-        start_lng,
-        start_name,
-        end_lat,
-        end_lng,
-        end_name,
-        cyclist_type,
-        shade_pct,
-        air_quality_index
-      FROM routes
-      WHERE id = ?`,
-      id,
-    );
-
-    return row ? buildRoute(row) : null;
-  }
-
   try {
-    const { httpClient } = await import('./httpClient');
     const response = await httpClient.get<BackendRoute>(`/routes/${id}`, token);
     return toFrontendRoute(response);
   } catch {
@@ -588,21 +377,8 @@ export async function getRouteRecommendations(
   token?: string,
 ): Promise<Route[]> {
   const routeRequest = isRouteRecommendationRequest(input) ? input : null;
-  const prefs = getNormalizedPreferences(routeRequest ? routeRequest.preferences : input);
+  const prefs = getNormalizedPreferences(routeRequest ? routeRequest.preferences : (input as UserPreferences));
 
-  if (USE_MOCKS) {
-    await wait(400);
-    const routes = await getRoutes(undefined, token);
-    return routes
-      .sort((a, b) => {
-        const scoreA = _calculateMatchScore(a, prefs);
-        const scoreB = _calculateMatchScore(b, prefs);
-        return scoreB - scoreA;
-      })
-      .slice(0, limit);
-  }
-
-  const { httpClient } = await import('./httpClient');
   const payload = buildRecommendationPayload(routeRequest, prefs, limit);
   const response = await httpClient.post<BackendRecommendationRoute[]>(
     '/routes/recommendations',

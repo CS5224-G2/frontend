@@ -7,19 +7,24 @@ import { AuthContext } from '../AuthContext';
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
 
 const mockNavigate = jest.fn();
+const mockGetItem = jest.fn();
+const mockSetItem = jest.fn();
 
 jest.mock('@react-navigation/native', () => ({
   ...jest.requireActual('@react-navigation/native'),
   useNavigation: () => ({
     navigate: mockNavigate,
   }),
-  // Do not run the real focus effect: it async-loads favorites and triggers act() warnings.
-  useFocusEffect: jest.fn(),
+  useFocusEffect: (callback: () => void | (() => void)) => {
+    const mockReact = require('react');
+
+    mockReact.useEffect(() => callback(), [callback]);
+  },
 }));
 
 jest.mock('@react-native-async-storage/async-storage', () => ({
-  getItem: jest.fn().mockResolvedValue(null),
-  setItem: jest.fn().mockResolvedValue(null),
+  getItem: (...args: unknown[]) => mockGetItem(...args),
+  setItem: (...args: unknown[]) => mockSetItem(...args),
 }));
 
 jest.mock('@expo/vector-icons', () => ({
@@ -69,6 +74,21 @@ jest.mock('../../services/routeService', () => ({
 }));
 
 describe('HomePage', () => {
+  const defaultFavorites = JSON.stringify(['p1']);
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    mockGetItem.mockImplementation((key: string) => {
+      if (key === 'favoriteRoutes') {
+        return Promise.resolve(defaultFavorites);
+      }
+
+      return Promise.resolve(null);
+    });
+    mockSetItem.mockResolvedValue(null);
+  });
+
   const renderWithAuth = (component: React.ReactElement) => {
     return render(
       <SafeAreaProvider>
@@ -88,48 +108,71 @@ describe('HomePage', () => {
     );
   };
 
-  it('renders correctly', async () => {
-    renderWithAuth(<HomeScreen navigation={{ navigate: mockNavigate } as any} route={{} as any} />);
+  const renderHomePage = async (storageOverrides?: { favoriteRoutes?: string | null; userPreferences?: string | null }) => {
+    const storage = {
+      favoriteRoutes: defaultFavorites,
+      userPreferences: null,
+      ...storageOverrides,
+    };
 
-    await waitFor(() => expect(screen.getByText('CycleLink')).toBeTruthy());
-    expect(screen.getByText('Discover Routes')).toBeTruthy();
-    expect(screen.getByText('Create Custom Route')).toBeTruthy();
-    expect(screen.getAllByText('commuter').length).toBeGreaterThan(0);
-  });
-
-  it('navigates to RouteConfig when create button is pressed', async () => {
-    renderWithAuth(<HomeScreen navigation={{ navigate: mockNavigate } as any} route={{} as any} />);
-
-    const createButton = await screen.findByText('Create Custom Route');
-    fireEvent.press(createButton);
-
-    expect(mockNavigate).toHaveBeenCalledWith('RouteConfig');
-  });
-
-  it('renders recommended routes', async () => {
-    renderWithAuth(<HomeScreen navigation={{ navigate: mockNavigate } as any} route={{} as any} />);
-
-    expect(await screen.findByText(/Popular Downtown Circuit/i)).toBeTruthy();
-  });
-
-  it('renders suggested routes from getRoutes when preferences exist', async () => {
-    const AsyncStorage = require('@react-native-async-storage/async-storage');
-    AsyncStorage.getItem.mockImplementation((key: string) => {
-      if (key === 'userPreferences') {
-        return Promise.resolve(JSON.stringify({
-          cyclistType: 'recreational',
-          preferredShade: 50,
-          elevation: 50,
-          distance: 10,
-          airQuality: 50,
-        }));
+    mockGetItem.mockImplementation((key: string) => {
+      if (key === 'favoriteRoutes') {
+        return Promise.resolve(storage.favoriteRoutes);
       }
+
+      if (key === 'userPreferences') {
+        return Promise.resolve(storage.userPreferences);
+      }
+
       return Promise.resolve(null);
     });
 
     renderWithAuth(<HomeScreen navigation={{ navigate: mockNavigate } as any} route={{} as any} />);
 
-    expect(await screen.findByText(/Suggested Riverside Loop/i)).toBeTruthy();
+    await screen.findByText('CycleLink');
+    await screen.findByText('Starred Routes');
+    await waitFor(() => expect(screen.getAllByText('Popular Downtown Circuit').length).toBeGreaterThan(0));
+  };
+
+  it('renders the stored favorites section and core actions', async () => {
+    await renderHomePage();
+
+    expect(screen.getByText('Discover Routes')).toBeTruthy();
+    expect(screen.getByText('Create Custom Route')).toBeTruthy();
+    expect(screen.getByText('Starred Routes')).toBeTruthy();
+    expect(screen.getByText('Your favorite routes ready to ride again')).toBeTruthy();
+    expect(screen.getAllByText('Popular Downtown Circuit').length).toBeGreaterThan(0);
+  });
+
+  it('navigates to RouteConfig when create button is pressed', async () => {
+    await renderHomePage();
+
+    const createButton = screen.getByText('Create Custom Route');
+    fireEvent.press(createButton);
+
+    expect(mockNavigate).toHaveBeenCalledWith('RouteConfig');
+  });
+
+  it('renders the recommended and suggested route sections after async data loads', async () => {
+    await renderHomePage();
+
+    expect(screen.getByText('Suggested for You')).toBeTruthy();
+    expect(screen.getByText('All Recommended Routes')).toBeTruthy();
+    expect(screen.getAllByText('commuter').length).toBeGreaterThan(0);
+  });
+
+  it('renders suggested routes from getRoutes when preferences exist', async () => {
+    await renderHomePage({
+      userPreferences: JSON.stringify({
+        cyclistType: 'recreational',
+        preferredShade: 50,
+        elevation: 50,
+        distance: 10,
+        airQuality: 50,
+      }),
+    });
+
+    expect(screen.getByText(/Suggested Riverside Loop/i)).toBeTruthy();
     expect(screen.getByText(/Suggested Hill Push/i)).toBeTruthy();
     expect(screen.getByText(/Suggested City Sprint/i)).toBeTruthy();
     expect(screen.queryByText(/Suggested Flat Cruise/i)).toBeNull();

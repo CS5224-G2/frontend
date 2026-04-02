@@ -18,7 +18,7 @@ const envApiBaseUrl = normalizeBaseUrl(process.env.EXPO_PUBLIC_API_BASE_URL);
 const expoOneMapApiKey = (Constants.expoConfig?.extra?.oneMapApiKey as string | undefined)?.trim() || null;
 const envOneMapApiKey = process.env.EXPO_PUBLIC_ONEMAP_API_KEY?.trim() || null;
 
-export const USE_MOCKS = readBooleanEnv(process.env.EXPO_PUBLIC_USE_MOCKS, true);
+export const USE_MOCKS = readBooleanEnv(process.env.EXPO_PUBLIC_USE_MOCKS, false);
 
 export function getApiBaseUrl(): string {
   const baseUrl = expoApiBaseUrl ?? envApiBaseUrl;

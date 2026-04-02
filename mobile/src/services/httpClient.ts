@@ -6,6 +6,8 @@
 
 import { getApiBaseUrl } from '../config/runtime';
 import { logFailure, logStart, logSuccess } from '../utils/apiLogger';
+import { notifySessionExpired } from './authEvents';
+import { clearSession, getAccessToken } from './secureSession';
 
 type RequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -29,8 +31,9 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
   const headers: Record<string, string> = {};
 
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+  const resolvedToken = token ?? (await getAccessToken());
+  if (resolvedToken) {
+    headers['Authorization'] = `Bearer ${resolvedToken}`;
   }
 
   if (body !== undefined && !isFormData) {
@@ -67,8 +70,12 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     response.headers.get('x-request-id') ?? response.headers.get('x-correlation-id');
 
   if (!response.ok) {
-    logFailure(path, method, duration_ms, { status: response.status });
     const text = await response.text().catch(() => response.statusText);
+    logFailure(path, method, duration_ms, { status: response.status, error: text });
+    if (response.status === 401) {
+      clearSession().catch(() => {});
+      notifySessionExpired();
+    }
     throw new ApiError(response.status, text);
   }
 

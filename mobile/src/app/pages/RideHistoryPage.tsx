@@ -358,173 +358,192 @@ export default function RideHistoryPage({ navigation }: Props) {
     );
   }
 
-  return (
-    <ScrollView className="flex-1 bg-slate-50 dark:bg-black" contentContainerStyle={{ padding: 16, paddingBottom: 36 }}>
-      <View className="mb-[12px]">
-        <Text className="text-[28px] font-bold text-[#1e293b] dark:text-slate-100">Ride History</Text>
-        <Text className="text-sm text-[#64748b] dark:text-slate-400 mt-1">Track progress & achievements</Text>
-      </View>
+  // if there is no ride -> add a word saying "Start your first ride!"
+  if (rideHistory.length === 0) {
+    return (
+      <ScrollView
+        className="flex-1 bg-slate-50 dark:bg-black"
+        contentContainerStyle={{ padding: 16, paddingBottom: 36 }}
+      >
+        <View className="flex-1 justify-center items-start bg-slate-50 dark:bg-black">
+          <Text className="text-[28px] font-bold text-[#1e293b] dark:text-slate-100 text-left">
+            Ride History
+          </Text>
+          <Text className="text-sm text-[#64748b] dark:text-slate-400 mt-1 text-left">
+            Start your first ride!
+          </Text>
+        </View>
+      </ScrollView>
+    );
+  } else {
+    return (
+      <ScrollView className="flex-1 bg-slate-50 dark:bg-black" contentContainerStyle={{ padding: 16, paddingBottom: 36 }}>
+        <View className="mb-[12px]">
+          <Text className="text-[28px] font-bold text-[#1e293b] dark:text-slate-100">Ride History</Text>
+          <Text className="text-sm text-[#64748b] dark:text-slate-400 mt-1">Track progress & achievements</Text>
+        </View>
 
-      <View className="flex-row flex-wrap justify-between mb-[12px]">
-        <MetricCard
-          label="Total Rides"
-          value={rideHistory.length}
-          formatter={(value) => `${Math.round(value)}`}
-          isDark={isDark}
-        />
-        <MetricCard
-          label="Distance"
-          value={totalDistance}
-          formatter={(value) => `${value.toFixed(1)} km`}
-          isDark={isDark}
-        />
-        <MetricCard
-          label="Total Time"
-          value={totalTime}
-          formatter={(value) => formatTime(Math.round(value))}
-          isDark={isDark}
-        />
-        <MetricCard
-          label="Checkpoints"
-          value={totalCheckpoints}
-          formatter={(value) => `${Math.round(value)}`}
-          isDark={isDark}
-        />
-      </View>
+        <View className="flex-row flex-wrap justify-between mb-[12px]">
+          <MetricCard
+            label="Total Rides"
+            value={rideHistory.length}
+            formatter={(value) => `${Math.round(value)}`}
+            isDark={isDark}
+          />
+          <MetricCard
+            label="Distance"
+            value={totalDistance}
+            formatter={(value) => `${value.toFixed(1)} km`}
+            isDark={isDark}
+          />
+          <MetricCard
+            label="Total Time"
+            value={totalTime}
+            formatter={(value) => formatTime(Math.round(value))}
+            isDark={isDark}
+          />
+          <MetricCard
+            label="Checkpoints"
+            value={totalCheckpoints}
+            formatter={(value) => `${Math.round(value)}`}
+            isDark={isDark}
+          />
+        </View>
 
-      <Card>
-        <CardHeader>
-          <View className="flex-row justify-between items-center">
-            <View>
-              <CardTitle>Distance Over Time</CardTitle>
-              <CardDescription>
-                {`Total ${period === 'week' ? 'this week' : 'this month'}: `}
-                <AnimatedMetricValue
-                  value={totalGraphDistance}
-                  formatter={(value) => `${value.toFixed(1)} km`}
-                  animationKey="total-graph-distance"
-                />
-              </CardDescription>
+        <Card>
+          <CardHeader>
+            <View className="flex-row justify-between items-center">
+              <View>
+                <CardTitle>Distance Over Time</CardTitle>
+                <CardDescription>
+                  {`Total ${period === 'week' ? 'this week' : 'this month'}: `}
+                  <AnimatedMetricValue
+                    value={totalGraphDistance}
+                    formatter={(value) => `${value.toFixed(1)} km`}
+                    animationKey="total-graph-distance"
+                  />
+                </CardDescription>
+              </View>
+              <View
+                onLayout={(event) => setPeriodToggleWidth(event.nativeEvent.layout.width)}
+                style={styles.periodToggle}
+              >
+                {supportsNativeGlass ? (
+                  <GlassView
+                    style={styles.periodToggleGlass}
+                    glassEffectStyle="clear"
+                    colorScheme={isDark ? 'dark' : 'light'}
+                    tintColor={isDark ? 'rgba(15, 23, 42, 0.18)' : 'rgba(255, 255, 255, 0.28)'}
+                  />
+                ) : (
+                  <View
+                    style={[
+                      styles.periodToggleGlass,
+                      isDark ? styles.periodToggleFallbackDark : styles.periodToggleFallbackLight,
+                    ]}
+                  />
+                )}
+                {periodIndicatorWidth > 0 ? (
+                  <Animated.View
+                    pointerEvents="none"
+                    style={[
+                      styles.periodIndicator,
+                      {
+                        width: periodIndicatorWidth,
+                        transform: [
+                          {
+                            translateX: periodIndicator.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [0, periodIndicatorWidth + 2],
+                            }),
+                          },
+                        ],
+                      },
+                    ]}
+                  >
+                    {supportsNativeGlass ? (
+                      <GlassView
+                        style={StyleSheet.absoluteFillObject}
+                        glassEffectStyle={{
+                          style: 'regular',
+                          animate: true,
+                          animationDuration: 0.28,
+                        }}
+                        colorScheme={isDark ? 'dark' : 'light'}
+                        tintColor={isDark ? 'rgba(59, 130, 246, 0.22)' : 'rgba(255, 255, 255, 0.62)'}
+                      />
+                    ) : (
+                      <View
+                        style={[
+                          StyleSheet.absoluteFillObject,
+                          styles.periodIndicatorFallback,
+                        ]}
+                      />
+                    )}
+                  </Animated.View>
+                ) : null}
+                <Pressable style={styles.periodButton} onPress={() => handlePeriodChange('week')}>
+                  <Text
+                    style={[
+                      styles.periodButtonLabel,
+                      period === 'week'
+                        ? styles.periodButtonLabelActive
+                        : isDark
+                          ? styles.periodButtonLabelDark
+                          : styles.periodButtonLabelLight,
+                    ]}
+                  >
+                    Week
+                  </Text>
+                </Pressable>
+                <Pressable style={styles.periodButton} onPress={() => handlePeriodChange('month')}>
+                  <Text
+                    style={[
+                      styles.periodButtonLabel,
+                      period === 'month'
+                        ? styles.periodButtonLabelActive
+                        : isDark
+                          ? styles.periodButtonLabelDark
+                          : styles.periodButtonLabelLight,
+                    ]}
+                  >
+                    Month
+                  </Text>
+                </Pressable>
+              </View>
             </View>
-            <View
-              onLayout={(event) => setPeriodToggleWidth(event.nativeEvent.layout.width)}
-              style={styles.periodToggle}
-            >
-              {supportsNativeGlass ? (
-                <GlassView
-                  style={styles.periodToggleGlass}
-                  glassEffectStyle="clear"
-                  colorScheme={isDark ? 'dark' : 'light'}
-                  tintColor={isDark ? 'rgba(15, 23, 42, 0.18)' : 'rgba(255, 255, 255, 0.28)'}
+          </CardHeader>
+          <CardContent>
+            <View className="mt-2 py-1">
+              {graphRows.map((row) => (
+                <GraphBar
+                  key={row.key}
+                  label={row.label}
+                  distance={row.distance}
+                  maxDistance={maxDistance}
+                  isDark={isDark}
                 />
-              ) : (
-                <View
-                  style={[
-                    styles.periodToggleGlass,
-                    isDark ? styles.periodToggleFallbackDark : styles.periodToggleFallbackLight,
-                  ]}
-                />
-              )}
-              {periodIndicatorWidth > 0 ? (
-                <Animated.View
-                  pointerEvents="none"
-                  style={[
-                    styles.periodIndicator,
-                    {
-                      width: periodIndicatorWidth,
-                      transform: [
-                        {
-                          translateX: periodIndicator.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [0, periodIndicatorWidth + 2],
-                          }),
-                        },
-                      ],
-                    },
-                  ]}
-                >
-                  {supportsNativeGlass ? (
-                    <GlassView
-                      style={StyleSheet.absoluteFillObject}
-                      glassEffectStyle={{
-                        style: 'regular',
-                        animate: true,
-                        animationDuration: 0.28,
-                      }}
-                      colorScheme={isDark ? 'dark' : 'light'}
-                      tintColor={isDark ? 'rgba(59, 130, 246, 0.22)' : 'rgba(255, 255, 255, 0.62)'}
-                    />
-                  ) : (
-                    <View
-                      style={[
-                        StyleSheet.absoluteFillObject,
-                        styles.periodIndicatorFallback,
-                      ]}
-                    />
-                  )}
-                </Animated.View>
-              ) : null}
-              <Pressable style={styles.periodButton} onPress={() => handlePeriodChange('week')}>
-                <Text
-                  style={[
-                    styles.periodButtonLabel,
-                    period === 'week'
-                      ? styles.periodButtonLabelActive
-                      : isDark
-                        ? styles.periodButtonLabelDark
-                        : styles.periodButtonLabelLight,
-                  ]}
-                >
-                  Week
-                </Text>
-              </Pressable>
-              <Pressable style={styles.periodButton} onPress={() => handlePeriodChange('month')}>
-                <Text
-                  style={[
-                    styles.periodButtonLabel,
-                    period === 'month'
-                      ? styles.periodButtonLabelActive
-                      : isDark
-                        ? styles.periodButtonLabelDark
-                        : styles.periodButtonLabelLight,
-                  ]}
-                >
-                  Month
-                </Text>
-              </Pressable>
+              ))}
             </View>
-          </View>
-        </CardHeader>
-        <CardContent>
-          <View className="mt-2 py-1">
-            {graphRows.map((row) => (
-              <GraphBar
-                key={row.key}
-                label={row.label}
-                distance={row.distance}
-                maxDistance={maxDistance}
-                isDark={isDark}
-              />
-            ))}
-          </View>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      <View className="my-[10px]">
-        <Text className="text-xl font-bold text-[#1e293b] dark:text-slate-100">Recent Rides</Text>
-        <Text className="text-xs text-[#64748b] dark:text-slate-400">Tap a ride for details</Text>
-      </View>
+        <View className="my-[10px]">
+          <Text className="text-xl font-bold text-[#1e293b] dark:text-slate-100">Recent Rides</Text>
+          <Text className="text-xs text-[#64748b] dark:text-slate-400">Tap a ride for details</Text>
+        </View>
 
-      <FlatList
-        data={rideHistory}
-        keyExtractor={(item) => item.id}
-        renderItem={renderRide}
-        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
-        scrollEnabled={false}
-        contentContainerStyle={{ paddingBottom: 80 }}
-      />
-    </ScrollView>
-  );
+        <FlatList
+          data={rideHistory}
+          keyExtractor={(item) => item.id}
+          renderItem={renderRide}
+          ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+          scrollEnabled={false}
+          contentContainerStyle={{ paddingBottom: 80 }}
+        />
+      </ScrollView>
+    );
+  }
 }
 
 const styles = StyleSheet.create({

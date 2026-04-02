@@ -4,7 +4,9 @@ import { Redirect } from 'expo-router';
 import { AuthContext } from '@/app/AuthContext';
 
 export default function IndexScreen() {
-  const { isLoggedIn } = useContext(AuthContext);
+  const { isLoggedIn, user } = useContext(AuthContext);
 
-  return <Redirect href={isLoggedIn ? '/(tabs)/home-tab' : '/login'} />;
+  if (!isLoggedIn) return <Redirect href="/login" />;
+  if (!user?.onboardingComplete) return <Redirect href="/onboarding" />;
+  return <Redirect href="/(tabs)/home-tab" />;
 }

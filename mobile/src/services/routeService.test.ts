@@ -1,104 +1,91 @@
-// =============================================================================
-// ROUTE SERVICE TESTS — Mobile
-// Tests the routeService in mock mode (EXPO_PUBLIC_USE_MOCKS=true).
-// Env var must be set BEFORE the service module is evaluated.
-// =============================================================================
+jest.mock('./httpClient', () => ({
+  httpClient: { get: jest.fn(), post: jest.fn() },
+}));
 
-// Declare typed service at the top — will be assigned inside isolateModules
-let getRoutes: typeof import('./routeService').getRoutes;
-let getPopularRoutes: typeof import('./routeService').getPopularRoutes;
-let getRouteById: typeof import('./routeService').getRouteById;
-let getRouteRecommendations: typeof import('./routeService').getRouteRecommendations;
+jest.mock('../app/utils/routePreferences', () => ({
+  normalizeUserPreferences: jest.fn((p) => p),
+}));
 
-beforeAll(() => {
-  process.env.EXPO_PUBLIC_USE_MOCKS = 'true';
-  jest.isolateModules(() => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const svc = require('./routeService') as typeof import('./routeService');
-    getRoutes = svc.getRoutes;
-    getPopularRoutes = svc.getPopularRoutes;
-    getRouteById = svc.getRouteById;
-    getRouteRecommendations = svc.getRouteRecommendations;
+import { httpClient } from './httpClient';
+import { getRoutes, getPopularRoutes, getRouteById, getRouteRecommendations } from './routeService';
+
+const mockGet = httpClient.get as jest.Mock;
+const mockPost = httpClient.post as jest.Mock;
+
+const backendRoute = {
+  route_id: 'rt1',
+  name: 'Waterfront Loop',
+  description: 'Scenic coastal route',
+  distance: 14.2,
+  elevation: 80,
+  estimated_time: 55,
+  rating: 4.5,
+  review_count: 120,
+  start_point: { lat: 1.28, lng: 103.85, name: 'Marina' },
+  end_point: { lat: 1.29, lng: 103.87, name: 'Gardens' },
+  checkpoints: [],
+  cyclist_type: 'recreational' as const,
+  shade: 65,
+  air_quality: 85,
+};
+
+beforeEach(() => jest.clearAllMocks());
+
+describe('getRoutes()', () => {
+  it('maps BackendRoute array to Route array', async () => {
+    mockGet.mockResolvedValueOnce([backendRoute]);
+    const routes = await getRoutes();
+    expect(routes).toHaveLength(1);
+    expect(routes[0].id).toBe('rt1');
+    expect(routes[0].name).toBe('Waterfront Loop');
+    expect(routes[0].rating).toBe(4.5);
+    expect(mockGet).toHaveBeenCalledWith(expect.stringContaining('/routes'), undefined);
   });
 });
 
-describe('routeService (mock mode)', () => {
-  describe('getRoutes()', () => {
-    it('returns all routes when no preferences provided', async () => {
-      const routes = await getRoutes();
-      expect(routes.length).toBeGreaterThan(0);
-    });
-
-    it('filters routes by cyclist type', async () => {
-      const routes = await getRoutes({
-        cyclistType: 'recreational',
-        preferredShade: 50,
-        elevation: 50,
-        distance: 30,
-        airQuality: 0,
-      });
-      routes.forEach((r) => {
-        expect(r.cyclistType).toBe('recreational');
-      });
-    });
-
-    it('returns Route objects with correct camelCase shape', async () => {
-      const [route] = await getRoutes();
-      expect(route).toHaveProperty('id');
-      expect(route).toHaveProperty('name');
-      expect(route).toHaveProperty('estimatedTime');
-      expect(route).toHaveProperty('reviewCount');
-      expect(route).toHaveProperty('cyclistType');
-      expect(route).toHaveProperty('airQuality');
-    });
-  });
-
-  describe('getRouteById()', () => {
-    it('returns the correct route for a valid ID', async () => {
-      const route = await getRouteById('1');
-      expect(route).not.toBeNull();
-      expect(route?.id).toBe('1');
-    });
-
-    it('returns null for an unknown ID', async () => {
-      const route = await getRouteById('does-not-exist');
-      expect(route).toBeNull();
-    });
-  });
-
-  describe('getPopularRoutes()', () => {
-    it('returns at most the requested limit', async () => {
-      const routes = await getPopularRoutes(2);
-      expect(routes.length).toBeLessThanOrEqual(2);
-    });
-
-    it('returns routes in route shape', async () => {
-      const [route] = await getPopularRoutes(1);
-      expect(route).toHaveProperty('id');
-      expect(route).toHaveProperty('name');
-      expect(route).toHaveProperty('estimatedTime');
-      expect(route).toHaveProperty('reviewCount');
-    });
-  });
-
-  describe('getRouteRecommendations()', () => {
-    it('returns at most `limit` routes', async () => {
-      const routes = await getRouteRecommendations(
-        { cyclistType: 'recreational', preferredShade: 60, elevation: 40, distance: 15, airQuality: 70 },
-        3,
-      );
-      expect(routes.length).toBeLessThanOrEqual(3);
-    });
-
-    it('returns routes with all required fields', async () => {
-      const [first] = await getRouteRecommendations(
-        { cyclistType: 'commuter', preferredShade: 30, elevation: 20, distance: 10, airQuality: 65 },
-        1,
-      );
-      expect(first).toHaveProperty('id');
-      expect(first).toHaveProperty('rating');
-      expect(typeof first.rating).toBe('number');
-    });
+describe('getPopularRoutes()', () => {
+  it('calls /routes/popular with limit clamped to max 3', async () => {
+    mockGet.mockResolvedValueOnce([backendRoute]);
+    await getPopularRoutes(5);
+    expect(mockGet).toHaveBeenCalledWith('/routes/popular?limit=3', undefined);
   });
 });
 
+describe('getRouteById()', () => {
+  it('returns mapped Route for a valid ID', async () => {
+    mockGet.mockResolvedValueOnce(backendRoute);
+    const route = await getRouteById('rt1');
+    expect(route).not.toBeNull();
+    expect(route?.id).toBe('rt1');
+  });
+
+  it('returns null when API throws', async () => {
+    mockGet.mockRejectedValueOnce(new Error('404'));
+    const route = await getRouteById('nonexistent');
+    expect(route).toBeNull();
+  });
+});
+
+describe('getRouteRecommendations()', () => {
+  it('posts to /routes/recommendations and returns mapped routes', async () => {
+    mockPost.mockResolvedValueOnce([{ ...backendRoute, route_id: 'rec1' }]);
+    const routes = await getRouteRecommendations({
+      cyclistType: 'recreational',
+      preferredShade: 50,
+      elevation: 100,
+      distance: 20,
+      airQuality: 80,
+      shadePreference: 'dont-care',
+      elevationPreference: 'dont-care',
+      maxDistanceKm: 20,
+      airQualityPreference: 'dont-care',
+      pointsOfInterest: { hawkerCenter: false, historicSite: false, park: false, touristAttraction: false },
+    });
+    expect(mockPost).toHaveBeenCalledWith(
+      '/routes/recommendations',
+      expect.objectContaining({ limit: 3 }),
+      undefined,
+    );
+    expect(routes[0].id).toBe('rec1');
+  });
+});

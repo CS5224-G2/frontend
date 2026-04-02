@@ -63,7 +63,7 @@ export default function RegisterPage() {
     setIsSubmitting(true);
 
     try {
-      const result = await registerUser({
+      await registerUser({
         firstName,
         lastName,
         email,
@@ -72,8 +72,7 @@ export default function RegisterPage() {
         agreedToTerms,
       });
 
-      await login(result);
-      // Navigation is now handled by RootNavigator reacting to AuthContext
+      router.push('/onboarding');
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Something went wrong while creating the account.';
