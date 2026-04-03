@@ -57,7 +57,7 @@ export default function UserManagement({ users, loading, error }) {
 
   const q = query.toLowerCase();
   const filtered = (users ?? []).filter(u =>
-    u.email.toLowerCase().includes(q) || u.role.toLowerCase().includes(q)
+    (u.email_address ?? '').toLowerCase().includes(q) || (u.role ?? '').toLowerCase().includes(q)
   );
 
   return (
@@ -95,13 +95,13 @@ export default function UserManagement({ users, loading, error }) {
             ) : (
               filtered.map(u => (
                 <tr
-                  key={u.id}
+                  key={u.user_id}
                   className="border-b border-slate-100 dark:border-zinc-800 last:border-0 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors"
                 >
-                  <td className="px-4 py-3 text-slate-700 dark:text-zinc-300 font-mono text-xs">{u.email}</td>
+                  <td className="px-4 py-3 text-slate-700 dark:text-zinc-300 font-mono text-xs">{u.email_address}</td>
                   <td className="px-4 py-3"><RoleBadge role={u.role} /></td>
-                  <td className="px-4 py-3"><StatusBadge status={u.status} /></td>
-                  <td className="px-4 py-3 text-slate-500 dark:text-zinc-500 text-xs">{u.joinedFormatted}</td>
+                  <td className="px-4 py-3"><StatusBadge status={u.account_status} /></td>
+                  <td className="px-4 py-3 text-slate-500 dark:text-zinc-500 text-xs">{u.joined_formatted}</td>
                 </tr>
               ))
             )}
