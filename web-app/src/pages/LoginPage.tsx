@@ -1,5 +1,5 @@
 import { FormEvent, useState } from 'react'
-import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 export default function LoginPage() {
@@ -10,10 +10,17 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  // Already logged in — redirect using Navigate component (safe during render)
+  // Already logged in — send each role to its own home
   if (user) {
-    const dest = user.role === 'admin' ? '/admin' : user.role === 'business' ? '/dashboard' : '/'
-    return <Navigate to={dest} replace />
+    if (user.role === 'admin') return <Navigate to="/admin/dashboard" replace />
+    if (user.role === 'business') return <Navigate to="/dashboard" replace />
+    return <Navigate to="/" replace />
+  }
+
+  function roleHome(role: string) {
+    if (role === 'admin') return '/admin/dashboard'
+    if (role === 'business') return '/dashboard'
+    return '/'
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -21,15 +28,8 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
     try {
-      const result = await login({ email, password })
-      // Navigate based on the role returned by the auth service
-      if (result.role === 'admin') {
-        navigate('/admin', { replace: true })
-      } else if (result.role === 'business') {
-        navigate('/dashboard', { replace: true })
-      } else {
-        navigate('/', { replace: true })
-      }
+      const loggedInUser = await login({ email, password })
+      navigate(roleHome(loggedInUser.role), { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed.')
     } finally {
@@ -42,8 +42,8 @@ export default function LoginPage() {
       <div className="bg-white rounded-2xl shadow-md p-8 w-full max-w-sm">
         {/* Header */}
         <div className="text-center mb-6">
-          <p className="text-2xl font-black text-primary-900">🚲 CycleLink</p>
-          <p className="text-slate-500 text-sm mt-1">Partner &amp; Admin Portal</p>
+          <p className="text-2xl font-black text-primary-900">🚲 CycleLink Admin</p>
+          <p className="text-slate-500 text-sm mt-1">Evaluation Dashboard — Admin Access Only</p>
         </div>
 
         {/* Form */}
@@ -57,7 +57,7 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
               className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
-              placeholder="admin@cyclink.com"
+              placeholder="admin@cyclelink.com"
             />
           </div>
           <div>
@@ -83,21 +83,6 @@ export default function LoginPage() {
             {loading ? 'Signing in…' : 'Sign In'}
           </button>
         </form>
-
-        {/* Demo credentials */}
-        <div className="mt-5 bg-primary-50 rounded-xl p-4 text-xs text-slate-600">
-          <p className="font-semibold text-primary-800 mb-2">Demo credentials</p>
-          <p>Admin: <span className="font-mono">admin@cyclink.com</span></p>
-          <p>Business: <span className="font-mono">business@cyclink.com</span></p>
-          <p className="text-slate-400 mt-1">Password: <span className="font-mono">CycleLink123</span></p>
-        </div>
-
-        <Link
-          to="/"
-          className="block text-center text-xs text-slate-400 hover:text-primary-600 mt-4 transition-colors"
-        >
-          ← Back to cyclelink.com
-        </Link>
       </div>
     </div>
   )

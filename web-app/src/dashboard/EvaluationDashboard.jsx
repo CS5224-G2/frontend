@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Navigate } from 'react-router-dom';
 import {
   Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement,
   PointElement, RadialLinearScale, Title, Tooltip, Legend, Filler,
@@ -173,8 +174,7 @@ export default function EvaluationDashboard() {
   }, [data, health]);
 
   if (!isAuthenticated()) {
-    window.location.href = '/login';
-    return null;
+    return <Navigate to="/login" replace />;
   }
 
   function handleLogout() {
