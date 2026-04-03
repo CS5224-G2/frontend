@@ -107,8 +107,15 @@ export async function loginUser(values: LoginFormValues): Promise<AuthResult> {
   });
 
   if (!response.ok) {
-    const text = await response.text().catch(() => response.statusText);
-    throw new Error(text || 'Login failed.');
+    let errorMsg: string;
+    try {
+      const body = await response.json() as Record<string, unknown>;
+      const candidate = body.detail ?? body.message ?? body.error;
+      errorMsg = typeof candidate === 'string' ? candidate : response.statusText;
+    } catch {
+      errorMsg = await response.text().catch(() => response.statusText);
+    }
+    throw new Error(errorMsg || 'Login failed.');
   }
 
   return toAuthResult(await response.json() as BackendAuthResponse);

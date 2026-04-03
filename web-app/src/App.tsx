@@ -6,6 +6,7 @@ import BusinessLandingPage from './pages/BusinessLandingPage'
 import LoginPage from './pages/LoginPage'
 import AdminDashboard from './pages/AdminDashboard'
 import BusinessDashboard from './pages/BusinessDashboard'
+import EvaluationDashboard from './dashboard/EvaluationDashboard'
 
 export default function App() {
   return (
@@ -20,6 +21,14 @@ export default function App() {
             element={
               <ProtectedRoute allowedRole="admin">
                 <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/dashboard"
+            element={
+              <ProtectedRoute allowedRole="admin">
+                <EvaluationDashboard />
               </ProtectedRoute>
             }
           />
