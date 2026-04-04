@@ -4,7 +4,9 @@
 // =============================================================================
 
 import type { RideHistory, GraphDataPoint, GraphPeriod, RouteFeedbackPayload } from '../../../shared/types/index';
-import { httpClient } from './httpClient';
+import { USE_MOCKS } from '../config/runtime';
+import { ApiError, httpClient } from './httpClient';
+import { saveRideFeedbackLocal } from './localDb';
 
 export type { RideHistory, GraphDataPoint, GraphPeriod };
 
@@ -189,9 +191,32 @@ export async function submitRideFeedback(payload: RouteFeedbackPayload, token?: 
   const backendPayload: BackendFeedbackPayload = {
     route_id: payload.routeId,
     rating: payload.rating,
-    review_text: payload.review,
+    review_text: payload.review ?? '',
   };
-  await httpClient.post<void>('/rides/feedback', backendPayload, token);
+
+  const persistLocal = () =>
+    saveRideFeedbackLocal({
+      routeId: payload.routeId,
+      rating: payload.rating,
+      reviewText: payload.review ?? '',
+    });
+
+  if (USE_MOCKS) {
+    await persistLocal();
+    return;
+  }
+
+  try {
+    await httpClient.post<void>('/rides/feedback', backendPayload, token);
+  } catch (e) {
+    // Contract: 404 = route not found on server. Many stacks also return 404 if the route is not mounted.
+    // Save locally so the user can still finish the journey; data can be synced when the backend matches.
+    if (e instanceof ApiError && e.status === 404) {
+      await persistLocal();
+      return;
+    }
+    throw e;
+  }
 }
 
 export async function saveRide(payload: SaveRidePayload, token?: string): Promise<RideHistory> {

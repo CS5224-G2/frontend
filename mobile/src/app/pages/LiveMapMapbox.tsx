@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import {
   Camera,
   CircleLayer,
@@ -12,6 +12,7 @@ import {
 import { useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useFloatingTabBarExtraLift } from '../utils/floatingTabBarInset';
 import { useLiveMapRideState } from './useLiveMapRideState';
 
 export default function LiveMapMapboxScreen() {
@@ -21,6 +22,7 @@ export default function LiveMapMapboxScreen() {
 
   const {
     route,
+    routeLoading,
     progress,
     elapsedSec,
     routeCompleted,
@@ -51,6 +53,16 @@ export default function LiveMapMapboxScreen() {
     if (lineFeature.geometry.type !== 'LineString') return 0;
     return lineFeature.geometry.coordinates.length;
   }, [lineFeature]);
+  const bottomTabLift = useFloatingTabBarExtraLift(16);
+  const cameraPaddingBottom = 220 + bottomTabLift;
+
+  if (routeLoading) {
+    return (
+      <View style={styles.loading} testID="live-map-loading">
+        <ActivityIndicator size="large" color="#2563eb" />
+      </View>
+    );
+  }
 
   if (!route) {
     return (
@@ -79,7 +91,7 @@ export default function LiveMapMapboxScreen() {
               ne: bounds.ne,
               sw: bounds.sw,
               paddingTop: 160,
-              paddingBottom: 220,
+              paddingBottom: cameraPaddingBottom,
               paddingLeft: 32,
               paddingRight: 32,
             }}
@@ -139,14 +151,14 @@ export default function LiveMapMapboxScreen() {
 
         {checkpointBanner ? (
           <View style={styles.banner} testID="live-map-checkpoint-banner">
-            <Text style={styles.bannerTitle}>Checkpoint reached</Text>
+            <Text style={styles.bannerTitle}>Checkpoint reached!</Text>
             <Text style={styles.bannerBody}>{checkpointBanner}</Text>
           </View>
         ) : null}
       </SafeAreaView>
 
       <SafeAreaView style={styles.bottomBar} edges={['bottom']}>
-        <View style={styles.bottomInner}>
+        <View style={[styles.bottomInner, { paddingBottom: 16 + bottomTabLift }]}>
           <View style={styles.bottomGrid}>
             <View>
               <Text style={styles.bottomLabel}>Elapsed Time</Text>
@@ -173,6 +185,7 @@ export default function LiveMapMapboxScreen() {
             <Text style={styles.modalTitle}>Route Completed!</Text>
             <Text style={styles.modalSub}>Congratulations on finishing your ride.</Text>
             <Text style={styles.modalMeta}>Distance: {route.distance} km</Text>
+            <Text style={styles.modalMeta}>Time: {route.estimatedTime} minutes</Text>
             <Text style={styles.modalMeta}>Checkpoints: {route.checkpoints.length}</Text>
             <Pressable style={styles.primaryBtn} onPress={goFeedback} testID="live-map-feedback-btn">
               <Text style={styles.primaryBtnText}>End Route & Give Feedback</Text>
@@ -186,7 +199,8 @@ export default function LiveMapMapboxScreen() {
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Exit Live Navigation?</Text>
             <Text style={styles.modalSub}>
-              You have not reached the destination yet. Exit and go to feedback?
+              You have not reached the destination yet. Exit live navigation? Your progress is saved and you can
+              still leave feedback.
             </Text>
             <View style={styles.modalActions}>
               <Pressable
@@ -208,6 +222,7 @@ export default function LiveMapMapboxScreen() {
 }
 
 const styles = StyleSheet.create({
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc' },
   root: { flex: 1, backgroundColor: '#e2e8f0' },
   mapFallback: {
     ...StyleSheet.absoluteFillObject,
@@ -257,7 +272,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#e2e8f0',
   },
-  bottomInner: { padding: 16, gap: 12 },
+  bottomInner: { paddingHorizontal: 16, paddingTop: 16, gap: 12 },
   bottomGrid: { flexDirection: 'row', justifyContent: 'space-between' },
   bottomLabel: { fontSize: 12, color: '#64748b', marginBottom: 4 },
   bottomValueBlue: { fontSize: 22, fontWeight: '800', color: '#2563eb' },

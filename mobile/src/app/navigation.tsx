@@ -36,11 +36,12 @@ import RouteConfigScreen from './pages/RouteConfigPage';
 import LiveMapScreen from './pages/LiveMapPage';
 import OnboardingScreen from './pages/OnboardingPage';
 import UserJourneyScreen from './pages/UserJourneyPage';
+import { FLOATING_TAB_BAR_DOCK_HEIGHT } from './utils/floatingTabBarInset';
 
 const Stack = createNativeStackNavigator<any>();
 const Tab = createBottomTabNavigator<any>();
 const AuthStack = createNativeStackNavigator<any>();
-const TAB_BAR_DOCK_HEIGHT = 72;
+const TAB_BAR_DOCK_HEIGHT = FLOATING_TAB_BAR_DOCK_HEIGHT;
 
 const supportsNativeGlass =
   Platform.OS === 'ios' && isLiquidGlassAvailable() && isGlassEffectAPIAvailable();

@@ -2,12 +2,29 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-import { getRouteById } from '../types';
+import type { Route } from '../../../../shared/types/index';
+import { resolveRouteById } from '../../services/routeLookup';
 import { boundsFromCoordinates, interpolateAlongRoute, routeToLineCoordinates } from '@/utils/routeGeometry';
 
 export function useLiveMapRideState(routeId: string | undefined) {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
-  const route = getRouteById(routeId);
+  const [route, setRoute] = useState<Route | null>(null);
+  const [routeLoading, setRouteLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setRouteLoading(true);
+      const r = await resolveRouteById(routeId);
+      if (!cancelled) {
+        setRoute(r);
+        setRouteLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [routeId]);
 
   const [progress, setProgress] = useState(0);
   const [elapsedSec, setElapsedSec] = useState(0);
@@ -96,7 +113,17 @@ export function useLiveMapRideState(routeId: string | undefined) {
 
   const distanceTraveled = route ? ((route.distance * progress) / 100).toFixed(2) : '0.00';
 
-  const goFeedback = () => navigation.navigate('RouteFeedback');
+  const goFeedback = useCallback(() => {
+    // Dismiss modals before navigating: LiveMap stays mounted under the stack and RN Modal
+    // can otherwise stay visible on top of Route Feedback.
+    setRouteCompleted(false);
+    setShowExitModal(false);
+    if (routeId) {
+      navigation.navigate('RouteFeedback', { routeId });
+    } else {
+      navigation.navigate('RouteFeedback');
+    }
+  }, [navigation, routeId]);
 
   const stopCycling = () => {
     if (routeCompleted) {
@@ -114,6 +141,7 @@ export function useLiveMapRideState(routeId: string | undefined) {
   return {
     navigation,
     route,
+    routeLoading,
     progress,
     elapsedSec,
     routeCompleted,

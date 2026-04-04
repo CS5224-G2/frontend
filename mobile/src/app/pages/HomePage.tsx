@@ -66,6 +66,12 @@ export default function HomeScreen({ navigation }: Props) {
             .sort((a, b) => b.matchScore - a.matchScore)
             .slice(0, 3),
         );
+      } catch (e) {
+        // e.g. 502 from ALB/proxy or network — avoid uncaught promise; show empty discovery until API is healthy
+        console.warn('[HomePage] Failed to load routes', e);
+        setAllRoutes([]);
+        setPopularRoutes([]);
+        setSuggestedRoutes([]);
       } finally {
         setIsLoading(false);
       }

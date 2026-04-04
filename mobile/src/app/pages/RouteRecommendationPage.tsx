@@ -15,6 +15,7 @@ import {
   normalizeUserPreferences,
 } from '../utils/routePreferences';
 import { getRouteRecommendations, getRoutes } from '../../services/routeService';
+import { useFloatingTabBarScrollPadding } from '../utils/floatingTabBarInset';
 
 type Props = NativeStackScreenProps<any, 'Recommendation'>;
 
@@ -58,6 +59,7 @@ export default function RouteRecommendationPage({ navigation }: Props) {
   const [isLoading, setIsLoading] = useState(true);
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const scrollBottomPad = useFloatingTabBarScrollPadding(20);
 
   useEffect(() => {
     const loadRecommendations = async () => {
@@ -169,7 +171,7 @@ export default function RouteRecommendationPage({ navigation }: Props) {
   );
 
   return (
-    <ScrollView className="flex-1 bg-slate-50 dark:bg-black" contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
+    <ScrollView className="flex-1 bg-slate-50 dark:bg-black" contentContainerStyle={{ padding: 16, paddingBottom: scrollBottomPad }}>
       <View className="flex-row items-center mb-[12px] gap-cy-md">
         <Text testID="route-list-heading" className="text-2xl font-bold text-[#1e293b] dark:text-slate-100">Route Recommendations</Text>
       </View>

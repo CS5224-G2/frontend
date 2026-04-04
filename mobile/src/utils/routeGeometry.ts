@@ -1,4 +1,5 @@
-import type { Route } from '../app/types';
+import type { Route } from '../../../shared/types/index';
+import type { Region } from 'react-native-maps';
 
 /** GeoJSON positions as [lng, lat] for Mapbox. */
 export type LngLat = [number, number];
@@ -10,6 +11,42 @@ export function routeToLineCoordinates(route: Route): LngLat[] {
     [route.endPoint.lng, route.endPoint.lat],
   ];
   return coords;
+}
+
+/** Coordinates for react-native-maps `Polyline` (uses `route_path` when present). */
+export function routeToMapCoordinates(route: Route): { latitude: number; longitude: number }[] {
+  if (route.routePath && route.routePath.length >= 2) {
+    return route.routePath.map((p) => ({ latitude: p.lat, longitude: p.lng }));
+  }
+  return routeToLineCoordinates(route).map(([lng, lat]) => ({ latitude: lat, longitude: lng }));
+}
+
+export function fitRegionForCoordinates(
+  points: { latitude: number; longitude: number }[],
+  padding = 1.45,
+): Region {
+  if (points.length === 0) {
+    return {
+      latitude: 1.3521,
+      longitude: 103.8198,
+      latitudeDelta: 0.12,
+      longitudeDelta: 0.12,
+    };
+  }
+  const lats = points.map((p) => p.latitude);
+  const lngs = points.map((p) => p.longitude);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs);
+  const maxLng = Math.max(...lngs);
+  const latSpan = Math.max(maxLat - minLat, 0.008);
+  const lngSpan = Math.max(maxLng - minLng, 0.008);
+  return {
+    latitude: (minLat + maxLat) / 2,
+    longitude: (minLng + maxLng) / 2,
+    latitudeDelta: latSpan * padding,
+    longitudeDelta: lngSpan * padding,
+  };
 }
 
 function segmentLength(a: LngLat, b: LngLat): number {

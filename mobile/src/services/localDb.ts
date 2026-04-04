@@ -1300,6 +1300,25 @@ export async function getActiveMockAccountId(): Promise<string> {
   return session?.current_account_id ?? DEFAULT_ACCOUNT_ID;
 }
 
+/** Persist post-ride feedback locally (offline / demo / when API returns 404 for unknown route). */
+export async function saveRideFeedbackLocal(input: {
+  routeId: string;
+  rating: number;
+  reviewText: string;
+}): Promise<void> {
+  const db = await getLocalDb();
+  const accountId = await getActiveMockAccountId();
+  const createdAt = nowIso();
+  await db.runAsync(
+    `INSERT INTO ride_feedback (account_id, route_id, rating, review_text, created_at) VALUES (?, ?, ?, ?, ?)`,
+    accountId,
+    input.routeId,
+    input.rating,
+    input.reviewText,
+    createdAt,
+  );
+}
+
 export async function createLocalAccount(input: {
   firstName: string;
   lastName: string;
