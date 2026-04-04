@@ -1,0 +1,23 @@
+mobile/docs/RUNBOOK.md
+  e4d7edd9ab1216cf 1-138
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.5",
+  "base_commit_sha": "e84f51788f3afdc6c41ab0a519c922248cce9378",
+  "prompts": {
+    "e4d7edd9ab1216cf": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "f48b4e2d-5023-4278-9334-93570365eaa7",
+        "model": "default"
+      },
+      "human_author": "Lichen(Jeffrey) Yang",
+      "messages": [],
+      "total_additions": 140,
+      "total_deletions": 0,
+      "accepted_lines": 138,
+      "overriden_lines": 0
+    }
+  }
+}
