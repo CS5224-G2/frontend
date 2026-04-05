@@ -1,4 +1,5 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
+import type { Route } from '../../../shared/types/index';
 import { hashPassword } from '../utils/passwordHash';
 import {
   mockAdminUser,
@@ -139,6 +140,38 @@ type DistanceStatRow = {
   sort_order: number;
 };
 
+function normalizeRouteElevationValue(value: Route['elevation']): number {
+  if (typeof value === 'number') {
+    return value;
+  }
+
+  if (value === 'lower') {
+    return 60;
+  }
+
+  if (value === 'higher') {
+    return 240;
+  }
+
+  return 120;
+}
+
+function normalizeRouteShadeValue(value: Route['shade']): number {
+  if (typeof value === 'number') {
+    return value;
+  }
+
+  return value === 'reduce-shade' ? 80 : 50;
+}
+
+function normalizeRouteAirQualityValue(value: Route['airQuality']): number {
+  if (typeof value === 'number') {
+    return value;
+  }
+
+  return value === 'care' ? 30 : 60;
+}
+
 type RideFeedbackRow = {
   id: number;
   account_id: string;
@@ -236,7 +269,7 @@ function createSeedState(): TestState {
     name: route.name,
     description: route.description,
     distance_km: route.distance,
-    elevation_m: route.elevation,
+    elevation_m: normalizeRouteElevationValue(route.elevation),
     estimated_time_min: route.estimatedTime,
     rating: route.rating,
     review_count: route.reviewCount,
@@ -247,8 +280,8 @@ function createSeedState(): TestState {
     end_lng: route.endPoint.lng,
     end_name: route.endPoint.name,
     cyclist_type: route.cyclistType,
-    shade_pct: route.shade,
-    air_quality_index: route.airQuality,
+    shade_pct: normalizeRouteShadeValue(route.shade),
+    air_quality_index: normalizeRouteAirQualityValue(route.airQuality),
   }));
 
   const routeCheckpoints = mockRoutes.flatMap<RouteCheckpointRow>((route) =>
@@ -931,7 +964,7 @@ async function seedDatabaseIfEmpty(db: DatabaseLike): Promise<void> {
         route.name,
         route.description,
         route.distance,
-        route.elevation,
+        normalizeRouteElevationValue(route.elevation),
         route.estimatedTime,
         route.rating,
         route.reviewCount,
@@ -942,8 +975,8 @@ async function seedDatabaseIfEmpty(db: DatabaseLike): Promise<void> {
         route.endPoint.lng,
         route.endPoint.name,
         route.cyclistType,
-        route.shade,
-        route.airQuality,
+        normalizeRouteShadeValue(route.shade),
+        normalizeRouteAirQualityValue(route.airQuality),
       );
 
       for (const [index, checkpoint] of route.checkpoints.entries()) {
@@ -1127,7 +1160,7 @@ export async function synchronizeLocalDbFromMocks(): Promise<void> {
         route.name,
         route.description,
         route.distance,
-        route.elevation,
+        normalizeRouteElevationValue(route.elevation),
         route.estimatedTime,
         route.rating,
         route.reviewCount,
@@ -1138,8 +1171,8 @@ export async function synchronizeLocalDbFromMocks(): Promise<void> {
         route.endPoint.lng,
         route.endPoint.name,
         route.cyclistType,
-        route.shade,
-        route.airQuality,
+        normalizeRouteShadeValue(route.shade),
+        normalizeRouteAirQualityValue(route.airQuality),
       );
 
         for (const [index, checkpoint] of route.checkpoints.entries()) {

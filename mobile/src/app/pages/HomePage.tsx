@@ -121,7 +121,7 @@ export default function HomeScreen({ navigation }: Props) {
     }
 
     if (typeof route.airQuality === 'number' && prefs.airQualityPreference === 'care') {
-      score += Math.max(10 - Math.abs(route.airQuality - prefs.airQuality) / 10, 0);
+      score += Math.max(10 - route.airQuality / 10, 0);
     }
 
     return score;

@@ -97,8 +97,9 @@ function isInvalidLoginError(error: unknown): boolean {
     return false;
   }
 
-  const status = typeof (error as { status?: unknown }).status === 'number'
-    ? (error as { status: number }).status
+  const errorWithStatus = error as { status?: unknown };
+  const status = typeof errorWithStatus?.status === 'number'
+    ? errorWithStatus.status
     : null;
 
   if (status === 401) {

@@ -74,7 +74,6 @@ type BackendRecommendationPayload = {
     BackendRequestLocation & {
       id: string;
       source: BackendCheckpointRequestLocationSource;
-      description: string;
     }
   >;
   preferences: {
@@ -242,25 +241,6 @@ function toBackendRequestLocation(location: RouteRequestLocation): BackendReques
   };
 }
 
-function buildCheckpointDescriptionForPayload(
-  checkpoint: RouteRecommendationRequest['checkpoints'][number],
-): string {
-  const trimmedDescription = checkpoint.description?.trim();
-  if (trimmedDescription) {
-    return trimmedDescription;
-  }
-
-  if (checkpoint.source === 'map') {
-    return `Pinned on map at ${checkpoint.lat.toFixed(5)}, ${checkpoint.lng.toFixed(5)}`;
-  }
-
-  if (checkpoint.source === 'search') {
-    return `Selected from search: ${checkpoint.name}`;
-  }
-
-  return `Selected checkpoint: ${checkpoint.name}`;
-}
-
 function buildRecommendationPayload(
   routeRequest: RouteRecommendationRequest | null,
   prefs: UserPreferences,
@@ -274,7 +254,6 @@ function buildRecommendationPayload(
           id: checkpoint.id,
           ...toBackendRequestLocation(checkpoint),
           source: mapCheckpointSourceForBackend(checkpoint.source),
-          description: buildCheckpointDescriptionForPayload(checkpoint),
         }))
       : [],
     preferences: {
@@ -467,8 +446,11 @@ export async function getRouteRecommendations(
 ): Promise<Route[]> {
   const routeRequest = isRouteRecommendationRequest(input) ? input : null;
   const prefs = getNormalizedPreferences(routeRequest ? routeRequest.preferences : (input as UserPreferences));
+  const normalizedLimit = Math.min(Math.max(routeRequest?.limit ?? limit, 1), 3);
 
-  const payload = buildRecommendationPayload(routeRequest, prefs, limit);
+  const payload = buildRecommendationPayload(routeRequest, prefs, normalizedLimit);
+  console.log('[routeService] POST /routes/recommendations payload:', JSON.stringify(payload, null, 2));
+
   const response = await httpClient.post<BackendRecommendationRoute[]>(
     '/routes/recommendations',
     payload,
@@ -510,10 +492,8 @@ function _calculateMatchScore(route: Route, prefs: UserPreferences): number {
   }
 
   // Handle both numeric and string air quality values
-  if (typeof route.airQuality === 'number') {
-    if (prefs.airQualityPreference === 'care') {
-      score += Math.max(10 - Math.abs(route.airQuality - prefs.airQuality) / 10, 0);
-    }
+  if (typeof route.airQuality === 'number' && prefs.airQualityPreference === 'care') {
+    score += Math.max(10 - route.airQuality / 10, 0);
   }
 
   return score;
