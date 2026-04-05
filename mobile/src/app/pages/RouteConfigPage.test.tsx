@@ -181,10 +181,11 @@ describe('RouteConfigPage', () => {
       checkpoints: [],
       preferences: {
         cyclistType: 'commuter',
-        preferredShade: 60,
-        elevation: 40,
-        distance: 15,
-        airQuality: 70,
+        shadePreference: 'reduce-shade',
+        elevationPreference: 'dont-care',
+        maxDistanceKm: 15,
+        airQualityPreference: 'care',
+        pointsOfInterest: { hawkerCenter: false, historicSite: false, park: false, touristAttraction: false },
       },
     };
     AsyncStorage.getItem.mockImplementation((key: string) => {
@@ -210,10 +211,11 @@ describe('RouteConfigPage', () => {
       ],
       preferences: {
         cyclistType: 'general',
-        preferredShade: 50,
-        elevation: 50,
-        distance: 10,
-        airQuality: 50,
+        shadePreference: 'dont-care',
+        elevationPreference: 'dont-care',
+        maxDistanceKm: 10,
+        airQualityPreference: 'care',
+        pointsOfInterest: { hawkerCenter: false, historicSite: false, park: false, touristAttraction: false },
       },
     };
     AsyncStorage.getItem.mockImplementation((key: string) => {
@@ -243,6 +245,14 @@ describe('RouteConfigPage', () => {
       elevationPreference: 'dont-care',
       airQualityPreference: 'care',
     });
-    expect(persistedRouteRequest.checkpoints[0].description).toContain('Pinned on map at');
+    expect(persistedRouteRequest.limit).toBe(3);
+    expect(persistedRouteRequest.checkpoints[0]).toMatchObject({
+      id: 'checkpoint-1',
+      name: 'Marina Barrage',
+      lat: 1.2808,
+      lng: 103.8707,
+      source: 'map',
+    });
+    expect(persistedRouteRequest.checkpoints[0]).not.toHaveProperty('description');
   });
 });

@@ -96,18 +96,6 @@ function createCheckpointId() {
   return `checkpoint-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 }
 
-function buildCheckpointDescription(location: RouteRequestLocation) {
-  if (location.source === 'map') {
-    return `Pinned on map at ${formatCoordinates(location)}`;
-  }
-
-  if (location.source === 'search') {
-    return `Selected from search: ${location.name}`;
-  }
-
-  return `Selected checkpoint: ${location.name}`;
-}
-
 function buildCurrentLocationLabel(addresses: Location.LocationGeocodedAddress[]) {
   const firstAddress = addresses[0];
 
@@ -129,8 +117,11 @@ function normalizeCheckpointInput(
   checkpoint: RouteCheckpointInput,
 ): RouteCheckpointInput {
   return {
-    ...checkpoint,
-    description: checkpoint.description?.trim() || buildCheckpointDescription(checkpoint),
+    id: checkpoint.id,
+    name: checkpoint.name.trim() || buildCoordinateLabel(checkpoint.lat, checkpoint.lng),
+    lat: checkpoint.lat,
+    lng: checkpoint.lng,
+    source: checkpoint.source,
   };
 }
 
@@ -327,7 +318,7 @@ function BinaryPreferenceSlider({
         </View>
       </View>
       <Text className={`mt-1 text-[11px] font-semibold ${value ? 'text-blue-700 dark:text-blue-300' : 'text-slate-500 dark:text-slate-400'}`}>
-        {value ? 'Included' : 'Muted'}
+        {value ? 'Included' : 'Not Included'}
       </Text>
     </Pressable>
   );
@@ -499,7 +490,6 @@ export default function RouteConfigPage({ navigation }: Props) {
             ? {
                 ...checkpoint,
                 ...location,
-                description: buildCheckpointDescription(location),
               }
             : checkpoint,
         ),
@@ -512,7 +502,6 @@ export default function RouteConfigPage({ navigation }: Props) {
       {
         id: createCheckpointId(),
         ...location,
-        description: buildCheckpointDescription(location),
       },
     ]);
   };
@@ -602,7 +591,6 @@ export default function RouteConfigPage({ navigation }: Props) {
     const nextPreferences = normalizeUserPreferences({
       ...preferences,
       maxDistanceKm: parsedMaxDistance,
-      distance: parsedMaxDistance,
     });
 
     const routeRequest: RouteRecommendationRequest = {
@@ -610,6 +598,7 @@ export default function RouteConfigPage({ navigation }: Props) {
       endPoint,
       checkpoints,
       preferences: nextPreferences,
+      limit: 3,
     };
 
     try {
@@ -802,7 +791,6 @@ export default function RouteConfigPage({ navigation }: Props) {
                         normalizeUserPreferences({
                           ...currentPreferences,
                           maxDistanceKm: parsedValue,
-                          distance: parsedValue,
                         }),
                       );
                     }

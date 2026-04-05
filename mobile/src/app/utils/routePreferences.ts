@@ -40,12 +40,15 @@ const LEGACY_AIR_QUALITY_VALUES: Record<AirQualityPreference, number> = {
   'dont-care': 0,
 };
 
+type LegacyUserPreferencesInput = Partial<UserPreferences> & {
+  preferredShade?: number;
+  elevation?: number;
+  distance?: number;
+  airQuality?: number;
+};
+
 export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   cyclistType: 'general',
-  preferredShade: LEGACY_SHADE_VALUES['dont-care'],
-  elevation: LEGACY_ELEVATION_VALUES['dont-care'],
-  distance: 10,
-  airQuality: LEGACY_AIR_QUALITY_VALUES['care'],
   shadePreference: 'dont-care',
   elevationPreference: 'dont-care',
   maxDistanceKm: 10,
@@ -98,25 +101,25 @@ export function getAirQualityPreferenceLabel(value: AirQualityPreference): strin
 }
 
 export function normalizeUserPreferences(
-  value?: Partial<UserPreferences> | null,
+  value?: LegacyUserPreferencesInput | null,
 ): UserPreferences {
   const shadePreference = value?.shadePreference ?? inferShadePreference(value?.preferredShade);
   const elevationPreference = value?.elevationPreference ?? inferElevationPreference(value?.elevation);
-  const maxDistanceKm =
+  const maxDistanceKmCandidate =
     typeof value?.maxDistanceKm === 'number'
       ? value.maxDistanceKm
       : typeof value?.distance === 'number'
         ? value.distance
         : DEFAULT_USER_PREFERENCES.maxDistanceKm;
+  const maxDistanceKm =
+    Number.isFinite(maxDistanceKmCandidate) && maxDistanceKmCandidate > 0
+      ? maxDistanceKmCandidate
+      : DEFAULT_USER_PREFERENCES.maxDistanceKm;
   const airQualityPreference =
     value?.airQualityPreference ?? inferAirQualityPreference(value?.airQuality);
 
   return {
     cyclistType: value?.cyclistType ?? DEFAULT_USER_PREFERENCES.cyclistType,
-    preferredShade: LEGACY_SHADE_VALUES[shadePreference],
-    elevation: LEGACY_ELEVATION_VALUES[elevationPreference],
-    distance: maxDistanceKm,
-    airQuality: LEGACY_AIR_QUALITY_VALUES[airQualityPreference],
     shadePreference,
     elevationPreference,
     maxDistanceKm,
