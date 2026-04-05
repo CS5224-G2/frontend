@@ -67,25 +67,50 @@ describe('getRouteById()', () => {
 });
 
 describe('getRouteRecommendations()', () => {
-  it('posts to /routes/recommendations and returns mapped routes', async () => {
+  it('posts the current route recommendation request contract and returns mapped routes', async () => {
     mockPost.mockResolvedValueOnce([{ ...backendRoute, route_id: 'rec1' }]);
     const routes = await getRouteRecommendations({
-      cyclistType: 'recreational',
-      preferredShade: 50,
-      elevation: 100,
-      distance: 20,
-      airQuality: 80,
-      shadePreference: 'dont-care',
-      elevationPreference: 'dont-care',
-      maxDistanceKm: 20,
-      airQualityPreference: 'dont-care',
-      pointsOfInterest: { hawkerCenter: false, historicSite: false, park: false, touristAttraction: false },
+      startPoint: { name: 'Raffles Place MRT', lat: 1.2837, lng: 103.8515, source: 'search' },
+      endPoint: { name: 'East Coast Park', lat: 1.3025, lng: 103.9128, source: 'current-location' },
+      checkpoints: [
+        { id: 'checkpoint-1', name: 'Marina Barrage', lat: 1.2808, lng: 103.8707, source: 'map' },
+      ],
+      preferences: {
+        cyclistType: 'recreational',
+        shadePreference: 'dont-care',
+        elevationPreference: 'dont-care',
+        maxDistanceKm: 20,
+        airQualityPreference: 'dont-care',
+        pointsOfInterest: {
+          hawkerCenter: false,
+          historicSite: false,
+          park: false,
+          touristAttraction: false,
+        },
+      },
+      limit: 3,
     });
+
     expect(mockPost).toHaveBeenCalledWith(
       '/routes/recommendations',
-      expect.objectContaining({ limit: 3 }),
+      expect.objectContaining({
+        start_point: { name: 'Raffles Place MRT', lat: 1.2837, lng: 103.8515, source: 'search' },
+        end_point: { name: 'East Coast Park', lat: 1.3025, lng: 103.9128, source: 'current-location' },
+        checkpoints: [
+          { id: 'checkpoint-1', name: 'Marina Barrage', lat: 1.2808, lng: 103.8707, source: 'map' },
+        ],
+        preferences: expect.objectContaining({
+          cyclist_type: 'recreational',
+          shade_preference: 'dont-care',
+          elevation_preference: 'dont-care',
+          air_quality_preference: 'dont-care',
+          max_distance: 20,
+        }),
+        limit: 3,
+      }),
       undefined,
     );
+    expect(mockPost.mock.calls[0][1].checkpoints[0]).not.toHaveProperty('description');
     expect(routes[0].id).toBe('rec1');
   });
 });

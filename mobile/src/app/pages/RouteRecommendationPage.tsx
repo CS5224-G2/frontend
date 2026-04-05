@@ -74,7 +74,7 @@ export default function RouteRecommendationPage({ navigation }: Props) {
         setRouteRequest(normalizedRequest);
 
         const data = normalizedRequest?.preferences
-          ? await getRouteRecommendations(normalizedRequest, 3)
+          ? await getRouteRecommendations(normalizedRequest, normalizedRequest.limit ?? 3)
           : await getRoutes();
 
         setRoutes(data.slice(0, 3));
