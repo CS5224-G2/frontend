@@ -15,6 +15,11 @@ jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({
     navigate: mockNavigate,
   }),
+  useFocusEffect: (callback: () => void | (() => void)) => {
+    const mockReact = require('react');
+
+    mockReact.useEffect(() => callback(), [callback]);
+  },
 }));
 
 jest.mock('@react-native-async-storage/async-storage', () => ({
@@ -165,7 +170,7 @@ describe('RideHistoryPage', () => {
   }, 10000);
 
   it('shows the empty state when no rides are returned', async () => {
-    mockGetRideHistory.mockResolvedValueOnce([]);
+    mockGetRideHistory.mockResolvedValue([]);
 
     await renderRideHistoryPage();
 
@@ -178,7 +183,7 @@ describe('RideHistoryPage', () => {
 
     const monthButton = screen.getByText('Month');
     expect(screen.getByText('Mon')).toBeTruthy();
-    expect(mockGetDistanceStats).toHaveBeenCalledTimes(2);
+    expect(mockGetDistanceStats).toHaveBeenCalledTimes(4);
 
     fireEvent.press(monthButton);
     await flushUi();
@@ -189,7 +194,7 @@ describe('RideHistoryPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Week 1')).toBeTruthy();
       expect(screen.queryByText('Mon')).toBeNull();
-      expect(mockGetDistanceStats).toHaveBeenCalledTimes(2);
+      expect(mockGetDistanceStats).toHaveBeenCalledTimes(4);
     });
   }, 10000);
 
@@ -200,5 +205,14 @@ describe('RideHistoryPage', () => {
     fireEvent.press(rideItem);
 
     expect(mockNavigate).toHaveBeenCalledWith('HistoryDetails', { rideId: '1' });
+  }, 10000);
+
+  it('refreshes ride history when the history tab gains focus', async () => {
+    await renderRideHistoryPage();
+
+    await waitFor(() => {
+      expect(mockGetRideHistory).toHaveBeenCalledTimes(2);
+      expect(mockGetDistanceStats).toHaveBeenCalledTimes(4);
+    });
   }, 10000);
 });

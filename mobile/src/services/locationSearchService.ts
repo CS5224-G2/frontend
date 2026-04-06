@@ -1,4 +1,5 @@
-import { getOneMapApiKey } from '../config/runtime';
+import { getOneMapBaseUrl } from '../config/runtime';
+import { getUsableOneMapApiKey } from './oneMapTokenService';
 
 import type { RouteRequestLocation } from '../../../shared/types/index';
 
@@ -18,29 +19,11 @@ type OneMapSearchResponse = {
   error?: string;
 };
 
-export async function searchLocations(query: string): Promise<RouteRequestLocation[]> {
-  const trimmedQuery = query.trim();
+function isTokenAccessError(message: string | undefined): boolean {
+  return Boolean(message && /(token|unauthori[sz]ed|expire)/i.test(message));
+}
 
-  if (trimmedQuery.length < 2) {
-    return [];
-  }
-
-  const apiToken = getOneMapApiKey();
-  const url = `https://www.onemap.gov.sg/api/common/elastic/search?searchVal=${encodeURIComponent(trimmedQuery)}&returnGeom=Y&getAddrDetails=Y`;
-  const response = await fetch(url, {
-    headers: { Authorization: apiToken },
-  });
-
-  if (!response.ok) {
-    throw new Error(`OneMap search failed with status ${response.status}.`);
-  }
-
-  const payload = (await response.json()) as OneMapSearchResponse;
-
-  if (payload.error) {
-    throw new Error(payload.error);
-  }
-
+function mapResultsToLocations(payload: OneMapSearchResponse, trimmedQuery: string): RouteRequestLocation[] {
   const locations: RouteRequestLocation[] = [];
 
   for (const result of payload.results ?? []) {
@@ -65,4 +48,49 @@ export async function searchLocations(query: string): Promise<RouteRequestLocati
   }
 
   return locations.slice(0, 5);
+}
+
+async function performSearch(
+  url: string,
+  apiToken: string,
+): Promise<{ response: Response; payload: OneMapSearchResponse | null }> {
+  const response = await fetch(url, {
+    headers: { Authorization: apiToken },
+  });
+
+  if (!response.ok) {
+    return { response, payload: null };
+  }
+
+  const payload = (await response.json()) as OneMapSearchResponse;
+  return { response, payload };
+}
+
+export async function searchLocations(query: string): Promise<RouteRequestLocation[]> {
+  const trimmedQuery = query.trim();
+
+  if (trimmedQuery.length < 2) {
+    return [];
+  }
+
+  const url = `${getOneMapBaseUrl()}/api/common/elastic/search?searchVal=${encodeURIComponent(trimmedQuery)}&returnGeom=Y&getAddrDetails=Y`;
+
+  let apiToken = await getUsableOneMapApiKey();
+  let { response, payload } = await performSearch(url, apiToken);
+
+  if (response.status === 401 || response.status === 403 || isTokenAccessError(payload?.error)) {
+    console.error('[OneMap] API key is outdated or unauthorized; refreshing token.');
+    apiToken = await getUsableOneMapApiKey({ forceRefresh: true });
+    ({ response, payload } = await performSearch(url, apiToken));
+  }
+
+  if (!response.ok) {
+    throw new Error(`OneMap search failed with status ${response.status}.`);
+  }
+
+  if (payload?.error) {
+    throw new Error(payload.error);
+  }
+
+  return mapResultsToLocations(payload ?? {}, trimmedQuery);
 }

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { View, Text, ScrollView, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -32,65 +32,85 @@ export default function HomeScreen({ navigation }: Props) {
   const [popularRoutes, setPopularRoutes] = useState<Route[]>([]);
   const [suggestedRoutes, setSuggestedRoutes] = useState<(Route & { matchScore: number })[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const preferencesRef = useRef<UserPreferences | null>(null);
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        setIsLoading(true);
-        const [savedPrefs, profile] = await Promise.all([
-          AsyncStorage.getItem('userPreferences'),
-          getUserProfile().catch(() => null),
-        ]);
+    preferencesRef.current = preferences;
+  }, [preferences]);
 
-        const storedPreferences = savedPrefs ? normalizeUserPreferences(JSON.parse(savedPrefs)) : null;
-        const profileCyclistType = profile
+  const loadData = useCallback(async (mode: 'initial' | 'refresh' = 'initial') => {
+    if (mode === 'refresh') {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
+
+    try {
+      const [savedPrefs, savedFavorites] = await Promise.all([
+        AsyncStorage.getItem('userPreferences'),
+        AsyncStorage.getItem('favoriteRoutes'),
+      ]);
+
+      const storedPreferences = savedPrefs ? normalizeUserPreferences(JSON.parse(savedPrefs)) : null;
+      const basePreferences = storedPreferences ?? preferencesRef.current;
+
+      let profileCyclistType: UserPreferences['cyclistType'] | null = null;
+      if (!basePreferences) {
+        const profile = await getUserProfile().catch(() => null);
+        profileCyclistType = profile
           ? mapProfileCyclingPreferenceToCyclistType(profile.cyclingPreference)
           : null;
+      }
 
-        const prefs: UserPreferences | null = profileCyclistType
-          ? normalizeUserPreferences({ ...(storedPreferences ?? {}), cyclistType: profileCyclistType })
-          : storedPreferences;
+      const resolvedCyclistType = basePreferences?.cyclistType ?? profileCyclistType;
+      const prefs: UserPreferences | null =
+        basePreferences || resolvedCyclistType
+          ? normalizeUserPreferences({
+              ...(basePreferences ?? {}),
+              ...(resolvedCyclistType ? { cyclistType: resolvedCyclistType } : {}),
+            })
+          : null;
 
-        setPreferences(prefs);
+      setPreferences(prefs);
+      setFavorites(savedFavorites ? JSON.parse(savedFavorites) : []);
 
-        const [routes, popular] = await Promise.all([
-          getRoutes(undefined, undefined, 3),
-          getPopularRoutes(3),
-        ]);
+      const [routes, popular] = await Promise.all([
+        getRoutes(undefined, undefined, 3),
+        getPopularRoutes(3),
+      ]);
 
-        setAllRoutes(routes);
-        setPopularRoutes(popular);
-        setSuggestedRoutes(
-          routes
-            .map((r) => ({ ...r, matchScore: calculateMatchScore(r, prefs) }))
-            .sort((a, b) => b.matchScore - a.matchScore)
-            .slice(0, 3),
-        );
-      } catch (e) {
-        // e.g. 502 from ALB/proxy or network — avoid uncaught promise; show empty discovery until API is healthy
-        console.warn('[HomePage] Failed to load routes', e);
-        setAllRoutes([]);
-        setPopularRoutes([]);
-        setSuggestedRoutes([]);
-      } finally {
+      setAllRoutes(routes);
+      setPopularRoutes(popular);
+      setSuggestedRoutes(
+        routes
+          .map((r) => ({ ...r, matchScore: calculateMatchScore(r, prefs) }))
+          .sort((a, b) => b.matchScore - a.matchScore)
+          .slice(0, 3),
+      );
+    } catch (e) {
+      // e.g. 502 from ALB/proxy or network — avoid uncaught promise; show empty discovery until API is healthy
+      console.warn('[HomePage] Failed to load routes', e);
+      setAllRoutes([]);
+      setPopularRoutes([]);
+      setSuggestedRoutes([]);
+    } finally {
+      if (mode === 'refresh') {
+        setIsRefreshing(false);
+      } else {
         setIsLoading(false);
       }
-    };
-    loadData();
+    }
   }, []);
 
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
   useFocusEffect(
-    React.useCallback(() => {
-      const loadFavorites = async () => {
-        const savedFavorites = await AsyncStorage.getItem('favoriteRoutes');
-        if (savedFavorites) {
-          setFavorites(JSON.parse(savedFavorites));
-        } else {
-          setFavorites([]);
-        }
-      };
-      loadFavorites();
-    }, [])
+    useCallback(() => {
+      loadData('refresh');
+    }, [loadData])
   );
 
   // Match score helper (mirrors routeService logic, for badge display)
@@ -210,7 +230,7 @@ export default function HomeScreen({ navigation }: Props) {
           </View>
           <View className="flex-row items-center gap-1 flex-1" style={{ minWidth: '45%' }}>
             <FontAwesome5 name="mountain" size={14} color="#6b7280" />
-            <Text className="text-xs text-[#6b7280] dark:text-slate-400">{route.elevation}m</Text>
+            <Text className="text-xs text-[#6b7280] dark:text-slate-400">{route.elevation}</Text>
           </View>
           <View className="flex-row items-center gap-1 flex-1 bg-[#e5e7eb] dark:bg-[#1a1a1a] px-cy-sm py-1 rounded" style={{ minWidth: '45%' }}>
             <Text className="text-xs text-[#4f46e5] capitalize">{route.cyclistType}</Text>
@@ -257,7 +277,11 @@ export default function HomeScreen({ navigation }: Props) {
   }
 
   return (
-    <ScrollView className="flex-1 bg-[#f3f4f6] dark:bg-black" scrollIndicatorInsets={{ right: 1 }} >
+    <ScrollView
+      className="flex-1 bg-[#f3f4f6] dark:bg-black"
+      scrollIndicatorInsets={{ right: 1 }}
+      refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={() => loadData('refresh')} />}
+    >
       {/* Header */}
       <View className="bg-[#f3f4f6] dark:bg-black px-cy-lg pb-cy-md flex-row justify-between items-center" style={{ paddingTop: insets.top }}>
         <Text className="text-2xl font-bold text-[#2563eb]">CycleLink</Text>
@@ -359,6 +383,9 @@ export default function HomeScreen({ navigation }: Props) {
         <View className="mb-[24px]">
           <Text className="text-2xl font-bold text-[#1f2937] dark:text-slate-100">
             All Recommended Routes
+          </Text>
+          <Text className="text-xs text-[#6b7280] dark:text-slate-400 mt-[2px] mb-cy-lg">
+            Popular routes loved by the community
           </Text>
 
           {recommendedRoutes.length > 0 ? (

@@ -13,7 +13,10 @@ describe('runtime config', () => {
     process.env = { ...originalEnv };
     delete process.env.EXPO_PUBLIC_USE_MOCKS;
     delete process.env.EXPO_PUBLIC_API_BASE_URL;
+    delete process.env.EXPO_PUBLIC_ONEMAP_BASE_URL;
     delete process.env.EXPO_PUBLIC_ONEMAP_API_KEY;
+    delete process.env.EXPO_PUBLIC_ONEMAP_API_EMAIL;
+    delete process.env.EXPO_PUBLIC_ONEMAP_API_PASSWORD;
   });
 
   afterAll(() => {
@@ -45,11 +48,17 @@ describe('runtime config', () => {
     expect(getApiBaseUrl()).toBe('http://localhost:4000');
   });
 
-  it('throws a clear error when the OneMap API key is missing', () => {
+  it('defaults the OneMap base URL when unset', () => {
+    const { getOneMapBaseUrl } = require('./runtime') as typeof import('./runtime');
+
+    expect(getOneMapBaseUrl()).toBe('https://www.onemap.gov.sg');
+  });
+
+  it('throws a clear error when no OneMap token or refresh credentials are configured', () => {
     const { getOneMapApiKey } = require('./runtime') as typeof import('./runtime');
 
     expect(() => getOneMapApiKey()).toThrow(
-      'Missing EXPO_PUBLIC_ONEMAP_API_KEY. Add your OneMap API token to mobile/.env to enable live place search.',
+      'Missing OneMap configuration. Add EXPO_PUBLIC_ONEMAP_API_KEY or EXPO_PUBLIC_ONEMAP_API_EMAIL and EXPO_PUBLIC_ONEMAP_API_PASSWORD to mobile/.env to enable live place search.',
     );
   });
 
@@ -60,5 +69,17 @@ describe('runtime config', () => {
 
     expect(getOneMapApiKey()).toBe('onemap-test-token');
     expect(getOneMapApiKeyOptional()).toBe('onemap-test-token');
+  });
+
+  it('reads OneMap refresh credentials when provided', () => {
+    process.env.EXPO_PUBLIC_ONEMAP_API_EMAIL = 'tester@example.com';
+    process.env.EXPO_PUBLIC_ONEMAP_API_PASSWORD = 'secret';
+
+    const { getOneMapCredentialsOptional } = require('./runtime') as typeof import('./runtime');
+
+    expect(getOneMapCredentialsOptional()).toEqual({
+      email: 'tester@example.com',
+      password: 'secret',
+    });
   });
 });
