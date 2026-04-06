@@ -92,7 +92,16 @@ describe('HomePage', () => {
   const renderWithAuth = (component: React.ReactElement) => {
     return render(
       <SafeAreaProvider>
-        <AuthContext.Provider value={{ login: jest.fn(), logout: jest.fn(), isLoggedIn: true, isRestoring: false, role: 'user', user: null }}>
+        <AuthContext.Provider
+          value={{
+            isRestoring: false,
+            isLoggedIn: true,
+            role: 'user',
+            user: null,
+            login: jest.fn(),
+            logout: jest.fn(),
+          }}
+        >
           {component}
         </AuthContext.Provider>
       </SafeAreaProvider>

@@ -1,0 +1,53 @@
+# End-to-end style flow: route configuration → confirmation → live Mapbox map.
+#
+# Preconditions:
+# - Development build with Mapbox native SDK (not Expo Go).
+# - EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN set for the build under test.
+# - App uses React Navigation (entry: index.js → src/app/App.tsx), not Expo Router.
+# - Logged-in Home tab visible. Add login steps if needed, or extend flows for RecommendationFlow.
+#
+# appId must match your binary (see docs/TESTING.md).
+
+appId: sg.edu.nus.cyclelink
+---
+- launchApp:
+    clearState: false
+
+# Home screen has no fixed testID on title — use text or add testIDs for Maestro.
+# Example placeholder (adjust to your build):
+# - assertVisible:
+#     text: "Discover Routes"
+
+- tapOn:
+    text: "Create Custom Route"
+
+- assertVisible:
+    id: "route-config-title"
+
+- tapOn:
+    id: "route-config-find-routes"
+
+- assertVisible:
+    id: "route-list-heading"
+
+- tapOn:
+    id: "route-list-item-1"
+
+- tapOn:
+    id: "route-details-confirm"
+
+- assertVisible:
+    id: "route-confirmed-title"
+
+- tapOn:
+    id: "route-confirmed-start-cycling"
+
+- assertVisible:
+    id: "live-map-root"
+
+# Mapbox map view (requires token + dev client). If no token, UI shows live-map-no-token instead.
+- assertVisible:
+    id: "live-map-mapview"
+
+- assertVisible:
+    id: "live-map-stats-card"

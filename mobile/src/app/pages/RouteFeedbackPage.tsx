@@ -1,11 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TextInput, Pressable, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  ScrollView,
+  TextInput,
+  Pressable,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useColorScheme } from 'nativewind';
 import { type Route } from '../../../../shared/types/index';
 import { getRouteById } from '../../services/routeService';
 import { submitRideFeedback } from '../../services/rideService';
+import { useFloatingTabBarScrollPadding } from '../utils/floatingTabBarInset';
 
 type Props = NativeStackScreenProps<any, any>;
 
@@ -17,8 +26,10 @@ export default function RouteFeedbackPage({ navigation, route }: Props) {
   const [submitted, setSubmitted] = useState(false);
   const [routeData, setRouteData] = useState<Route | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const scrollBottomPad = useFloatingTabBarScrollPadding(20);
 
   useEffect(() => {
     getRouteById(routeId).then((r) => {
@@ -28,9 +39,20 @@ export default function RouteFeedbackPage({ navigation, route }: Props) {
   }, [routeId]);
 
   const handleSubmit = async () => {
-    await submitRideFeedback({ routeId, rating, review: feedback });
-    setSubmitted(true);
-    setTimeout(() => { navigation.navigate('HomePage'); }, 2000);
+    try {
+      setIsSubmitting(true);
+      await submitRideFeedback({ routeId, rating, review: feedback });
+      setSubmitted(true);
+      setTimeout(() => {
+        navigation.navigate('HomePage');
+      }, 2000);
+    } catch (e) {
+      const message =
+        e instanceof Error ? e.message : 'Could not submit feedback. Check your connection and try again.';
+      Alert.alert('Submission failed', message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (isLoading) {
@@ -71,7 +93,7 @@ export default function RouteFeedbackPage({ navigation, route }: Props) {
   }
 
   return (
-    <ScrollView className="flex-1 bg-[#f9fafb] dark:bg-black" contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
+    <ScrollView className="flex-1 bg-[#f9fafb] dark:bg-black" contentContainerStyle={{ padding: 16, paddingBottom: scrollBottomPad }}>
       <View className="p-cy-lg pt-10">
         <Text className="text-[28px] font-bold text-[#1e293b] dark:text-slate-100 text-center">Rate Your Experience</Text>
         <Text className="text-sm text-[#64748b] dark:text-slate-400 mt-2 text-center">How was your ride on {routeData.name}?</Text>
@@ -146,14 +168,18 @@ export default function RouteFeedbackPage({ navigation, route }: Props) {
 
         {/* Submit Button */}
         <Pressable
-          className={`rounded-cy-md p-cy-lg items-center mt-[32px] ${rating === 0 ? 'bg-[#d1d5db]' : 'bg-[#3b82f6]'}`}
+          className={`rounded-cy-md p-cy-lg items-center mt-[32px] flex-row justify-center gap-2 ${rating === 0 || isSubmitting ? 'bg-[#d1d5db]' : 'bg-[#3b82f6]'}`}
           onPress={handleSubmit}
-          disabled={rating === 0}
+          disabled={rating === 0 || isSubmitting}
+          testID="route-feedback-submit"
         >
-          <Text className="text-white text-base font-semibold">Submit Feedback</Text>
+          {isSubmitting ? <ActivityIndicator color="#ffffff" /> : null}
+          <Text className="text-white text-base font-semibold">
+            {isSubmitting ? 'Submitting…' : 'Submit Feedback'}
+          </Text>
         </Pressable>
 
-        {rating === 0 && (
+        {rating === 0 && !isSubmitting && (
           <Text className="text-center text-sm text-[#9ca3af] dark:text-slate-400 mt-2">Please select a rating to continue</Text>
         )}
       </View>

@@ -149,8 +149,10 @@ describe('RouteHistoryDetailsPage', () => {
     fireEvent.press(actionButton);
 
     expect(mockNavigate).toHaveBeenCalledWith('HomeTab', {
-      screen: 'RouteDetails',
-      params: { routeId: 'route-1' },
+      state: {
+        routes: [{ name: 'HomePage' }, { name: 'RouteDetails', params: { routeId: 'route-1' } }],
+        index: 1,
+      },
     });
   });
 });

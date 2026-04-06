@@ -121,7 +121,16 @@ describe('RideHistoryPage', () => {
 
   const renderWithAuth = (component: React.ReactElement) => {
     return render(
-      <AuthContext.Provider value={{ login: jest.fn(), logout: jest.fn(), isLoggedIn: true, isRestoring: false, role: 'user', user: null }}>
+      <AuthContext.Provider
+        value={{
+          login: jest.fn(),
+          logout: jest.fn(),
+          isLoggedIn: true,
+          isRestoring: false,
+          role: 'user',
+          user: null,
+        }}
+      >
         {component}
       </AuthContext.Provider>
     );

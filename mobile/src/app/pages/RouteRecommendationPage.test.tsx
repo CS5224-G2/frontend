@@ -11,6 +11,10 @@ jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({ navigate: mockNavigate }),
 }));
 
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
+}));
+
 jest.mock('@react-native-async-storage/async-storage', () => ({
   getItem: jest.fn().mockResolvedValue(null),
   setItem: jest.fn().mockResolvedValue(null),
@@ -101,7 +105,7 @@ describe('RouteRecommendationPage', () => {
 
   it('renders the page heading after loading', async () => {
     renderPage();
-    expect(await screen.findByText('Route Recommendations')).toBeTruthy();
+    expect(await screen.findByTestId('route-list-heading')).toHaveTextContent('Route Recommendations');
   }, 10000);
 
   it('shows route cards after data loads', async () => {
@@ -122,8 +126,8 @@ describe('RouteRecommendationPage', () => {
 
   it('navigates to RouteDetails when a route card is pressed', async () => {
     renderPage();
-    const card = await screen.findByText('Jurong Lake Loop');
-    fireEvent.press(card);
+    await screen.findByTestId('route-list-item-1');
+    fireEvent.press(screen.getByText('Jurong Lake Loop'));
     expect(mockNavigate).toHaveBeenCalledWith('RouteDetails', { routeId: '1' });
   }, 10000);
 

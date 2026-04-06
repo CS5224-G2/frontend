@@ -29,6 +29,9 @@ import { getRideHistory, getDistanceStats } from '../../services/rideService';
 type Props = NativeStackScreenProps<any, 'RideHistory'>;
 type DistanceStatsByPeriod = Record<GraphPeriod, GraphDataPoint[]>;
 
+/** Skip rAF / Animated drivers in Jest — they schedule updates outside React's act(). */
+const isTestEnv = process.env.NODE_ENV === 'test';
+
 const emptyDistanceStats: DistanceStatsByPeriod = {
   week: [],
   month: [],
@@ -55,6 +58,12 @@ function AnimatedMetricValue({
   const previousValue = useRef(value);
 
   useEffect(() => {
+    if (isTestEnv) {
+      setDisplayValue(value);
+      previousValue.current = value;
+      return;
+    }
+
     let frame = 0;
     let startTime = 0;
     const from = previousValue.current;
@@ -129,6 +138,10 @@ function GraphBar({
   const barProgress = useRef(new Animated.Value(ratio)).current;
 
   useEffect(() => {
+    if (isTestEnv) {
+      barProgress.setValue(ratio);
+      return;
+    }
     Animated.timing(barProgress, {
       toValue: ratio,
       duration: 360,
@@ -246,6 +259,10 @@ export default function RideHistoryPage({ navigation }: Props) {
   const periodIndicatorWidth = periodToggleWidth > 0 ? (periodToggleWidth - 10) / 2 : 0;
 
   useEffect(() => {
+    if (isTestEnv) {
+      periodIndicator.setValue(period === 'week' ? 0 : 1);
+      return;
+    }
     Animated.spring(periodIndicator, {
       toValue: period === 'week' ? 0 : 1,
       damping: 18,

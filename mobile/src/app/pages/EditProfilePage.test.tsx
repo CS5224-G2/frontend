@@ -61,12 +61,12 @@ describe('EditProfilePage', () => {
     return render(
       <AuthContext.Provider
         value={{
-          login: jest.fn(),
-          logout: jest.fn(),
-          isLoggedIn: true,
           isRestoring: false,
+          isLoggedIn: true,
           role: 'user',
           user: null,
+          login: async () => {},
+          logout: async () => {},
         }}
       >
         {component}
