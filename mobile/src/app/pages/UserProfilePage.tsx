@@ -205,7 +205,7 @@ export default function UserProfilePage() {
         <Text className="text-[12px] font-bold text-text-secondary dark:text-slate-400 uppercase tracking-[0.8px]">Account settings</Text>
         <Pressable
           className="flex-row justify-between items-center py-1.5"
-          onPress={() => navigation.navigate('PrivacySecurity')}
+          onPress={() => navigation.navigate('privacy-security')}
         >
           <Text className="text-[16px] font-semibold text-slate-900 dark:text-slate-100">Notifications</Text>
           <Text className="text-[14px] text-text-secondary dark:text-slate-400">Manage</Text>
@@ -213,7 +213,7 @@ export default function UserProfilePage() {
         <View className="h-px bg-border dark:bg-[#2d2d2d] my-3" />
         <Pressable
           className="flex-row justify-between items-center py-1.5"
-          onPress={() => navigation.navigate('PrivacySecurity')}
+          onPress={() => navigation.navigate('privacy-security')}
         >
           <Text className="text-[16px] font-semibold text-slate-900 dark:text-slate-100">Privacy</Text>
           <Text className="text-[14px] text-text-secondary dark:text-slate-400">Review</Text>
@@ -221,7 +221,7 @@ export default function UserProfilePage() {
         <View className="h-px bg-border dark:bg-[#2d2d2d] my-3" />
         <Pressable
           className="flex-row justify-between items-center py-1.5"
-          onPress={() => navigation.navigate('ChangePassword')}
+          onPress={() => navigation.navigate('change-password')}
         >
           <Text className="text-[16px] font-semibold text-slate-900 dark:text-slate-100">Password</Text>
           <Text className="text-[14px] text-text-secondary dark:text-slate-400">Change</Text>

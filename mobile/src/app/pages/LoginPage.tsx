@@ -201,7 +201,7 @@ export default function LoginPage() {
                   <Text className="text-[#475569] dark:text-slate-400 text-[13px]">Remember me</Text>
                 </Pressable>
 
-                <Pressable onPress={() => navigation.navigate('ForgotPassword')}>
+                <Pressable onPress={() => navigation.navigate('forgot-password')}>
                   <Text className="text-primary dark:text-blue-400 text-[13px] font-bold">Forgot password?</Text>
                 </Pressable>
               </View>
@@ -231,7 +231,7 @@ export default function LoginPage() {
 
             <View className="flex-row justify-center items-center mt-4">
               <Text className="text-text-secondary text-[13px]">Do not have an account? </Text>
-              <Pressable onPress={() => navigation.navigate('Register')}>
+              <Pressable onPress={() => navigation.navigate('register')}>
                 <Text className="text-primary dark:text-blue-400 text-[13px] font-bold">Sign up</Text>
               </Pressable>
             </View>
