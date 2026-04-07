@@ -324,4 +324,37 @@ describe('useLiveMapRideState', () => {
       }),
     );
   });
+
+  it('finalizes the ride immediately once completion is reached', async () => {
+    mockLiveMapProgressSimulationEnabled = true;
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-04-08T00:00:00.000Z'));
+
+    const { result } = renderHook(() => useLiveMapRideState(route.id, route));
+
+    await waitFor(() => {
+      expect(result.current.routeLoading).toBe(false);
+    });
+
+    await act(async () => {
+      jest.advanceTimersByTime(50000);
+    });
+
+    await waitFor(() => {
+      expect(result.current.routeCompleted).toBe(true);
+      expect(result.current.showCompletionModal).toBe(true);
+    });
+
+    const completedElapsed = result.current.elapsedSec;
+
+    await waitFor(async () => {
+      expect(await AsyncStorage.getItem(STORAGE_KEYS.activeRideSession)).toBeNull();
+    });
+
+    await act(async () => {
+      jest.advanceTimersByTime(5000);
+    });
+
+    expect(result.current.elapsedSec).toBe(completedElapsed);
+  });
 });
