@@ -8,6 +8,7 @@ import { type Route, type UserPreferences } from '../../../../shared/types/index
 import { normalizeUserPreferences } from '../utils/routePreferences';
 import { getPopularRoutes, getRoutes } from '../../services/routeService';
 import { getUserProfile } from '../../services/userService';
+import { loadActiveRideSession, type ActiveRideSession } from '../../services/activeRideSession';
 import { FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useColorScheme } from 'nativewind';
@@ -31,6 +32,7 @@ export default function HomeScreen({ navigation }: Props) {
   const [allRoutes, setAllRoutes] = useState<Route[]>([]);
   const [popularRoutes, setPopularRoutes] = useState<Route[]>([]);
   const [suggestedRoutes, setSuggestedRoutes] = useState<(Route & { matchScore: number })[]>([]);
+  const [activeRideSession, setActiveRideSession] = useState<ActiveRideSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const preferencesRef = useRef<UserPreferences | null>(null);
@@ -47,9 +49,10 @@ export default function HomeScreen({ navigation }: Props) {
     }
 
     try {
-      const [savedPrefs, savedFavorites] = await Promise.all([
+      const [savedPrefs, savedFavorites, activeSession] = await Promise.all([
         AsyncStorage.getItem('userPreferences'),
         AsyncStorage.getItem('favoriteRoutes'),
+        loadActiveRideSession().catch(() => null),
       ]);
 
       const storedPreferences = savedPrefs ? normalizeUserPreferences(JSON.parse(savedPrefs)) : null;
@@ -74,6 +77,7 @@ export default function HomeScreen({ navigation }: Props) {
 
       setPreferences(prefs);
       setFavorites(savedFavorites ? JSON.parse(savedFavorites) : []);
+      setActiveRideSession(activeSession);
 
       const [routes, popular] = await Promise.all([
         getRoutes(undefined, undefined, 3),
@@ -324,6 +328,34 @@ export default function HomeScreen({ navigation }: Props) {
           <MaterialCommunityIcons name="plus" size={20} color="white" />
           <Text className="text-white text-base font-semibold">Create Custom Route</Text>
         </Pressable>
+
+        {activeRideSession ? (
+          <Pressable
+            onPress={() =>
+              navigation.navigate('LiveMap', {
+                routeId: activeRideSession.routeId,
+                route: activeRideSession.route,
+              })
+            }
+            className="mb-[24px] rounded-cy-md border border-[#86efac] bg-[#f0fdf4] px-cy-md py-cy-md dark:border-[#166534] dark:bg-[#052e16]"
+            testID="resume-active-ride-card"
+          >
+            <View className="flex-row items-center gap-cy-md">
+              <View className="h-10 w-10 items-center justify-center rounded-full bg-[#16a34a]">
+                <MaterialCommunityIcons name="bike-fast" size={20} color="white" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-base font-bold text-[#166534] dark:text-[#bbf7d0]">
+                  Resume active ride
+                </Text>
+                <Text className="mt-1 text-xs text-[#166534] dark:text-[#86efac]">
+                  {activeRideSession.route.name}
+                </Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={20} color={isDark ? '#86efac' : '#166534'} />
+            </View>
+          </Pressable>
+        ) : null}
 
         {/* Favorite Routes Section */}
         {favoriteRoutes.length > 0 && (

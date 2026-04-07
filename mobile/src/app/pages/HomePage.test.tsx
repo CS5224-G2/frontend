@@ -12,6 +12,7 @@ const mockSetItem = jest.fn();
 const mockGetRoutes = jest.fn();
 const mockGetPopularRoutes = jest.fn();
 const mockGetUserProfile = jest.fn();
+const mockLoadActiveRideSession = jest.fn();
 
 jest.mock('@react-navigation/native', () => ({
   ...jest.requireActual('@react-navigation/native'),
@@ -42,6 +43,10 @@ jest.mock('expo-linear-gradient', () => ({
 
 jest.mock('../../services/userService', () => ({
   getUserProfile: (...args: unknown[]) => mockGetUserProfile(...args),
+}));
+
+jest.mock('../../services/activeRideSession', () => ({
+  loadActiveRideSession: (...args: unknown[]) => mockLoadActiveRideSession(...args),
 }));
 
 // All mock data defined INSIDE the factory to avoid jest.mock hoisting issues
@@ -92,6 +97,7 @@ describe('HomePage', () => {
       { id: 'p1', name: 'Popular Downtown Circuit', description: 'Popular list route from GET /routes/popular', distance: 8.3, elevation: 25, estimatedTime: 25, rating: 4.5, reviewCount: 567, startPoint: { lat: 0, lng: 0, name: 'Start' }, endPoint: { lat: 0, lng: 0, name: 'End' }, checkpoints: [], cyclistType: 'commuter', shade: 40, airQuality: 70 },
       { id: 'p2', name: 'Popular Harbor Trail', description: 'Popular list route from GET /routes/popular', distance: 12.5, elevation: 45, estimatedTime: 45, rating: 4.8, reviewCount: 234, startPoint: { lat: 0, lng: 0, name: 'Start' }, endPoint: { lat: 0, lng: 0, name: 'End' }, checkpoints: [], cyclistType: 'recreational', shade: 80, airQuality: 85 },
     ]);
+    mockLoadActiveRideSession.mockResolvedValue(null);
   });
 
   const renderWithAuth = (component: React.ReactElement) => {
@@ -238,6 +244,41 @@ describe('HomePage', () => {
 
     await waitFor(() => {
       expect(mockGetUserProfile).toHaveBeenCalledTimes(0);
+    });
+  });
+
+  it('shows a resume card when an active ride session exists', async () => {
+    mockLoadActiveRideSession.mockResolvedValue({
+      version: 1,
+      routeId: 'active-1',
+      startedAt: '2026-04-08T00:00:00.000Z',
+      route: {
+        id: 'active-1',
+        name: 'Active Commute',
+        description: 'Resume this ride',
+        distance: 8,
+        elevation: 20,
+        estimatedTime: 30,
+        rating: 4.5,
+        reviewCount: 10,
+        startPoint: { lat: 1, lng: 1, name: 'Start' },
+        endPoint: { lat: 2, lng: 2, name: 'End' },
+        checkpoints: [],
+        cyclistType: 'commuter',
+        shade: 40,
+        airQuality: 70,
+      },
+    });
+
+    await renderHomePage();
+
+    expect(screen.getByText('Resume active ride')).toBeTruthy();
+
+    fireEvent.press(screen.getByTestId('resume-active-ride-card'));
+
+    expect(mockNavigate).toHaveBeenCalledWith('LiveMap', {
+      routeId: 'active-1',
+      route: expect.objectContaining({ id: 'active-1', name: 'Active Commute' }),
     });
   });
 });

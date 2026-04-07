@@ -7,11 +7,13 @@ import { mockRoutes } from '../types';
 import { useLiveMapRideState } from './useLiveMapRideState';
 
 const mockNavigate = jest.fn();
+const mockReset = jest.fn();
 let mockLiveMapProgressSimulationEnabled = false;
 
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({
     navigate: mockNavigate,
+    reset: mockReset,
   }),
 }));
 
@@ -184,9 +186,10 @@ describe('useLiveMapRideState', () => {
       result.current.confirmEndRide();
     });
 
-    expect(mockNavigate).toHaveBeenCalledWith('RouteFeedback', {
-      routeId: route.id,
-      route,
+    expect(mockNavigate).not.toHaveBeenCalledWith('RouteFeedback', expect.anything());
+    expect(mockReset).toHaveBeenCalledWith({
+      index: 0,
+      routes: [{ name: 'HomePage' }],
     });
   });
 
@@ -232,5 +235,34 @@ describe('useLiveMapRideState', () => {
     });
 
     expect(await AsyncStorage.getItem(STORAGE_KEYS.activeRideSession)).toBeNull();
+  });
+
+  it('navigates to feedback only when the route is completed', async () => {
+    mockLiveMapProgressSimulationEnabled = true;
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-04-08T00:00:00.000Z'));
+
+    const { result } = renderHook(() => useLiveMapRideState(route.id, route));
+
+    await waitFor(() => {
+      expect(result.current.routeLoading).toBe(false);
+    });
+
+    await act(async () => {
+      jest.advanceTimersByTime(50000);
+    });
+
+    await waitFor(() => {
+      expect(result.current.routeCompleted).toBe(true);
+    });
+
+    await act(async () => {
+      result.current.confirmEndRide();
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith('RouteFeedback', {
+      routeId: route.id,
+      route,
+    });
   });
 });

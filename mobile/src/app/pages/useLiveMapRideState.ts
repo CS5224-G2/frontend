@@ -321,16 +321,20 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
     ? simulatedProgressPct
     : tracking.progressPct;
 
-  const riderPosition = useMemo(() => {
+  const riderPosition = useMemo<LngLat>(() => {
     if (LIVE_MAP_PROGRESS_SIMULATION) {
       return lineCoords.length ? interpolateAlongRoute(lineCoords, progressPct / 100) : [0, 0];
     }
 
-    return tracking.position ?? (lineCoords[0] ?? [0, 0]);
+    return tracking.position ?? lineCoords[0] ?? [0, 0];
   }, [lineCoords, progressPct, tracking.position]);
 
   const lineFeature = useMemo(
-    () => ({
+    (): {
+      type: 'Feature';
+      properties: Record<string, never>;
+      geometry: { type: 'LineString'; coordinates: LngLat[] };
+    } => ({
       type: 'Feature' as const,
       properties: {},
       geometry: { type: 'LineString' as const, coordinates: lineCoords },
@@ -341,7 +345,11 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
   const bounds = useMemo(() => boundsFromCoordinates(lineCoords), [lineCoords]);
 
   const riderPoint = useMemo(
-    () => ({
+    (): {
+      type: 'Feature';
+      properties: Record<string, never>;
+      geometry: { type: 'Point'; coordinates: LngLat };
+    } => ({
       type: 'Feature' as const,
       properties: {},
       geometry: { type: 'Point' as const, coordinates: riderPosition },
@@ -408,7 +416,7 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
     : '0.00';
 
   const persistRideCompletion = useCallback(async () => {
-    if (!route || !routeId) {
+    if (!route || !routeId || !routeCompleted) {
       return;
     }
 
@@ -460,6 +468,19 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
     void navigate();
   }, [navigation, persistRideCompletion, route, routeId]);
 
+  const abandonIncompleteRide = useCallback(() => {
+    const navigate = async () => {
+      setShowExitModal(false);
+      await clearRideSessionAndStopTracking();
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'HomePage' }],
+      });
+    };
+
+    void navigate();
+  }, [navigation]);
+
   const stopCycling = () => {
     if (routeCompleted) {
       goFeedback();
@@ -469,8 +490,12 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
   };
 
   const confirmEndRide = () => {
-    setShowExitModal(false);
-    goFeedback();
+    if (routeCompleted) {
+      goFeedback();
+      return;
+    }
+
+    abandonIncompleteRide();
   };
 
   return {
