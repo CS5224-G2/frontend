@@ -32,7 +32,7 @@ export default function LiveMapExpoGoScreen() {
     distanceTraveled,
     goFeedback,
     stopCycling,
-    confirmExit,
+    confirmEndRide,
   } = useLiveMapRideState(routeId, routeParam);
 
   const polylineCount = useMemo(
@@ -65,8 +65,9 @@ export default function LiveMapExpoGoScreen() {
       <View style={styles.mapFallback} testID="live-map-expo-go">
         <Text style={styles.fallbackTitle}>Map preview (Expo Go)</Text>
         <Text style={styles.fallbackBody}>
-          Mapbox is not available inside Expo Go. You can still try the live ride HUD, progress simulation,
-          checkpoints, and feedback flow. For the real map, run a development build (e.g. npx expo run:ios).
+          Mapbox is not available inside Expo Go. You can still try the live ride HUD, checkpoints, and feedback
+          flow here. Enable `EXPO_PUBLIC_LIVE_MAP_PROGRESS_SIMULATION=true` only if you want the old QA/demo
+          auto-progress behavior. For the real map, run a development build (e.g. npx expo run:ios).
         </Text>
         <Text style={styles.fallbackMeta}>Polyline points computed: {polylineCount}</Text>
       </View>
@@ -138,10 +139,10 @@ export default function LiveMapExpoGoScreen() {
       <Modal visible={showExitModal} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Exit Live Navigation?</Text>
+            <Text style={styles.modalTitle}>End Ride?</Text>
             <Text style={styles.modalSub}>
-              You have not reached the destination yet. Exit live navigation? Your progress is saved and you can
-              still leave feedback.
+              Ending the ride will save your current progress and take you to feedback. Use the tab bar if you only
+              want to leave this screen without ending the session.
             </Text>
             <View style={styles.modalActions}>
               <Pressable
@@ -149,10 +150,10 @@ export default function LiveMapExpoGoScreen() {
                 onPress={() => setShowExitModal(false)}
                 testID="live-map-exit-cancel"
               >
-                <Text style={styles.secondaryBtnText}>Continue Cycling</Text>
+                <Text style={styles.secondaryBtnText}>Keep Riding</Text>
               </Pressable>
-              <Pressable style={styles.dangerBtn} onPress={confirmExit} testID="live-map-exit-confirm">
-                <Text style={styles.dangerBtnText}>Exit Navigation</Text>
+              <Pressable style={styles.dangerBtn} onPress={confirmEndRide} testID="live-map-exit-confirm">
+                <Text style={styles.dangerBtnText}>End Ride</Text>
               </Pressable>
             </View>
           </View>

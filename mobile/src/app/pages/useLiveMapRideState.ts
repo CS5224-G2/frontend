@@ -5,6 +5,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { Route } from '../../../../shared/types/index';
 import { resolveRouteById } from '../../services/routeLookup';
 import { saveRide } from '../../services/rideService';
+import { LIVE_MAP_PROGRESS_SIMULATION } from '../../config/runtime';
 import { boundsFromCoordinates, interpolateAlongRoute, routeToLineCoordinates } from '@/utils/routeGeometry';
 
 export function useLiveMapRideState(routeId: string | undefined, initialRoute?: Route | null) {
@@ -53,6 +54,10 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
   }, []);
 
   useEffect(() => {
+    if (!LIVE_MAP_PROGRESS_SIMULATION) {
+      return undefined;
+    }
+
     const id = setInterval(() => {
       setProgress((prev) => {
         if (prev >= 100) return 100;
@@ -188,7 +193,7 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
     setShowExitModal(true);
   };
 
-  const confirmExit = () => {
+  const confirmEndRide = () => {
     setShowExitModal(false);
     goFeedback();
   };
@@ -212,6 +217,6 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
     distanceTraveled,
     goFeedback,
     stopCycling,
-    confirmExit,
+    confirmEndRide,
   };
 }

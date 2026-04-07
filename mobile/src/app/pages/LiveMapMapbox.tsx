@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { memo, useEffect, useMemo } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import {
   Camera,
@@ -15,6 +15,73 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { type Route } from '../../../../shared/types/index';
 import { useFloatingTabBarExtraLift } from '../utils/floatingTabBarInset';
 import { useLiveMapRideState } from './useLiveMapRideState';
+
+type LiveMapCanvasProps = {
+  bounds: { ne: [number, number]; sw: [number, number] };
+  cameraPaddingBottom: number;
+  lineFeature: {
+    type: 'Feature';
+    properties: Record<string, never>;
+    geometry: { type: 'LineString'; coordinates: Array<[number, number]> };
+  };
+  riderPoint: {
+    type: 'Feature';
+    properties: Record<string, never>;
+    geometry: { type: 'Point'; coordinates: [number, number] };
+  };
+};
+
+const LiveMapCanvas = memo(function LiveMapCanvas({
+  bounds,
+  cameraPaddingBottom,
+  lineFeature,
+  riderPoint,
+}: LiveMapCanvasProps) {
+  return (
+    <MapView
+      style={StyleSheet.absoluteFill}
+      styleURL={StyleURL.Street}
+      scaleBarEnabled={false}
+      logoEnabled={false}
+      attributionEnabled
+      testID="live-map-mapview"
+    >
+      <Camera
+        bounds={{
+          ne: bounds.ne,
+          sw: bounds.sw,
+          paddingTop: 160,
+          paddingBottom: cameraPaddingBottom,
+          paddingLeft: 32,
+          paddingRight: 32,
+        }}
+        animationDuration={0}
+      />
+      <ShapeSource id="routeLine" shape={lineFeature}>
+        <LineLayer
+          id="routeLineLayer"
+          style={{
+            lineColor: '#2563eb',
+            lineWidth: 5,
+            lineCap: 'round',
+            lineJoin: 'round',
+          }}
+        />
+      </ShapeSource>
+      <ShapeSource id="riderPoint" shape={riderPoint}>
+        <CircleLayer
+          id="riderCircle"
+          style={{
+            circleRadius: 8,
+            circleColor: '#2563eb',
+            circleStrokeWidth: 2,
+            circleStrokeColor: '#ffffff',
+          }}
+        />
+      </ShapeSource>
+    </MapView>
+  );
+});
 
 export default function LiveMapMapboxScreen() {
   const { params } = useRoute<any>();
@@ -40,7 +107,7 @@ export default function LiveMapMapboxScreen() {
     distanceTraveled,
     goFeedback,
     stopCycling,
-    confirmExit,
+    confirmEndRide,
   } = useLiveMapRideState(routeId, routeParam);
 
   useEffect(() => {
@@ -80,48 +147,12 @@ export default function LiveMapMapboxScreen() {
   return (
     <View style={styles.root} testID="live-map-root">
       {hasMap && lineCoordsLen > 0 ? (
-        <MapView
-          style={StyleSheet.absoluteFill}
-          styleURL={StyleURL.Street}
-          scaleBarEnabled={false}
-          logoEnabled={false}
-          attributionEnabled
-          testID="live-map-mapview"
-        >
-          <Camera
-            bounds={{
-              ne: bounds.ne,
-              sw: bounds.sw,
-              paddingTop: 160,
-              paddingBottom: cameraPaddingBottom,
-              paddingLeft: 32,
-              paddingRight: 32,
-            }}
-            animationDuration={0}
-          />
-          <ShapeSource id="routeLine" shape={lineFeature}>
-            <LineLayer
-              id="routeLineLayer"
-              style={{
-                lineColor: '#2563eb',
-                lineWidth: 5,
-                lineCap: 'round',
-                lineJoin: 'round',
-              }}
-            />
-          </ShapeSource>
-          <ShapeSource id="riderPoint" shape={riderPoint}>
-            <CircleLayer
-              id="riderCircle"
-              style={{
-                circleRadius: 8,
-                circleColor: '#2563eb',
-                circleStrokeWidth: 2,
-                circleStrokeColor: '#ffffff',
-              }}
-            />
-          </ShapeSource>
-        </MapView>
+        <LiveMapCanvas
+          bounds={bounds}
+          cameraPaddingBottom={cameraPaddingBottom}
+          lineFeature={lineFeature}
+          riderPoint={riderPoint}
+        />
       ) : (
         <View style={styles.mapFallback} testID="live-map-no-token">
           <Text style={styles.fallbackTitle}>Mapbox token required</Text>
@@ -199,10 +230,10 @@ export default function LiveMapMapboxScreen() {
       <Modal visible={showExitModal} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Exit Live Navigation?</Text>
+            <Text style={styles.modalTitle}>End Ride?</Text>
             <Text style={styles.modalSub}>
-              You have not reached the destination yet. Exit live navigation? Your progress is saved and you can
-              still leave feedback.
+              Ending the ride will save your current progress and take you to feedback. Use the tab bar if you only
+              want to leave this screen without ending the session.
             </Text>
             <View style={styles.modalActions}>
               <Pressable
@@ -210,10 +241,10 @@ export default function LiveMapMapboxScreen() {
                 onPress={() => setShowExitModal(false)}
                 testID="live-map-exit-cancel"
               >
-                <Text style={styles.secondaryBtnText}>Continue Cycling</Text>
+                <Text style={styles.secondaryBtnText}>Keep Riding</Text>
               </Pressable>
-              <Pressable style={styles.dangerBtn} onPress={confirmExit} testID="live-map-exit-confirm">
-                <Text style={styles.dangerBtnText}>Exit Navigation</Text>
+              <Pressable style={styles.dangerBtn} onPress={confirmEndRide} testID="live-map-exit-confirm">
+                <Text style={styles.dangerBtnText}>End Ride</Text>
               </Pressable>
             </View>
           </View>

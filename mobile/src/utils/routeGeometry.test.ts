@@ -1,3 +1,4 @@
+import type { Route } from '../../../shared/types/index';
 import { mockRoutes } from '../app/types';
 import { boundsFromCoordinates, interpolateAlongRoute, routeToLineCoordinates } from './routeGeometry';
 
@@ -8,6 +9,25 @@ describe('routeGeometry', () => {
     expect(coords[0]).toEqual([route.startPoint.lng, route.startPoint.lat]);
     expect(coords[coords.length - 1]).toEqual([route.endPoint.lng, route.endPoint.lat]);
     expect(coords.length).toBe(1 + route.checkpoints.length + 1);
+  });
+
+  it('routeToLineCoordinates prefers routePath when provided', () => {
+    const route: Route = {
+      ...mockRoutes[0],
+      routePath: [
+        { lat: 1.3001, lng: 103.7701 },
+        { lat: 1.3008, lng: 103.7714 },
+        { lat: 1.3015, lng: 103.7722 },
+      ],
+    };
+
+    const coords = routeToLineCoordinates(route);
+
+    expect(coords).toEqual([
+      [103.7701, 1.3001],
+      [103.7714, 1.3008],
+      [103.7722, 1.3015],
+    ]);
   });
 
   it('interpolateAlongRoute returns start at 0 and end at 1', () => {

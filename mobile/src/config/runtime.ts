@@ -31,6 +31,10 @@ const expoOneMapApiPassword = readStringEnv(Constants.expoConfig?.extra?.oneMapA
 const envOneMapApiPassword = readStringEnv(process.env.EXPO_PUBLIC_ONEMAP_API_PASSWORD);
 
 export const USE_MOCKS = readBooleanEnv(process.env.EXPO_PUBLIC_USE_MOCKS, false);
+export const LIVE_MAP_PROGRESS_SIMULATION = readBooleanEnv(
+  process.env.EXPO_PUBLIC_LIVE_MAP_PROGRESS_SIMULATION,
+  false,
+);
 
 export function getApiBaseUrl(): string {
   const baseUrl = expoApiBaseUrl ?? envApiBaseUrl;
