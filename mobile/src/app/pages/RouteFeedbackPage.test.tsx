@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react-nativ
 import RouteFeedbackPage from './RouteFeedbackPage';
 
 const mockNavigate = jest.fn();
-const mockGetRouteById = jest.fn();
+const mockResolveRouteById = jest.fn();
 const mockSubmitRideFeedback = jest.fn();
 
 jest.mock('@react-navigation/native', () => ({
@@ -23,8 +23,8 @@ jest.mock('@expo/vector-icons', () => {
   };
 });
 
-jest.mock('../../services/routeService', () => ({
-  getRouteById: (...args: unknown[]) => mockGetRouteById(...args),
+jest.mock('../../services/routeLookup', () => ({
+  resolveRouteById: (...args: unknown[]) => mockResolveRouteById(...args),
 }));
 
 jest.mock('../../services/rideService', () => ({
@@ -59,7 +59,7 @@ describe('RouteFeedbackPage', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockGetRouteById.mockResolvedValue(mockRoute);
+    mockResolveRouteById.mockResolvedValue(mockRoute);
     mockSubmitRideFeedback.mockResolvedValue(undefined);
   });
 
@@ -103,17 +103,29 @@ describe('RouteFeedbackPage', () => {
   }, 10000);
 
   it('renders the route not found state when getRouteById returns null', async () => {
-    mockGetRouteById.mockResolvedValue(null);
+    mockResolveRouteById.mockResolvedValue(null);
     renderPage();
     expect(await screen.findByText('Route not found')).toBeTruthy();
   }, 10000);
 
   it('navigates to HomePage from route not found state', async () => {
-    mockGetRouteById.mockResolvedValue(null);
+    mockResolveRouteById.mockResolvedValue(null);
     renderPage();
     const backButton = await screen.findByText('Back to Home');
     fireEvent.press(backButton);
     expect(mockNavigate).toHaveBeenCalledWith('HomePage');
+  }, 10000);
+
+  it('renders from the passed route when lookup fails', async () => {
+    mockResolveRouteById.mockResolvedValue(null);
+    render(
+      <RouteFeedbackPage
+        navigation={{ navigate: mockNavigate } as any}
+        route={{ params: { routeId: '1', route: mockRoute } } as any}
+      />,
+    );
+
+    expect(await screen.findByText(/How was your ride on East Coast Park Trail/)).toBeTruthy();
   }, 10000);
 
   it('shows Additional Comments field after page loads', async () => {

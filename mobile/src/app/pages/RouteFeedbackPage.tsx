@@ -12,30 +12,51 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useColorScheme } from 'nativewind';
 import { type Route } from '../../../../shared/types/index';
-import { getRouteById } from '../../services/routeService';
 import { submitRideFeedback } from '../../services/rideService';
+import { resolveRouteById } from '../../services/routeLookup';
 import { useFloatingTabBarScrollPadding } from '../utils/floatingTabBarInset';
 
 type Props = NativeStackScreenProps<any, any>;
 
 export default function RouteFeedbackPage({ navigation, route }: Props) {
-  const { routeId } = route.params || { routeId: '1' };
+  const routeParam = route.params?.route as Route | undefined;
+  const routeId = (route.params?.routeId as string | undefined) ?? routeParam?.id ?? '1';
   const [rating, setRating] = useState(0);
   const [hoveredRating, setHoveredRating] = useState(0);
   const [feedback, setFeedback] = useState('');
   const [submitted, setSubmitted] = useState(false);
-  const [routeData, setRouteData] = useState<Route | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [routeData, setRouteData] = useState<Route | null>(routeParam ?? null);
+  const [isLoading, setIsLoading] = useState(!routeParam);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
   const scrollBottomPad = useFloatingTabBarScrollPadding(20);
 
   useEffect(() => {
-    getRouteById(routeId).then((r) => {
-      setRouteData(r);
-      setIsLoading(false);
-    });
+    let cancelled = false;
+    (async () => {
+      if (!routeId) {
+        if (!cancelled) {
+          setRouteData(routeParam ?? null);
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      if (!routeParam) {
+        setIsLoading(true);
+      }
+
+      const resolvedRoute = await resolveRouteById(routeId);
+      if (!cancelled) {
+        setRouteData(resolvedRoute ?? routeParam ?? null);
+        setIsLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [routeId]);
 
   const handleSubmit = async () => {
