@@ -149,8 +149,22 @@ describe('RouteHistoryDetailsPage', () => {
     fireEvent.press(actionButton);
 
     expect(mockNavigate).toHaveBeenCalledWith('HomeTab', {
-      screen: 'RouteDetails',
-      params: { routeId: 'route-1' },
+      state: {
+        routes: [
+          { name: 'HomePage' },
+          {
+            name: 'RouteDetails',
+            params: expect.objectContaining({
+              routeId: 'route-1',
+              route: expect.objectContaining({
+                id: 'route-1',
+                name: 'City Breeze Connector',
+              }),
+            }),
+          },
+        ],
+        index: 1,
+      },
     });
   });
 });

@@ -1,4 +1,5 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
+import type { GraphDataPoint, GraphPeriod, RideHistory, Route } from '../../../shared/types/index';
 import { hashPassword } from '../utils/passwordHash';
 import {
   mockAdminUser,
@@ -139,6 +140,38 @@ type DistanceStatRow = {
   sort_order: number;
 };
 
+function normalizeRouteElevationValue(value: Route['elevation']): number {
+  if (typeof value === 'number') {
+    return value;
+  }
+
+  if (value === 'lower') {
+    return 60;
+  }
+
+  if (value === 'higher') {
+    return 240;
+  }
+
+  return 120;
+}
+
+function normalizeRouteShadeValue(value: Route['shade']): number {
+  if (typeof value === 'number') {
+    return value;
+  }
+
+  return value === 'reduce-shade' ? 80 : 50;
+}
+
+function normalizeRouteAirQualityValue(value: Route['airQuality']): number {
+  if (typeof value === 'number') {
+    return value;
+  }
+
+  return value === 'care' ? 30 : 60;
+}
+
 type RideFeedbackRow = {
   id: number;
   account_id: string;
@@ -147,6 +180,237 @@ type RideFeedbackRow = {
   review_text: string;
   created_at: string;
 };
+
+function formatCompletionDate(value: Date): string {
+  return value.toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function formatCompletionTime(value: Date): string {
+  return value.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+async function upsertRouteSnapshot(
+  route: Route,
+  dbOverride?: DatabaseLike,
+): Promise<void> {
+  const db = dbOverride ?? (await getLocalDb());
+
+  await db.runAsync(
+    `INSERT OR REPLACE INTO routes (
+      id,
+      name,
+      description,
+      distance_km,
+      elevation_m,
+      estimated_time_min,
+      rating,
+      review_count,
+      start_lat,
+      start_lng,
+      start_name,
+      end_lat,
+      end_lng,
+      end_name,
+      cyclist_type,
+      shade_pct,
+      air_quality_index
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    route.id,
+    route.name,
+    route.description,
+    route.distance,
+    normalizeRouteElevationValue(route.elevation),
+    route.estimatedTime,
+    route.rating,
+    route.reviewCount,
+    route.startPoint.lat,
+    route.startPoint.lng,
+    route.startPoint.name,
+    route.endPoint.lat,
+    route.endPoint.lng,
+    route.endPoint.name,
+    route.cyclistType,
+    normalizeRouteShadeValue(route.shade),
+    normalizeRouteAirQualityValue(route.airQuality),
+  );
+
+  await db.runAsync('DELETE FROM route_checkpoints WHERE route_id = ?', route.id);
+  await db.runAsync('DELETE FROM route_points_of_interest WHERE route_id = ?', route.id);
+
+  for (const [index, checkpoint] of route.checkpoints.entries()) {
+    await db.runAsync(
+      `INSERT INTO route_checkpoints (
+        id,
+        route_id,
+        sort_order,
+        name,
+        lat,
+        lng,
+        description
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      checkpoint.id,
+      route.id,
+      index,
+      checkpoint.name,
+      checkpoint.lat,
+      checkpoint.lng,
+      checkpoint.description,
+    );
+  }
+
+  for (const [index, point] of (route.pointsOfInterestVisited ?? []).entries()) {
+    await db.runAsync(
+      `INSERT INTO route_points_of_interest (
+        id,
+        route_id,
+        sort_order,
+        name,
+        description,
+        lat,
+        lng
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `poi-${route.id}-${index + 1}`,
+      route.id,
+      index,
+      point.name,
+      point.description ?? point.name,
+      point.lat ?? route.startPoint.lat,
+      point.lng ?? route.startPoint.lng,
+    );
+  }
+}
+
+async function getRouteSnapshotById(
+  routeId: string,
+  dbOverride?: DatabaseLike,
+): Promise<Route | undefined> {
+  const db = dbOverride ?? (await getLocalDb());
+  const routeRow = await db.getFirstAsync<RouteRow>(
+    `SELECT
+      id,
+      name,
+      description,
+      distance_km,
+      elevation_m,
+      estimated_time_min,
+      rating,
+      review_count,
+      start_lat,
+      start_lng,
+      start_name,
+      end_lat,
+      end_lng,
+      end_name,
+      cyclist_type,
+      shade_pct,
+      air_quality_index
+     FROM routes
+     WHERE id = ?`,
+    routeId,
+  );
+
+  if (!routeRow) {
+    return undefined;
+  }
+
+  const checkpoints = await db.getAllAsync<RouteCheckpointRow>(
+    `SELECT id, route_id, sort_order, name, lat, lng, description
+     FROM route_checkpoints
+     WHERE route_id = ?
+     ORDER BY sort_order ASC`,
+    routeId,
+  );
+
+  const pois = await db.getAllAsync<RoutePointOfInterestRow>(
+    `SELECT id, route_id, sort_order, name, description, lat, lng
+     FROM route_points_of_interest
+     WHERE route_id = ?
+     ORDER BY sort_order ASC`,
+    routeId,
+  );
+
+  return {
+    id: routeRow.id,
+    name: routeRow.name,
+    description: routeRow.description,
+    distance: routeRow.distance_km,
+    elevation: routeRow.elevation_m,
+    estimatedTime: routeRow.estimated_time_min,
+    rating: routeRow.rating,
+    reviewCount: routeRow.review_count,
+    startPoint: {
+      lat: routeRow.start_lat,
+      lng: routeRow.start_lng,
+      name: routeRow.start_name,
+    },
+    endPoint: {
+      lat: routeRow.end_lat,
+      lng: routeRow.end_lng,
+      name: routeRow.end_name,
+    },
+    checkpoints: checkpoints.map((checkpoint) => ({
+      id: checkpoint.id,
+      name: checkpoint.name,
+      lat: checkpoint.lat,
+      lng: checkpoint.lng,
+      description: checkpoint.description,
+    })),
+    cyclistType: routeRow.cyclist_type,
+    shade: routeRow.shade_pct,
+    airQuality: routeRow.air_quality_index,
+    pointsOfInterestVisited: pois.map((point) => ({
+      name: point.name,
+      description: point.description,
+      lat: point.lat,
+      lng: point.lng,
+    })),
+  };
+}
+
+function mapLocalRideRowToRideHistory(
+  row: RideHistoryRow,
+  routeDetails?: Route,
+): RideHistory {
+  return {
+    id: row.id,
+    routeId: row.route_id,
+    routeName: row.route_name,
+    completionDate: row.completion_date,
+    completionTime: row.completion_time,
+    startTime: row.start_time ?? undefined,
+    endTime: row.end_time ?? undefined,
+    totalTime: row.total_time_min,
+    distance: row.distance_km,
+    avgSpeed: row.avg_speed_kmh,
+    checkpoints: row.checkpoints_visited,
+    userRating: row.user_rating ?? undefined,
+    userReview: row.user_review ?? undefined,
+    routeDetails,
+  };
+}
+
+function buildEmptyDistanceStats(period: GraphPeriod): GraphDataPoint[] {
+  if (period === 'week') {
+    return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, index) => ({
+      id: `local-week-${index}`,
+      day,
+      distance: 0,
+    }));
+  }
+
+  return ['Week 1', 'Week 2', 'Week 3', 'Week 4'].map((week, index) => ({
+    id: `local-month-${index}`,
+    week,
+    distance: 0,
+  }));
+}
 
 type TestState = {
   users: UserRow[];
@@ -236,7 +500,7 @@ function createSeedState(): TestState {
     name: route.name,
     description: route.description,
     distance_km: route.distance,
-    elevation_m: route.elevation,
+    elevation_m: normalizeRouteElevationValue(route.elevation),
     estimated_time_min: route.estimatedTime,
     rating: route.rating,
     review_count: route.reviewCount,
@@ -247,8 +511,8 @@ function createSeedState(): TestState {
     end_lng: route.endPoint.lng,
     end_name: route.endPoint.name,
     cyclist_type: route.cyclistType,
-    shade_pct: route.shade,
-    air_quality_index: route.airQuality,
+    shade_pct: normalizeRouteShadeValue(route.shade),
+    air_quality_index: normalizeRouteAirQualityValue(route.airQuality),
   }));
 
   const routeCheckpoints = mockRoutes.flatMap<RouteCheckpointRow>((route) =>
@@ -931,7 +1195,7 @@ async function seedDatabaseIfEmpty(db: DatabaseLike): Promise<void> {
         route.name,
         route.description,
         route.distance,
-        route.elevation,
+        normalizeRouteElevationValue(route.elevation),
         route.estimatedTime,
         route.rating,
         route.reviewCount,
@@ -942,8 +1206,8 @@ async function seedDatabaseIfEmpty(db: DatabaseLike): Promise<void> {
         route.endPoint.lng,
         route.endPoint.name,
         route.cyclistType,
-        route.shade,
-        route.airQuality,
+        normalizeRouteShadeValue(route.shade),
+        normalizeRouteAirQualityValue(route.airQuality),
       );
 
       for (const [index, checkpoint] of route.checkpoints.entries()) {
@@ -1127,7 +1391,7 @@ export async function synchronizeLocalDbFromMocks(): Promise<void> {
         route.name,
         route.description,
         route.distance,
-        route.elevation,
+        normalizeRouteElevationValue(route.elevation),
         route.estimatedTime,
         route.rating,
         route.reviewCount,
@@ -1138,8 +1402,8 @@ export async function synchronizeLocalDbFromMocks(): Promise<void> {
         route.endPoint.lng,
         route.endPoint.name,
         route.cyclistType,
-        route.shade,
-        route.airQuality,
+        normalizeRouteShadeValue(route.shade),
+        normalizeRouteAirQualityValue(route.airQuality),
       );
 
         for (const [index, checkpoint] of route.checkpoints.entries()) {
@@ -1298,6 +1562,247 @@ export async function getActiveMockAccountId(): Promise<string> {
   );
 
   return session?.current_account_id ?? DEFAULT_ACCOUNT_ID;
+}
+
+/** Persist post-ride feedback locally (offline / demo / when API returns 404 for unknown route). */
+export async function saveRideFeedbackLocal(input: {
+  routeId: string;
+  rating: number;
+  reviewText: string;
+}): Promise<void> {
+  const db = await getLocalDb();
+  const accountId = await getActiveMockAccountId();
+  const createdAt = nowIso();
+  await db.runAsync(
+    `INSERT INTO ride_feedback (account_id, route_id, rating, review_text, created_at) VALUES (?, ?, ?, ?, ?)`,
+    accountId,
+    input.routeId,
+    input.rating,
+    input.reviewText,
+    createdAt,
+  );
+  await db.runAsync(
+    `UPDATE ride_history
+     SET user_rating = ?, user_review = ?
+     WHERE id = (
+       SELECT id
+       FROM ride_history
+       WHERE account_id = ? AND route_id = ?
+       ORDER BY id DESC
+       LIMIT 1
+     )`,
+    input.rating,
+    input.reviewText,
+    accountId,
+    input.routeId,
+  );
+}
+
+export async function saveRideLocal(input: {
+  route: Route;
+  startTime: string;
+  endTime: string;
+  distance: number;
+  avgSpeed: number;
+  checkpointsVisited: number;
+}): Promise<RideHistory> {
+  const db = await getLocalDb();
+  const accountId = await getActiveMockAccountId();
+  const completedAt = new Date(input.endTime);
+  const startedAt = new Date(input.startTime);
+  const rideId = `local-${Date.now()}`;
+  const totalTime = Math.max(
+    1,
+    Math.round((completedAt.getTime() - startedAt.getTime()) / 60000),
+  );
+
+  await db.withTransactionAsync(async () => {
+    await upsertRouteSnapshot(input.route, db);
+    await db.runAsync(
+      `INSERT INTO ride_history (
+        id,
+        account_id,
+        route_id,
+        route_name,
+        completion_date,
+        completion_time,
+        start_time,
+        end_time,
+        total_time_min,
+        distance_km,
+        avg_speed_kmh,
+        checkpoints_visited,
+        user_rating,
+        user_review
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      rideId,
+      accountId,
+      input.route.id,
+      input.route.name,
+      formatCompletionDate(completedAt),
+      formatCompletionTime(completedAt),
+      input.startTime,
+      input.endTime,
+      totalTime,
+      input.distance,
+      input.avgSpeed,
+      input.checkpointsVisited,
+      null,
+      null,
+    );
+
+    const weekLabel = completedAt.toLocaleDateString('en-US', { weekday: 'short' });
+    const monthLabel = `Week ${Math.min(4, Math.floor((completedAt.getDate() - 1) / 7) + 1)}`;
+
+    await db.runAsync(
+      `UPDATE distance_stats
+       SET distance_km = distance_km + ?
+       WHERE account_id = ? AND period = 'week' AND label = ?`,
+      input.distance,
+      accountId,
+      weekLabel,
+    );
+    await db.runAsync(
+      `UPDATE distance_stats
+       SET distance_km = distance_km + ?
+       WHERE account_id = ? AND period = 'month' AND label = ?`,
+      input.distance,
+      accountId,
+      monthLabel,
+    );
+  });
+
+  return {
+    id: rideId,
+    routeId: input.route.id,
+    routeName: input.route.name,
+    completionDate: formatCompletionDate(completedAt),
+    completionTime: formatCompletionTime(completedAt),
+    startTime: input.startTime,
+    endTime: input.endTime,
+    totalTime,
+    distance: input.distance,
+    avgSpeed: input.avgSpeed,
+    checkpoints: input.checkpointsVisited,
+    routeDetails: input.route,
+  };
+}
+
+export async function getRideHistoryLocal(options?: {
+  pendingOnly?: boolean;
+}): Promise<RideHistory[]> {
+  const db = await getLocalDb();
+  const accountId = await getActiveMockAccountId();
+  const rows = await db.getAllAsync<RideHistoryRow>(
+    `SELECT
+      id,
+      account_id,
+      route_id,
+      route_name,
+      completion_date,
+      completion_time,
+      start_time,
+      end_time,
+      total_time_min,
+      distance_km,
+      avg_speed_kmh,
+      checkpoints_visited,
+      user_rating,
+      user_review
+     FROM ride_history
+     WHERE account_id = ?
+       ${options?.pendingOnly ? `AND id LIKE 'local-%'` : ''}
+     ORDER BY id DESC`,
+    accountId,
+  );
+
+  return Promise.all(
+    rows.map(async (row) => {
+      const routeDetails = await getRouteSnapshotById(row.route_id, db);
+      return mapLocalRideRowToRideHistory(row, routeDetails);
+    }),
+  );
+}
+
+export async function getRideByIdLocal(id: string): Promise<RideHistory | null> {
+  const db = await getLocalDb();
+  const accountId = await getActiveMockAccountId();
+  const row = await db.getFirstAsync<RideHistoryRow>(
+    `SELECT
+      id,
+      account_id,
+      route_id,
+      route_name,
+      completion_date,
+      completion_time,
+      start_time,
+      end_time,
+      total_time_min,
+      distance_km,
+      avg_speed_kmh,
+      checkpoints_visited,
+      user_rating,
+      user_review
+     FROM ride_history
+     WHERE account_id = ? AND id = ?`,
+    accountId,
+    id,
+  );
+
+  if (!row) {
+    return null;
+  }
+
+  const routeDetails = await getRouteSnapshotById(row.route_id, db);
+  return mapLocalRideRowToRideHistory(row, routeDetails);
+}
+
+export async function getPendingLocalDistanceStats(period: GraphPeriod): Promise<GraphDataPoint[]> {
+  const rides = await getRideHistoryLocal({ pendingOnly: true });
+  const stats = buildEmptyDistanceStats(period);
+
+  if (period === 'week') {
+    const labelToIndex = new Map(stats.map((entry, index) => [('day' in entry ? entry.day : ''), index]));
+    for (const ride of rides) {
+      if (!ride.endTime) continue;
+      const completedAt = new Date(ride.endTime);
+      const label = completedAt.toLocaleDateString('en-US', { weekday: 'short' });
+      const targetIndex = labelToIndex.get(label);
+      if (targetIndex === undefined) continue;
+      const current = stats[targetIndex] as Extract<GraphDataPoint, { day: string }>;
+      stats[targetIndex] = { ...current, distance: current.distance + ride.distance };
+    }
+    return stats;
+  }
+
+  for (const ride of rides) {
+    if (!ride.endTime) continue;
+    const completedAt = new Date(ride.endTime);
+    const weekIndex = Math.min(3, Math.floor((completedAt.getDate() - 1) / 7));
+    const current = stats[weekIndex] as Extract<GraphDataPoint, { week: string }>;
+    stats[weekIndex] = { ...current, distance: current.distance + ride.distance };
+  }
+
+  return stats;
+}
+
+export async function getDistanceStatsLocal(period: GraphPeriod): Promise<GraphDataPoint[]> {
+  const db = await getLocalDb();
+  const accountId = await getActiveMockAccountId();
+  const rows = await db.getAllAsync<DistanceStatRow>(
+    `SELECT id, account_id, period, label, distance_km, sort_order
+     FROM distance_stats
+     WHERE account_id = ? AND period = ?
+     ORDER BY sort_order ASC`,
+    accountId,
+    period,
+  );
+
+  return rows.map((row) =>
+    period === 'week'
+      ? ({ id: row.id, day: row.label, distance: row.distance_km } as GraphDataPoint)
+      : ({ id: row.id, week: row.label, distance: row.distance_km } as GraphDataPoint),
+  );
 }
 
 export async function createLocalAccount(input: {

@@ -297,7 +297,17 @@ export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
       </Card>
 
       <Button
-        onPress={() => navigation.navigate('HomeTab', { screen: 'RouteDetails', params: { routeId: routeInfo.id } })}
+        onPress={() =>
+          navigation.navigate('HomeTab', {
+            state: {
+              routes: [
+                { name: 'HomePage' },
+                { name: 'RouteDetails', params: { routeId: routeInfo.id, route: routeInfo } },
+              ],
+              index: 1,
+            },
+          })
+        }
         style={{
           backgroundColor: '#2563eb',
           borderRadius: 10,

@@ -3,8 +3,17 @@
 // Adapter pattern: maps between backend snake_case and frontend camelCase.
 // =============================================================================
 
-import type { RideHistory, GraphDataPoint, GraphPeriod, RouteFeedbackPayload } from '../../../shared/types/index';
-import { httpClient } from './httpClient';
+import type { RideHistory, GraphDataPoint, GraphPeriod, Route, RouteFeedbackPayload } from '../../../shared/types/index';
+import { USE_MOCKS } from '../config/runtime';
+import { ApiError, httpClient } from './httpClient';
+import {
+  getDistanceStatsLocal,
+  getPendingLocalDistanceStats,
+  getRideByIdLocal,
+  getRideHistoryLocal,
+  saveRideFeedbackLocal,
+  saveRideLocal,
+} from './localDb';
 
 export type { RideHistory, GraphDataPoint, GraphPeriod };
 
@@ -80,21 +89,34 @@ type BackendFeedbackPayload = {
 };
 
 export type SaveRidePayload = {
-  routeId: string;
-  completionDate: string;
-  totalTime: number;
+  route: Route;
+  startTime: string;
+  endTime: string;
   distance: number;
   avgSpeed: number;
   checkpointsVisited: number;
+  pointsOfInterestVisited?: NonNullable<Route['pointsOfInterestVisited']>;
 };
 
 type BackendSaveRidePayload = {
   route_id: string;
-  completion_date: string;
-  total_time: number;
+  start_time: string;
+  end_time: string;
   distance: number;
   avg_speed: number;
-  checkpoints_visited: number;
+  checkpoints_visited: Array<{
+    checkpoint_id: string;
+    checkpoint_name: string;
+    description: string;
+    lat: number;
+    lng: number;
+  }>;
+  points_of_interest_visited?: Array<{
+    name: string;
+    description?: string;
+    lat?: number;
+    lng?: number;
+  }>;
 };
 
 // ---------------------------------------------------------------------------
@@ -163,47 +185,140 @@ const toFrontendRide = (r: BackendRide): RideHistory => ({
 // ---------------------------------------------------------------------------
 
 export async function getRideHistory(token?: string): Promise<RideHistory[]> {
-  const response = await httpClient.get<BackendRide[]>('/rides/history', token);
-  return response.map(toFrontendRide);
+  if (USE_MOCKS) {
+    return getRideHistoryLocal();
+  }
+
+  const localPending = await getRideHistoryLocal({ pendingOnly: true });
+
+  try {
+    const response = await httpClient.get<BackendRide[]>('/rides/history', token);
+    return [...localPending, ...response.map(toFrontendRide)];
+  } catch {
+    return localPending;
+  }
 }
 
 export async function getRideById(id: string, token?: string): Promise<RideHistory | null> {
+  if (id.startsWith('local-')) {
+    return getRideByIdLocal(id);
+  }
+
+  if (USE_MOCKS) {
+    return getRideByIdLocal(id);
+  }
+
   try {
     const response = await httpClient.get<BackendRide>(`/rides/${id}`, token);
     return toFrontendRide(response);
   } catch {
-    return null;
+    return getRideByIdLocal(id);
   }
 }
 
 export async function getDistanceStats(period: GraphPeriod, token?: string): Promise<GraphDataPoint[]> {
-  const response = await httpClient.get<BackendDistanceStat[]>(`/rides/stats/distance?period=${period}`, token);
-  return response.map((item) =>
-    period === 'week'
-      ? ({ id: item.period_id, day: item.label, distance: item.distance } as GraphDataPoint)
-      : ({ id: item.period_id, week: item.label, distance: item.distance } as GraphDataPoint),
-  );
+  const mergeLocalStats = (
+    baseStats: GraphDataPoint[],
+    localStats: GraphDataPoint[],
+  ): GraphDataPoint[] =>
+    baseStats.map((item) => {
+      if ('day' in item) {
+        const local = localStats.find((entry) => 'day' in entry && entry.day === item.day);
+        return local ? { ...item, distance: item.distance + local.distance } : item;
+      }
+
+      const local = localStats.find((entry) => 'week' in entry && entry.week === item.week);
+      return local ? { ...item, distance: item.distance + local.distance } : item;
+    });
+
+  const localPending = await getPendingLocalDistanceStats(period);
+
+  if (USE_MOCKS) {
+    return getDistanceStatsLocal(period);
+  }
+
+  try {
+    const response = await httpClient.get<BackendDistanceStat[]>(`/rides/stats/distance?period=${period}`, token);
+    const mapped = response.map((item) =>
+      period === 'week'
+        ? ({ id: item.period_id, day: item.label, distance: item.distance } as GraphDataPoint)
+        : ({ id: item.period_id, week: item.label, distance: item.distance } as GraphDataPoint),
+    );
+    return mapped.length > 0 ? mergeLocalStats(mapped, localPending) : localPending;
+  } catch {
+    return localPending;
+  }
 }
 
 export async function submitRideFeedback(payload: RouteFeedbackPayload, token?: string): Promise<void> {
   const backendPayload: BackendFeedbackPayload = {
     route_id: payload.routeId,
     rating: payload.rating,
-    review_text: payload.review,
+    review_text: payload.review ?? '',
   };
-  await httpClient.post<void>('/rides/feedback', backendPayload, token);
+
+  const persistLocal = () =>
+    saveRideFeedbackLocal({
+      routeId: payload.routeId,
+      rating: payload.rating,
+      reviewText: payload.review ?? '',
+    });
+
+  if (USE_MOCKS) {
+    await persistLocal();
+    return;
+  }
+
+  try {
+    await httpClient.post<void>('/rides/feedback', backendPayload, token);
+  } catch (e) {
+    // Contract: 404 = route not found on server. Many stacks also return 404 if the route is not mounted.
+    // Save locally so the user can still finish the journey; data can be synced when the backend matches.
+    if (e instanceof ApiError && e.status === 404) {
+      await persistLocal();
+      return;
+    }
+    throw e;
+  }
 }
 
 export async function saveRide(payload: SaveRidePayload, token?: string): Promise<RideHistory> {
   const backendPayload: BackendSaveRidePayload = {
-    route_id: payload.routeId,
-    completion_date: payload.completionDate,
-    total_time: payload.totalTime,
+    route_id: payload.route.id,
+    start_time: payload.startTime,
+    end_time: payload.endTime,
     distance: payload.distance,
     avg_speed: payload.avgSpeed,
-    checkpoints_visited: payload.checkpointsVisited,
+    checkpoints_visited: payload.route.checkpoints.slice(0, payload.checkpointsVisited).map((checkpoint) => ({
+      checkpoint_id: checkpoint.id,
+      checkpoint_name: checkpoint.name,
+      description: checkpoint.description,
+      lat: checkpoint.lat,
+      lng: checkpoint.lng,
+    })),
+    points_of_interest_visited: payload.pointsOfInterestVisited,
   };
-  // TODO: Verify endpoint against API docs — spec says /routes/save but /rides may be correct for ride completion
-  const response = await httpClient.post<BackendRide>('/routes/save', backendPayload, token);
-  return toFrontendRide(response);
+  const persistLocal = () =>
+    saveRideLocal({
+      route: payload.route,
+      startTime: payload.startTime,
+      endTime: payload.endTime,
+      distance: payload.distance,
+      avgSpeed: payload.avgSpeed,
+      checkpointsVisited: payload.checkpointsVisited,
+    });
+
+  if (USE_MOCKS) {
+    return persistLocal();
+  }
+
+  try {
+    const response = await httpClient.post<BackendRide>('/rides', backendPayload, token);
+    return toFrontendRide(response);
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 401) {
+      throw e;
+    }
+    return persistLocal();
+  }
 }

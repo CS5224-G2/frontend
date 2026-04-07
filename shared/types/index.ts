@@ -110,10 +110,6 @@ export type PointOfInterestPreferences = Record<PointOfInterestCategory, boolean
 
 export type UserPreferences = {
   cyclistType: CyclistType;
-  preferredShade: number;   // legacy backend field derived from shadePreference
-  elevation: number;        // legacy backend field derived from elevationPreference
-  distance: number;         // legacy backend field derived from maxDistanceKm
-  airQuality: number;       // legacy backend field derived from airQualityPreference
   shadePreference: ShadePreference;
   elevationPreference: ElevationPreference;
   maxDistanceKm: number;
@@ -160,8 +156,9 @@ export type Route = {
 export type RouteRecommendationRequest = {
   startPoint: RouteRequestLocation;
   endPoint: RouteRequestLocation;
-  checkpoints: Array<RouteRequestLocation & { id: string; description?: string }>;
+  checkpoints: Array<RouteRequestLocation & { id: string }>;
   preferences: UserPreferences;
+  limit?: number;
 };
 
 export type RouteFeedbackPayload = {

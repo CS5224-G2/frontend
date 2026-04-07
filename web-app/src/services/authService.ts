@@ -28,6 +28,15 @@ type BackendLoginPayload = {
   client: 'web_app';
 };
 
+type BackendForgotPasswordPayload = {
+  email: string;
+};
+
+type BackendResetPasswordPayload = {
+  token: string;
+  new_password: string;
+};
+
 type BackendAuthResponse = {
   access_token: string;
   refresh_token: string;
@@ -40,6 +49,11 @@ type BackendAuthResponse = {
     onboarding_complete: boolean;
     role: 'user' | 'admin' | 'business';
   };
+};
+
+type BackendMessageResponse = {
+  message?: string;
+  detail?: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -69,6 +83,23 @@ const toAuthResult = (response: BackendAuthResponse): AuthResult => ({
     role: response.user.role,
   },
 });
+
+async function readBackendMessage(response: Response, fallback: string): Promise<string> {
+  const contentType = response.headers.get('content-type') ?? '';
+
+  if (contentType.includes('application/json')) {
+    const payload = await response.json().catch(() => null) as BackendMessageResponse | null;
+    if (typeof payload?.message === 'string' && payload.message.trim()) {
+      return payload.message;
+    }
+    if (typeof payload?.detail === 'string' && payload.detail.trim()) {
+      return payload.detail;
+    }
+  }
+
+  const text = (await response.text().catch(() => '')).trim();
+  return text || fallback;
+}
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -107,9 +138,76 @@ export async function loginUser(values: LoginFormValues): Promise<AuthResult> {
   });
 
   if (!response.ok) {
-    const text = await response.text().catch(() => response.statusText);
-    throw new Error(text || 'Login failed.');
+    let errorMsg: string;
+    try {
+      const body = await response.json() as Record<string, unknown>;
+      const candidate = body.detail ?? body.message ?? body.error;
+      errorMsg = typeof candidate === 'string' ? candidate : response.statusText;
+    } catch {
+      errorMsg = await response.text().catch(() => response.statusText);
+    }
+    throw new Error(errorMsg || 'Login failed.');
   }
 
   return toAuthResult(await response.json() as BackendAuthResponse);
+}
+
+export async function requestPasswordReset(email: string): Promise<string> {
+  const normalizedEmail = normalizeEmail(email);
+
+  if (!normalizedEmail) {
+    throw new Error('Email is required.');
+  }
+
+  if (shouldUseMocks()) {
+    await new Promise((r) => setTimeout(r, 600));
+    return 'If an account exists, a reset link has been sent.';
+  }
+
+  const payload: BackendForgotPasswordPayload = { email: normalizedEmail };
+  const response = await apiFetch(`${BASE_URL}/auth/forgot-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(await readBackendMessage(response, 'Failed to send reset link.'));
+  }
+
+  return readBackendMessage(response, 'If an account exists, a reset link has been sent.');
+}
+
+export async function resetPassword(token: string, newPassword: string): Promise<string> {
+  const trimmedToken = token.trim();
+
+  if (!trimmedToken) {
+    throw new Error('Reset token is required.');
+  }
+
+  if (!newPassword.trim()) {
+    throw new Error('New password is required.');
+  }
+
+  if (shouldUseMocks()) {
+    await new Promise((r) => setTimeout(r, 600));
+    return 'Password reset successful';
+  }
+
+  const payload: BackendResetPasswordPayload = {
+    token: trimmedToken,
+    new_password: newPassword,
+  };
+
+  const response = await apiFetch(`${BASE_URL}/auth/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(await readBackendMessage(response, 'Password reset failed.'));
+  }
+
+  return readBackendMessage(response, 'Password reset successful');
 }

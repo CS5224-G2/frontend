@@ -10,6 +10,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useColorScheme } from 'nativewind';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,6 +20,7 @@ import {
   serializeUserProfile,
   UserProfile,
 } from '@/services/userService';
+import { getRideHistory } from '@/services/rideService';
 import { getProfileAvatarSource } from '@/app/utils/profileAvatar';
 import { AuthContext } from '../AuthContext';
 import { useTheme } from '../ThemeContext';
@@ -44,6 +46,36 @@ const statCards = [
   },
 ] as const;
 
+const FAVORITE_ROUTES_STORAGE_KEY = 'favoriteRoutes';
+
+function parseFavoriteRouteIds(value: string | null): string[] | null {
+  if (value === null) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : [];
+  } catch {
+    return null;
+  }
+}
+
+function buildDynamicProfileStats(
+  baseStats: UserProfile['stats'],
+  rideCount: number,
+  totalDistanceKm: number,
+  favoriteRouteIds: string[] | null,
+): UserProfile['stats'] {
+  const hasComputedRideStats = rideCount > 0 || baseStats.totalRides === 0;
+
+  return {
+    totalRides: hasComputedRideStats ? rideCount : baseStats.totalRides,
+    totalDistanceKm: hasComputedRideStats ? totalDistanceKm : baseStats.totalDistanceKm,
+    favoriteTrails: favoriteRouteIds ? favoriteRouteIds.length : baseStats.favoriteTrails,
+  };
+}
+
 export default function UserProfilePage() {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
@@ -65,8 +97,26 @@ export default function UserProfilePage() {
     }
 
     try {
-      const result = await getUserProfile();
-      setProfile(result);
+      const [profileResult, rideHistory, storedFavoriteRoutes] = await Promise.all([
+        getUserProfile(),
+        getRideHistory(),
+        AsyncStorage.getItem(FAVORITE_ROUTES_STORAGE_KEY),
+      ]);
+      const favoriteRouteIds = parseFavoriteRouteIds(storedFavoriteRoutes);
+      const rideCount = rideHistory.length;
+      const totalDistanceKm = Number(
+        rideHistory.reduce((sum, ride) => sum + ride.distance, 0).toFixed(1),
+      );
+
+      setProfile({
+        ...profileResult,
+        stats: buildDynamicProfileStats(
+          profileResult.stats,
+          rideCount,
+          totalDistanceKm,
+          favoriteRouteIds,
+        ),
+      });
       setError(null);
     } catch (loadError) {
       const message =
@@ -179,9 +229,15 @@ export default function UserProfilePage() {
           return (
             <View
               key={card.key}
+              testID={`profile-stat-${card.key}`}
               className={`flex-1 rounded-[20px] py-[18px] px-cy-md ${card.bgClassName}`}
             >
-              <Text className={`text-[20px] font-extrabold ${card.textClassName}`}>{value}</Text>
+              <Text
+                testID={`profile-stat-${card.key}-value`}
+                className={`text-[20px] font-extrabold ${card.textClassName}`}
+              >
+                {value}
+              </Text>
               <Text className="mt-1.5 text-[13px] leading-[18px] text-text-secondary dark:text-slate-400">{card.label}</Text>
             </View>
           );
@@ -205,7 +261,7 @@ export default function UserProfilePage() {
         <Text className="text-[12px] font-bold text-text-secondary dark:text-slate-400 uppercase tracking-[0.8px]">Account settings</Text>
         <Pressable
           className="flex-row justify-between items-center py-1.5"
-          onPress={() => navigation.navigate('PrivacySecurity')}
+          onPress={() => navigation.navigate('privacy-security')}
         >
           <Text className="text-[16px] font-semibold text-slate-900 dark:text-slate-100">Notifications</Text>
           <Text className="text-[14px] text-text-secondary dark:text-slate-400">Manage</Text>
@@ -213,7 +269,7 @@ export default function UserProfilePage() {
         <View className="h-px bg-border dark:bg-[#2d2d2d] my-3" />
         <Pressable
           className="flex-row justify-between items-center py-1.5"
-          onPress={() => navigation.navigate('PrivacySecurity')}
+          onPress={() => navigation.navigate('privacy-security')}
         >
           <Text className="text-[16px] font-semibold text-slate-900 dark:text-slate-100">Privacy</Text>
           <Text className="text-[14px] text-text-secondary dark:text-slate-400">Review</Text>
@@ -221,7 +277,7 @@ export default function UserProfilePage() {
         <View className="h-px bg-border dark:bg-[#2d2d2d] my-3" />
         <Pressable
           className="flex-row justify-between items-center py-1.5"
-          onPress={() => navigation.navigate('ChangePassword')}
+          onPress={() => navigation.navigate('change-password')}
         >
           <Text className="text-[16px] font-semibold text-slate-900 dark:text-slate-100">Password</Text>
           <Text className="text-[14px] text-text-secondary dark:text-slate-400">Change</Text>

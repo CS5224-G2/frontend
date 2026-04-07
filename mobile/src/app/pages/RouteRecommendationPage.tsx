@@ -15,6 +15,7 @@ import {
   normalizeUserPreferences,
 } from '../utils/routePreferences';
 import { getRouteRecommendations, getRoutes } from '../../services/routeService';
+import { useFloatingTabBarScrollPadding } from '../utils/floatingTabBarInset';
 
 type Props = NativeStackScreenProps<any, 'Recommendation'>;
 
@@ -58,6 +59,7 @@ export default function RouteRecommendationPage({ navigation }: Props) {
   const [isLoading, setIsLoading] = useState(true);
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const scrollBottomPad = useFloatingTabBarScrollPadding(20);
 
   useEffect(() => {
     const loadRecommendations = async () => {
@@ -74,7 +76,7 @@ export default function RouteRecommendationPage({ navigation }: Props) {
         setRouteRequest(normalizedRequest);
 
         const data = normalizedRequest?.preferences
-          ? await getRouteRecommendations(normalizedRequest, 3)
+          ? await getRouteRecommendations(normalizedRequest, normalizedRequest.limit ?? 3)
           : await getRoutes();
 
         setRoutes(data.slice(0, 3));
@@ -97,7 +99,7 @@ export default function RouteRecommendationPage({ navigation }: Props) {
   const renderRoute = ({ item }: { item: Route }) => (
     <Pressable
       style={({ pressed }) => [{ borderRadius: 12 }, pressed && { opacity: 0.8 }]}
-      onPress={() => navigation.navigate('RouteDetails', { routeId: item.id })}
+      onPress={() => navigation.navigate('RouteDetails', { routeId: item.id, route: item })}
     >
       <Card>
         <CardHeader>
@@ -169,9 +171,9 @@ export default function RouteRecommendationPage({ navigation }: Props) {
   );
 
   return (
-    <ScrollView className="flex-1 bg-slate-50 dark:bg-black" contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
+    <ScrollView className="flex-1 bg-slate-50 dark:bg-black" contentContainerStyle={{ padding: 16, paddingBottom: scrollBottomPad }}>
       <View className="flex-row items-center mb-[12px] gap-cy-md">
-        <Text className="text-2xl font-bold text-[#1e293b] dark:text-slate-100">Route Recommendations</Text>
+        <Text testID="route-list-heading" className="text-2xl font-bold text-[#1e293b] dark:text-slate-100">Route Recommendations</Text>
       </View>
 
       {routeRequest ? (
@@ -267,7 +269,11 @@ export default function RouteRecommendationPage({ navigation }: Props) {
       <FlatList
         data={routes}
         keyExtractor={(item) => item.id}
-        renderItem={renderRoute}
+        renderItem={({ item }) => (
+          <View testID={`route-list-item-${item.id}`}>
+            {renderRoute({ item })}
+          </View>
+        )}
         ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         showsVerticalScrollIndicator={false}
         scrollEnabled={false}
@@ -275,4 +281,3 @@ export default function RouteRecommendationPage({ navigation }: Props) {
     </ScrollView>
   );
 }
-

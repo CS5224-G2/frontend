@@ -181,10 +181,11 @@ describe('RouteConfigPage', () => {
       checkpoints: [],
       preferences: {
         cyclistType: 'commuter',
-        preferredShade: 60,
-        elevation: 40,
-        distance: 15,
-        airQuality: 70,
+        shadePreference: 'reduce-shade',
+        elevationPreference: 'dont-care',
+        maxDistanceKm: 15,
+        airQualityPreference: 'care',
+        pointsOfInterest: { hawkerCenter: false, historicSite: false, park: false, touristAttraction: false },
       },
     };
     AsyncStorage.getItem.mockImplementation((key: string) => {
@@ -200,6 +201,44 @@ describe('RouteConfigPage', () => {
     });
   });
 
+  it('shows an alert when start and end coordinates are identical', async () => {
+    const AsyncStorage = require('@react-native-async-storage/async-storage');
+    const { Alert } = require('react-native');
+    const alertSpy = jest.spyOn(Alert, 'alert');
+    const savedRequest = {
+      startPoint: { name: 'Marina Bay Sands', lat: 1.2834, lng: 103.8607, source: 'search' },
+      endPoint: { name: 'Marina Bay duplicate', lat: 1.2834, lng: 103.8607, source: 'map' },
+      checkpoints: [],
+      preferences: {
+        cyclistType: 'general',
+        shadePreference: 'dont-care',
+        elevationPreference: 'dont-care',
+        maxDistanceKm: 10,
+        airQualityPreference: 'care',
+        pointsOfInterest: { hawkerCenter: false, historicSite: false, park: false, touristAttraction: false },
+      },
+    };
+    AsyncStorage.getItem.mockImplementation((key: string) => {
+      if (key === 'routeRecommendationRequest') return Promise.resolve(JSON.stringify(savedRequest));
+      return Promise.resolve(null);
+    });
+
+    renderPage();
+
+    await waitFor(() => screen.getByText('Marina Bay Sands'));
+    fireEvent.press(screen.getByText('Find Routes'));
+
+    await waitFor(() => {
+      expect(alertSpy).toHaveBeenCalledWith(
+        'Invalid route points',
+        'Choose different locations for the start point and end point before continuing.',
+      );
+    });
+
+    expect(mockNavigate).not.toHaveBeenCalled();
+    alertSpy.mockRestore();
+  });
+
   it('navigates to Recommendation after saving a valid route config', async () => {
     const AsyncStorage = require('@react-native-async-storage/async-storage');
     const savedRequest = {
@@ -210,10 +249,11 @@ describe('RouteConfigPage', () => {
       ],
       preferences: {
         cyclistType: 'general',
-        preferredShade: 50,
-        elevation: 50,
-        distance: 10,
-        airQuality: 50,
+        shadePreference: 'dont-care',
+        elevationPreference: 'dont-care',
+        maxDistanceKm: 10,
+        airQualityPreference: 'care',
+        pointsOfInterest: { hawkerCenter: false, historicSite: false, park: false, touristAttraction: false },
       },
     };
     AsyncStorage.getItem.mockImplementation((key: string) => {
@@ -243,6 +283,14 @@ describe('RouteConfigPage', () => {
       elevationPreference: 'dont-care',
       airQualityPreference: 'care',
     });
-    expect(persistedRouteRequest.checkpoints[0].description).toContain('Pinned on map at');
+    expect(persistedRouteRequest.limit).toBe(3);
+    expect(persistedRouteRequest.checkpoints[0]).toMatchObject({
+      id: 'checkpoint-1',
+      name: 'Marina Barrage',
+      lat: 1.2808,
+      lng: 103.8707,
+      source: 'map',
+    });
+    expect(persistedRouteRequest.checkpoints[0]).not.toHaveProperty('description');
   });
 });
