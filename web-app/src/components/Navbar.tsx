@@ -1,10 +1,11 @@
 import { Link } from 'react-router-dom'
+import logo from '../assets/icon.png'
 
 export default function Navbar() {
   return (
     <nav className="bg-primary-600 px-6 py-3 flex items-center justify-between">
       <Link to="/" className="flex items-center gap-2 text-white font-extrabold text-lg">
-        <span aria-hidden="true">🚲</span> CycleLink
+        <img src={logo} alt="CycleLink" className="h-7 w-auto" /> CycleLink
       </Link>
       <div className="flex items-center gap-4">
         <Link to="/business" className="text-primary-100 hover:text-white text-sm transition-colors">
