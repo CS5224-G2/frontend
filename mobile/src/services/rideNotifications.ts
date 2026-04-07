@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { STORAGE_KEYS } from '../constants/routeStorage';
+import { loadActiveRideSession } from './activeRideSession';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -29,6 +30,11 @@ async function ensureRideNotificationPermission(): Promise<boolean> {
 async function sendRideNotification(title: string, body: string): Promise<void> {
   const granted = await ensureRideNotificationPermission();
   if (!granted) {
+    return;
+  }
+
+  const activeSession = await loadActiveRideSession();
+  if (!activeSession) {
     return;
   }
 

@@ -110,6 +110,7 @@ export default function LiveMapMapboxScreen() {
     rideSummary,
     pauseRide,
     resumeRide,
+    finishCompletedRide,
     goFeedback,
     stopCycling,
     confirmEndRide,
@@ -235,7 +236,7 @@ export default function LiveMapMapboxScreen() {
             <View style={styles.modalActions}>
               <Pressable
                 style={styles.secondaryBtn}
-                onPress={() => setShowCompletionModal(false)}
+                onPress={finishCompletedRide}
                 testID="live-map-complete-dismiss"
               >
                 <Text style={styles.secondaryBtnText}>Close</Text>

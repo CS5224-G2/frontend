@@ -31,6 +31,10 @@ jest.mock('../../services/rideService', () => ({
   saveRide: jest.fn(async () => undefined),
 }));
 
+const { saveRide } = jest.requireMock('../../services/rideService') as {
+  saveRide: jest.Mock;
+};
+
 describe('useLiveMapRideState', () => {
   const originalEnv = process.env;
   const route = mockRoutes[1];
@@ -304,13 +308,40 @@ describe('useLiveMapRideState', () => {
     expect(result.current.showCompletionModal).toBe(true);
 
     act(() => {
-      result.current.setShowCompletionModal(false);
+      result.current.finishCompletedRide();
     });
 
-    expect(result.current.showCompletionModal).toBe(false);
+    await waitFor(() => {
+      expect(mockReset).toHaveBeenCalledWith({
+        index: 0,
+        routes: [{ name: 'HomePage' }],
+      });
+    });
+
+    expect(saveRide).toHaveBeenCalled();
+  });
+
+  it('still allows completed rides to continue to feedback', async () => {
+    mockLiveMapProgressSimulationEnabled = true;
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-04-08T00:00:00.000Z'));
+
+    const { result } = renderHook(() => useLiveMapRideState(route.id, route));
+
+    await waitFor(() => {
+      expect(result.current.routeLoading).toBe(false);
+    });
 
     await act(async () => {
-      result.current.confirmEndRide();
+      jest.advanceTimersByTime(50000);
+    });
+
+    await waitFor(() => {
+      expect(result.current.routeCompleted).toBe(true);
+    });
+
+    await act(async () => {
+      result.current.goFeedback();
     });
 
     expect(mockNavigate).toHaveBeenCalledWith(

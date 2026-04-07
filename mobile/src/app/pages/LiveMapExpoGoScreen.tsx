@@ -35,6 +35,7 @@ export default function LiveMapExpoGoScreen() {
     rideSummary,
     pauseRide,
     resumeRide,
+    finishCompletedRide,
     goFeedback,
     stopCycling,
     confirmEndRide,
@@ -144,7 +145,7 @@ export default function LiveMapExpoGoScreen() {
             <View style={styles.modalActions}>
               <Pressable
                 style={styles.secondaryBtn}
-                onPress={() => setShowCompletionModal(false)}
+                onPress={finishCompletedRide}
                 testID="live-map-complete-dismiss"
               >
                 <Text style={styles.secondaryBtnText}>Close</Text>

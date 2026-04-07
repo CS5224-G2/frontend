@@ -454,9 +454,8 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
     setSessionPausedAt(null);
     setShowCompletionModal(true);
 
-    void clearRideNotifications()
-      .catch(() => {})
-      .then(() => clearRideSessionAndStopTracking())
+    void clearRideSessionAndStopTracking()
+      .then(() => clearRideNotifications())
       .catch((error) => {
         console.warn('[LiveMap] Failed to finalize completed ride session', error);
       });
@@ -593,29 +592,49 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
     void run();
   }, [buildSession, isRideFinished, route]);
 
-  const goFeedback = useCallback(() => {
-    const navigate = async () => {
-      setShowExitModal(false);
-      setShowCompletionModal(false);
-      await persistRideCompletion();
-      await clearRideNotifications().catch(() => {});
-      await clearRideSessionAndStopTracking();
-      if (routeId) {
-        navigation.navigate('RouteFeedback', { routeId, route, rideSummary });
-      } else {
-        navigation.navigate('RouteFeedback', route ? { route, rideSummary } : undefined);
-      }
-    };
+  const finalizeCompletedRide = useCallback(
+    (destination: 'feedback' | 'home') => {
+      const navigate = async () => {
+        setShowExitModal(false);
+        setShowCompletionModal(false);
+        await persistRideCompletion();
+        await clearRideSessionAndStopTracking();
+        await clearRideNotifications().catch(() => {});
 
-    void navigate();
-  }, [navigation, persistRideCompletion, rideSummary, route, routeId]);
+        if (destination === 'feedback') {
+          if (routeId) {
+            navigation.navigate('RouteFeedback', { routeId, route, rideSummary });
+          } else {
+            navigation.navigate('RouteFeedback', route ? { route, rideSummary } : undefined);
+          }
+          return;
+        }
+
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'HomePage' }],
+        });
+      };
+
+      void navigate();
+    },
+    [navigation, persistRideCompletion, rideSummary, route, routeId],
+  );
+
+  const goFeedback = useCallback(() => {
+    finalizeCompletedRide('feedback');
+  }, [finalizeCompletedRide]);
+
+  const finishCompletedRide = useCallback(() => {
+    finalizeCompletedRide('home');
+  }, [finalizeCompletedRide]);
 
   const abandonIncompleteRide = useCallback(() => {
     const navigate = async () => {
       setShowExitModal(false);
       setShowCompletionModal(false);
-      await clearRideNotifications().catch(() => {});
       await clearRideSessionAndStopTracking();
+      await clearRideNotifications().catch(() => {});
       navigation.reset({
         index: 0,
         routes: [{ name: 'HomePage' }],
@@ -666,6 +685,7 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
     pauseRide,
     resumeRide,
     goFeedback,
+    finishCompletedRide,
     stopCycling,
     confirmEndRide,
   };
