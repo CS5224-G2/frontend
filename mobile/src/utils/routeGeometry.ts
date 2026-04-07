@@ -76,13 +76,17 @@ export function haversineDistanceKm(a: LngLat, b: LngLat): number {
 export function projectPointOntoRoute(
   coordinates: LngLat[],
   point: LngLat,
-): { snappedPoint: LngLat; progress: number } {
+): { snappedPoint: LngLat; progress: number; distanceKmFromRoute: number } {
   if (coordinates.length === 0) {
-    return { snappedPoint: [0, 0], progress: 0 };
+    return { snappedPoint: [0, 0], progress: 0, distanceKmFromRoute: 0 };
   }
 
   if (coordinates.length === 1) {
-    return { snappedPoint: coordinates[0], progress: 0 };
+    return {
+      snappedPoint: coordinates[0],
+      progress: 0,
+      distanceKmFromRoute: haversineDistanceKm(point, coordinates[0]),
+    };
   }
 
   const segmentLengths: number[] = [];
@@ -94,7 +98,11 @@ export function projectPointOntoRoute(
   }
 
   if (totalLength === 0) {
-    return { snappedPoint: coordinates[0], progress: 0 };
+    return {
+      snappedPoint: coordinates[0],
+      progress: 0,
+      distanceKmFromRoute: haversineDistanceKm(point, coordinates[0]),
+    };
   }
 
   let bestDistanceSq = Number.POSITIVE_INFINITY;
@@ -134,6 +142,7 @@ export function projectPointOntoRoute(
   return {
     snappedPoint: bestPoint,
     progress: Math.max(0, Math.min(1, bestLengthAlong / totalLength)),
+    distanceKmFromRoute: haversineDistanceKm(point, bestPoint),
   };
 }
 

@@ -9,6 +9,8 @@ import {
   type LngLat,
 } from '@/utils/routeGeometry';
 
+const ROUTE_MATCH_THRESHOLD_METERS = 40;
+
 export type ActiveRideSession = {
   version: 1;
   routeId: string;
@@ -88,24 +90,32 @@ export function advanceActiveRideSession(
 
   const routeCoords = routeToLineCoordinates(session.route);
   const nextLngLat: LngLat = [nextPosition.lng, nextPosition.lat];
+  const projected = routeCoords.length
+    ? projectPointOntoRoute(routeCoords, nextLngLat)
+    : { snappedPoint: nextLngLat, progress: 0, distanceKmFromRoute: 0 };
+
+  if (
+    routeCoords.length >= 2 &&
+    projected.distanceKmFromRoute * 1000 > ROUTE_MATCH_THRESHOLD_METERS
+  ) {
+    return normalizeActiveRideSession(session);
+  }
+
+  const acceptedPoint = projected.snappedPoint;
   const previousLngLat: LngLat | null = session.lastKnownPosition
     ? [session.lastKnownPosition.lng, session.lastKnownPosition.lat]
     : null;
 
   const incrementKm =
-    previousLngLat === null ? 0 : haversineDistanceKm(previousLngLat, nextLngLat);
+    previousLngLat === null ? 0 : haversineDistanceKm(previousLngLat, acceptedPoint);
   const acceptedIncrementKm =
     incrementKm >= 0.003 && incrementKm <= 0.5 ? incrementKm : 0;
-
-  const projected = routeCoords.length
-    ? projectPointOntoRoute(routeCoords, nextLngLat)
-    : { snappedPoint: nextLngLat, progress: 0 };
 
   return {
     ...normalizeActiveRideSession(session),
     lastKnownPosition: {
-      lat: nextPosition.lat,
-      lng: nextPosition.lng,
+      lat: acceptedPoint[1],
+      lng: acceptedPoint[0],
     },
     distanceKm: Number(((session.distanceKm ?? 0) + acceptedIncrementKm).toFixed(3)),
     progressPct: Math.max(session.progressPct ?? 0, projected.progress * 100),

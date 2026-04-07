@@ -56,4 +56,32 @@ describe('advanceActiveRideSession', () => {
       }),
     );
   });
+
+  it('does not advance distance or progress when the rider is far off-route', () => {
+    const session: ActiveRideSession = {
+      version: 1,
+      routeId: route.id,
+      route,
+      startedAt: '2026-04-08T00:00:00.000Z',
+      distanceKm: 0.5,
+      progressPct: 12,
+      lastKnownPosition: {
+        lat: route.startPoint.lat,
+        lng: route.startPoint.lng,
+      },
+    };
+
+    const next = advanceActiveRideSession(session, {
+      lat: route.startPoint.lat + 0.0015,
+      lng: route.startPoint.lng + 0.0015,
+    });
+
+    expect(next).toEqual(
+      expect.objectContaining({
+        ...session,
+        status: 'active',
+        totalPausedMs: 0,
+      }),
+    );
+  });
 });

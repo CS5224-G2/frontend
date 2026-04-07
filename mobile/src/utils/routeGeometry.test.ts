@@ -71,6 +71,7 @@ describe('routeGeometry', () => {
     expect(projected.progress).toBeGreaterThan(0);
     expect(projected.progress).toBeLessThan(1);
     expect(projected.snappedPoint[0]).toBeCloseTo(103.7705, 4);
+    expect(projected.distanceKmFromRoute).toBeGreaterThan(0);
   });
 
   it('computes haversine distance in kilometers', () => {
