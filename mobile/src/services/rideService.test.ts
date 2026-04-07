@@ -1,12 +1,29 @@
-jest.mock('./httpClient', () => ({
-  httpClient: { get: jest.fn(), post: jest.fn() },
+jest.mock('./httpClient', () => {
+  class ApiError extends Error {
+    readonly status: number;
+    constructor(status: number, message: string) {
+      super(message);
+      this.name = 'ApiError';
+      this.status = status;
+    }
+  }
+  return {
+    ApiError,
+    httpClient: { get: jest.fn(), post: jest.fn() },
+  };
+});
+
+jest.mock('./localDb', () => ({
+  saveRideFeedbackLocal: jest.fn().mockResolvedValue(undefined),
 }));
 
-import { httpClient } from './httpClient';
+import { httpClient, ApiError } from './httpClient';
+import { saveRideFeedbackLocal } from './localDb';
 import { getRideHistory, getRideById, getDistanceStats, submitRideFeedback, saveRide } from './rideService';
 
 const mockGet = httpClient.get as jest.Mock;
 const mockPost = httpClient.post as jest.Mock;
+const mockSaveLocal = saveRideFeedbackLocal as jest.MockedFunction<typeof saveRideFeedbackLocal>;
 
 const backendRide = {
   ride_id: 'r1',
@@ -81,6 +98,17 @@ describe('submitRideFeedback()', () => {
       { route_id: 'rt1', rating: 5, review_text: 'Amazing!' },
       undefined,
     );
+    expect(mockSaveLocal).not.toHaveBeenCalled();
+  });
+
+  it('persists locally when API returns 404 (unknown route or missing endpoint)', async () => {
+    mockPost.mockRejectedValueOnce(new ApiError(404, '{"detail":"Not Found"}'));
+    await submitRideFeedback({ routeId: 'api-unknown-id', rating: 4, review: 'Nice' });
+    expect(mockSaveLocal).toHaveBeenCalledWith({
+      routeId: 'api-unknown-id',
+      rating: 4,
+      reviewText: 'Nice',
+    });
   });
 });
 

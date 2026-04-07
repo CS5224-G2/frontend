@@ -6,10 +6,13 @@
     "build": "expo build:web",
     "dev": "expo start",
     "start": "expo start",
+    "start:lan": "expo start --lan",
+    "start:tunnel": "expo start --tunnel",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "test": "jest --watchman=false"
+    "test": "jest --watchman=false",
+    "test:ci": "jest --watchman=false --ci --no-watch"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
@@ -17,6 +20,7 @@
     "@react-navigation/bottom-tabs": "^7.4.0",
     "@react-navigation/native": "^7.1.8",
     "@react-navigation/native-stack": "^7.3.16",
+    "@rnmapbox/maps": "^10.3.0",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
     "expo": "^54.0.33",
@@ -51,7 +55,7 @@
     "react-native-screens": "~4.16.0",
     "react-native-svg": "15.12.1",
     "react-native-web": "^0.21.0",
-    "react-native-worklets": "^0.5.1"
+    "react-native-worklets": "0.5.1"
   },
   "devDependencies": {
     "@babel/core": "^7.25.0",
@@ -69,12 +73,16 @@
   },
   "jest": {
     "preset": "jest-expo",
+    "setupFilesAfterEnv": [
+      "<rootDir>/jest.setup.js"
+    ],
     "testPathIgnorePatterns": [
       "/node_modules/",
       "/dist/"
     ],
     "moduleNameMapper": {
       "^@/(.*)$": "<rootDir>/src/$1",
+      "^@rnmapbox/maps$": "<rootDir>/__mocks__/rnmapbox-maps.js",
       "\\.css$": "<rootDir>/__mocks__/fileMock.js"
     },
     "transformIgnorePatterns": [
@@ -83,6 +91,7 @@
   },
   "overrides": {
     "tar": ">=6.2.2",
-    "@xmldom/xmldom": ">=0.8.0"
+    "@xmldom/xmldom": "0.8.12",
+    "@tootallnate/once": ">=3.0.1"
   }
 }

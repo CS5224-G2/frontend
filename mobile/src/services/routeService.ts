@@ -29,6 +29,8 @@ type BackendCheckpoint = {
   description: string;
 };
 
+type BackendLatLng = { lat?: number; lng?: number; latitude?: number; longitude?: number };
+
 type BackendRoute = {
   route_id: string;
   route_name?: string;
@@ -42,9 +44,10 @@ type BackendRoute = {
   estimated_time?: number;
   rating: number;
   review_count: number;
-  start_point: { lat: number; lng: number; name: string };
-  end_point: { lat: number; lng: number; name: string };
-  checkpoints: BackendCheckpoint[];
+  start_point?: { lat?: number; lng?: number; name?: string };
+  end_point?: { lat?: number; lng?: number; name?: string };
+  checkpoints?: BackendCheckpoint[];
+  route_path?: BackendLatLng[];
   cyclist_type: 'recreational' | 'commuter' | 'fitness' | 'general';
   shade_pct?: number;
   shade?: number | 'reduce-shade' | 'dont-care';
@@ -105,38 +108,118 @@ type BackendRecommendationRoute = {
   points_of_interest_visited?: Array<{ name: string }>;
   points_of_interest?: Array<{ name: string } | string>;
   visited_points_of_interest?: Array<{ name: string }>;
-  start_point?: { lat: number; lng: number; name: string };
-  end_point?: { lat: number; lng: number; name: string };
+  start_point?: { lat?: number; lng?: number; name?: string };
+  end_point?: { lat?: number; lng?: number; name?: string };
   checkpoints?: BackendCheckpoint[];
+  route_path?: BackendLatLng[];
 };
 
 // ---------------------------------------------------------------------------
 // Mapper
 // ---------------------------------------------------------------------------
 
-const toFrontendRoute = (r: BackendRoute): Route => ({
-  id: r.route_id,
-  name: r.name ?? r.route_name ?? 'Unnamed route',
-  description: r.description,
-  distance: r.distance ?? r.distance_km ?? 0,
-  elevation: r.elevation ?? r.elevation_m ?? 'dont-care',
-  estimatedTime: r.estimated_time ?? r.estimated_time_min ?? 0,
-  rating: r.rating,
-  reviewCount: r.review_count,
-  startPoint: r.start_point,
-  endPoint: r.end_point,
-  checkpoints: r.checkpoints.map((cp) => ({
+function parseBackendRoutePath(raw: BackendLatLng[] | undefined): Route['routePath'] {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined;
+  const out: Array<{ lat: number; lng: number }> = [];
+  for (const p of raw) {
+    if (!p || typeof p !== 'object') continue;
+    const lat = p.lat ?? p.latitude;
+    const lng = p.lng ?? p.longitude;
+    if (typeof lat === 'number' && typeof lng === 'number' && Number.isFinite(lat) && Number.isFinite(lng)) {
+      out.push({ lat, lng });
+    }
+  }
+  if (out.length >= 2) return out;
+  return undefined;
+}
+
+function mapBackendCheckpoints(checkpoints: BackendCheckpoint[] | undefined): Route['checkpoints'] {
+  return (checkpoints ?? []).map((cp) => ({
     id: cp.checkpoint_id,
-    name: cp.checkpoint_name,
+    name: cp.checkpoint_name?.trim() ? cp.checkpoint_name : 'Checkpoint',
     lat: cp.lat ?? cp.latitude ?? 0,
     lng: cp.lng ?? cp.longitude ?? 0,
-    description: cp.description,
-  })),
-  cyclistType: r.cyclist_type,
-  shade: r.shade ?? r.shade_pct ?? 'dont-care',
-  airQuality: r.air_quality ?? r.air_quality_index ?? 'dont-care',
-  pointsOfInterestVisited: r.points_of_interest_visited,
-});
+    description: cp.description ?? '',
+  }));
+}
+
+/** Fill missing start/end coordinates and labels from route_path or checkpoints (API list/detail gaps). */
+export function finalizeRouteEndpoints(route: Route): Route {
+  const path = route.routePath ?? [];
+  const cps = route.checkpoints;
+
+  const improve = (point: Route['startPoint'], role: 'start' | 'end'): Route['startPoint'] => {
+    let { lat, lng, name } = point;
+    const label = role === 'start' ? 'Start' : 'End';
+
+    if (lat === 0 && lng === 0) {
+      if (path.length >= 2) {
+        const node = role === 'start' ? path[0] : path[path.length - 1];
+        lat = node.lat;
+        lng = node.lng;
+      } else if (cps.length > 0) {
+        const node = role === 'start' ? cps[0] : cps[cps.length - 1];
+        lat = node.lat;
+        lng = node.lng;
+      }
+    }
+
+    const trimmed = name?.trim() ?? '';
+    const placeholderName =
+      !trimmed || trimmed === 'Unknown start' || trimmed === 'Unknown end';
+
+    let nextName = trimmed;
+    if (lat !== 0 || lng !== 0) {
+      if (placeholderName) {
+        nextName = `${lat.toFixed(4)}°, ${lng.toFixed(4)}°`;
+      }
+    } else if (placeholderName || !nextName) {
+      nextName = label;
+    }
+
+    return { lat, lng, name: nextName };
+  };
+
+  return {
+    ...route,
+    startPoint: improve(route.startPoint, 'start'),
+    endPoint: improve(route.endPoint, 'end'),
+  };
+}
+
+const toFrontendRoute = (r: BackendRoute): Route => {
+  const checkpoints = mapBackendCheckpoints(r.checkpoints);
+  const routePath = parseBackendRoutePath(r.route_path);
+
+  const base: Route = {
+    id: r.route_id,
+    name: r.name ?? r.route_name ?? 'Unnamed route',
+    description: r.description,
+    distance: r.distance ?? r.distance_km ?? 0,
+    elevation: r.elevation ?? r.elevation_m ?? 'dont-care',
+    estimatedTime: r.estimated_time ?? r.estimated_time_min ?? 0,
+    rating: r.rating,
+    reviewCount: r.review_count,
+    startPoint: {
+      lat: r.start_point?.lat ?? 0,
+      lng: r.start_point?.lng ?? 0,
+      name: r.start_point?.name?.trim() ?? '',
+    },
+    endPoint: {
+      lat: r.end_point?.lat ?? 0,
+      lng: r.end_point?.lng ?? 0,
+      name: r.end_point?.name?.trim() ?? '',
+    },
+    checkpoints,
+    routePath,
+    cyclistType: r.cyclist_type,
+    shade: r.shade ?? r.shade_pct ?? 'dont-care',
+    airQuality: r.air_quality ?? r.air_quality_index ?? 'dont-care',
+    pointsOfInterestVisited: r.points_of_interest_visited,
+  };
+
+  return finalizeRouteEndpoints(base);
+};
 
 function mapLocationSourceForBackend(source: RouteRequestLocation['source']): BackendRequestLocationSource {
   return source;
@@ -249,7 +332,29 @@ function toFrontendRecommendedRoute(
   // Handle reviewCount from either 'review_count' or 'star' field
   const reviewCount = route.review_count ?? route.star ?? 0;
 
-  return {
+  const checkpoints =
+    route.checkpoints?.map((cp) => ({
+      id: cp.checkpoint_id,
+      name: cp.checkpoint_name?.trim() ? cp.checkpoint_name : 'Checkpoint',
+      lat: cp.lat ?? cp.latitude ?? 0,
+      lng: cp.lng ?? cp.longitude ?? 0,
+      description: cp.description ?? '',
+    })) ??
+    routeRequest?.checkpoints.map((checkpoint) => ({
+      id: checkpoint.id,
+      name: checkpoint.name,
+      lat: checkpoint.lat,
+      lng: checkpoint.lng,
+      description: 'User selected checkpoint',
+    })) ??
+    [];
+
+  const routePath = parseBackendRoutePath(route.route_path);
+
+  const startFromReq = routeRequest?.startPoint;
+  const endFromReq = routeRequest?.endPoint;
+
+  const base: Route = {
     id: route.route_id,
     name: route.name,
     description: route.description,
@@ -258,41 +363,25 @@ function toFrontendRecommendedRoute(
     estimatedTime: route.estimated_time,
     rating: route.rating,
     reviewCount,
-    startPoint:
-      route.start_point ??
-      routeRequest?.startPoint ?? {
-        lat: 0,
-        lng: 0,
-        name: 'Unknown start',
-      },
-    endPoint:
-      route.end_point ??
-      routeRequest?.endPoint ?? {
-        lat: 0,
-        lng: 0,
-        name: 'Unknown end',
-      },
-    checkpoints:
-      route.checkpoints?.map((cp) => ({
-        id: cp.checkpoint_id,
-        name: cp.checkpoint_name,
-        lat: cp.lat ?? cp.latitude ?? 0,
-        lng: cp.lng ?? cp.longitude ?? 0,
-        description: cp.description,
-      })) ??
-      routeRequest?.checkpoints.map((checkpoint) => ({
-        id: checkpoint.id,
-        name: checkpoint.name,
-        lat: checkpoint.lat,
-        lng: checkpoint.lng,
-        description: 'User selected checkpoint',
-      })) ??
-      [],
+    startPoint: {
+      lat: route.start_point?.lat ?? startFromReq?.lat ?? 0,
+      lng: route.start_point?.lng ?? startFromReq?.lng ?? 0,
+      name: route.start_point?.name?.trim() || startFromReq?.name?.trim() || '',
+    },
+    endPoint: {
+      lat: route.end_point?.lat ?? endFromReq?.lat ?? 0,
+      lng: route.end_point?.lng ?? endFromReq?.lng ?? 0,
+      name: route.end_point?.name?.trim() || endFromReq?.name?.trim() || '',
+    },
+    checkpoints,
+    routePath,
     cyclistType: route.cyclist_type,
     shade: normalizeShade(route.shade),
     airQuality: normalizeAirQuality(route.air_quality),
     pointsOfInterestVisited,
   };
+
+  return finalizeRouteEndpoints(base);
 }
 
 type RecommendationInput = UserPreferences | RouteRecommendationRequest;

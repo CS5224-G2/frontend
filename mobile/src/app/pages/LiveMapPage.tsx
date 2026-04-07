@@ -1,37 +1,22 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { Platform } from 'react-native';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 
-type Props = NativeStackScreenProps<any, any>;
+import LiveMapExpoGoScreen from './LiveMapExpoGoScreen';
 
-export default function Screen({ navigation }: Props) {
-  return (
-    <ScrollView style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.title}>Live Map</Text>
-        <Text style={styles.subtitle}>Page content</Text>
-      </View>
-    </ScrollView>
-  );
+/**
+ * Expo Go does not include @rnmapbox/maps native binaries. Do not `import` the Mapbox screen
+ * at module scope — only `require` it when running in a dev/standalone build with native Mapbox.
+ *
+ * Uses `require()` (not `import()`) so Jest and Metro behave consistently.
+ */
+const mapboxNativeUnavailable =
+  Constants.executionEnvironment === ExecutionEnvironment.StoreClient || Platform.OS === 'web';
+
+export default function LiveMapScreen() {
+  if (mapboxNativeUnavailable) {
+    return <LiveMapExpoGoScreen />;
+  }
+
+  const LiveMapMapboxScreen = require('./LiveMapMapbox').default;
+  return <LiveMapMapboxScreen />;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-  },
-  content: {
-    padding: 16,
-    paddingTop: 40,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1e293b',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#64748b',
-    marginTop: 8,
-  },
-});

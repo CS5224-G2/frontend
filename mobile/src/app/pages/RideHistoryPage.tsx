@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   View,
@@ -10,9 +10,11 @@ import {
   ActivityIndicator,
   LayoutAnimation,
   Platform,
+  RefreshControl,
   StyleSheet,
   UIManager,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -28,6 +30,9 @@ import { getRideHistory, getDistanceStats } from '../../services/rideService';
 
 type Props = NativeStackScreenProps<any, 'RideHistory'>;
 type DistanceStatsByPeriod = Record<GraphPeriod, GraphDataPoint[]>;
+
+/** Skip rAF / Animated drivers in Jest — they schedule updates outside React's act(). */
+const isTestEnv = process.env.NODE_ENV === 'test';
 
 const emptyDistanceStats: DistanceStatsByPeriod = {
   week: [],
@@ -55,6 +60,12 @@ function AnimatedMetricValue({
   const previousValue = useRef(value);
 
   useEffect(() => {
+    if (isTestEnv) {
+      setDisplayValue(value);
+      previousValue.current = value;
+      return;
+    }
+
     let frame = 0;
     let startTime = 0;
     const from = previousValue.current;
@@ -129,6 +140,10 @@ function GraphBar({
   const barProgress = useRef(new Animated.Value(ratio)).current;
 
   useEffect(() => {
+    if (isTestEnv) {
+      barProgress.setValue(ratio);
+      return;
+    }
     Animated.timing(barProgress, {
       toValue: ratio,
       duration: 360,
@@ -167,42 +182,59 @@ export default function RideHistoryPage({ navigation }: Props) {
   const [rideHistory, setRideHistory] = useState<RideHistory[]>([]);
   const [distanceStats, setDistanceStats] = useState<DistanceStatsByPeriod>(emptyDistanceStats);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [periodToggleWidth, setPeriodToggleWidth] = useState(0);
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
   const periodIndicator = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const isFabric = Boolean((global as any).nativeFabricUIManager);
+    const isFabric = Boolean((globalThis as any).nativeFabricUIManager);
     if (Platform.OS === 'android' && !isFabric && UIManager.setLayoutAnimationEnabledExperimental) {
       UIManager.setLayoutAnimationEnabledExperimental(true);
     }
   }, []);
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setIsLoading(true);
-        const [history, weeklyStats, monthlyStats, saved] = await Promise.all([
-          getRideHistory(),
-          getDistanceStats('week'),
-          getDistanceStats('month'),
-          AsyncStorage.getItem('favoriteRoutes'),
-        ]);
-        setRideHistory(history);
-        setDistanceStats({
-          week: weeklyStats,
-          month: monthlyStats,
-        });
-        if (saved) setFavorites(JSON.parse(saved));
-      } catch (error) {
-        console.warn('Error loading ride data', error);
-      } finally {
+  const loadData = useCallback(async (mode: 'initial' | 'refresh' = 'initial') => {
+    if (mode === 'refresh') {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
+
+    try {
+      const [history, weeklyStats, monthlyStats, saved] = await Promise.all([
+        getRideHistory(),
+        getDistanceStats('week'),
+        getDistanceStats('month'),
+        AsyncStorage.getItem('favoriteRoutes'),
+      ]);
+      setRideHistory(history);
+      setDistanceStats({
+        week: weeklyStats,
+        month: monthlyStats,
+      });
+      setFavorites(saved ? JSON.parse(saved) : []);
+    } catch (error) {
+      console.warn('Error loading ride data', error);
+    } finally {
+      if (mode === 'refresh') {
+        setIsRefreshing(false);
+      } else {
         setIsLoading(false);
       }
-    };
-    loadData();
+    }
   }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData('refresh');
+    }, [loadData])
+  );
 
   const graphData = distanceStats[period];
   const graphRows = useMemo(
@@ -246,6 +278,10 @@ export default function RideHistoryPage({ navigation }: Props) {
   const periodIndicatorWidth = periodToggleWidth > 0 ? (periodToggleWidth - 10) / 2 : 0;
 
   useEffect(() => {
+    if (isTestEnv) {
+      periodIndicator.setValue(period === 'week' ? 0 : 1);
+      return;
+    }
     Animated.spring(periodIndicator, {
       toValue: period === 'week' ? 0 : 1,
       damping: 18,
@@ -347,6 +383,7 @@ export default function RideHistoryPage({ navigation }: Props) {
       <ScrollView
         className="flex-1 bg-slate-50 dark:bg-black"
         contentContainerStyle={{ padding: 16, paddingBottom: 36 }}
+        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={() => loadData('refresh')} />}
       >
         <View className="flex-1 justify-center items-start bg-slate-50 dark:bg-black">
           <Text className="text-[28px] font-bold text-[#1e293b] dark:text-slate-100 text-left">
@@ -360,7 +397,11 @@ export default function RideHistoryPage({ navigation }: Props) {
     );
   } else {
     return (
-      <ScrollView className="flex-1 bg-slate-50 dark:bg-black" contentContainerStyle={{ padding: 16, paddingBottom: 36 }}>
+      <ScrollView
+        className="flex-1 bg-slate-50 dark:bg-black"
+        contentContainerStyle={{ padding: 16, paddingBottom: 36 }}
+        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={() => loadData('refresh')} />}
+      >
         <View className="mb-[12px]">
           <Text className="text-[28px] font-bold text-[#1e293b] dark:text-slate-100">Ride History</Text>
           <Text className="text-sm text-[#64748b] dark:text-slate-400 mt-1">Track progress & achievements</Text>

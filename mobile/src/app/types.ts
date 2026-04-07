@@ -233,3 +233,8 @@ export const mockRoutes: Route[] = [
     airQuality: 68
   }
 ];
+
+export function getRouteById(id: string | undefined): Route | undefined {
+  if (!id) return undefined;
+  return mockRoutes.find((r) => r.id === id);
+}

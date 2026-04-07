@@ -37,11 +37,12 @@ import LiveMapScreen from './pages/LiveMapPage';
 import OnboardingScreen from './pages/OnboardingPage';
 import UserJourneyScreen from './pages/UserJourneyPage';
 import ForgotPasswordScreen from './pages/ForgotPasswordPage';
+import { FLOATING_TAB_BAR_DOCK_HEIGHT } from './utils/floatingTabBarInset';
 
 const Stack = createNativeStackNavigator<any>();
 const Tab = createBottomTabNavigator<any>();
 const AuthStack = createNativeStackNavigator<any>();
-const TAB_BAR_DOCK_HEIGHT = 72;
+const TAB_BAR_DOCK_HEIGHT = FLOATING_TAB_BAR_DOCK_HEIGHT;
 
 const supportsNativeGlass =
   Platform.OS === 'ios' && isLiquidGlassAvailable() && isGlassEffectAPIAvailable();
@@ -238,6 +239,7 @@ function HomeNavigator() {
       <Stack.Screen name="Recommendation" component={RouteRecommendationScreen} options={{ title: 'Route Recommendation' }} />
       <Stack.Screen name="RouteDetails" component={RouteDetailsScreen} options={{ title: 'Route Details' }} />
       <Stack.Screen name="RouteConfirmed" component={RouteConfirmedScreen} options={{ title: 'Route Confirmed' }} />
+      <Stack.Screen name="LiveMap" component={LiveMapScreen} options={{ headerShown: false }} />
       <Stack.Screen name="RouteFeedback" component={RouteFeedbackScreen} options={{ title: 'Feedback' }} />
     </Stack.Navigator>
   );

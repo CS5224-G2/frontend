@@ -96,6 +96,10 @@ function createCheckpointId() {
   return `checkpoint-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 }
 
+function areLocationsIdentical(a: RouteRequestLocation, b: RouteRequestLocation) {
+  return a.lat === b.lat && a.lng === b.lng;
+}
+
 function buildCurrentLocationLabel(addresses: Location.LocationGeocodedAddress[]) {
   const firstAddress = addresses[0];
 
@@ -579,6 +583,14 @@ export default function RouteConfigPage({ navigation }: Props) {
   const handleConfirm = async () => {
     if (!startPoint || !endPoint) {
       Alert.alert('Missing route points', 'Select both a start point and an end point before continuing.');
+      return;
+    }
+
+    if (areLocationsIdentical(startPoint, endPoint)) {
+      Alert.alert(
+        'Invalid route points',
+        'Choose different locations for the start point and end point before continuing.',
+      );
       return;
     }
 
