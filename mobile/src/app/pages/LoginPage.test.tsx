@@ -34,12 +34,6 @@ jest.mock('../../services/authService', () => ({
   loginUser: jest.fn(),
 }));
 
-jest.mock('../../services/oauthService', () => ({
-  loginWithGoogle: jest.fn().mockResolvedValue(undefined),
-  loginWithApple: jest.fn().mockResolvedValue(undefined),
-  OAuthNotImplementedError: class OAuthNotImplementedError extends Error {},
-}));
-
 jest.mock('react-native-safe-area-context', () => {
   const { View } = require('react-native');
   return {

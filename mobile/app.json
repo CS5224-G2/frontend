@@ -43,10 +43,6 @@
       "expo-asset",
       "@rnmapbox/maps",
       "expo-secure-store",
-      [
-        "expo-apple-authentication"
-      ],
-      "expo-web-browser",
       "expo-sqlite"
     ],
     "extra": {
