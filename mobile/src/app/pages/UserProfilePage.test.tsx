@@ -1,9 +1,11 @@
 import React from 'react';
 import { Alert } from 'react-native';
 import { fireEvent, render, screen } from '@testing-library/react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import UserProfilePage from './UserProfilePage';
 import * as userService from '../../services/userService';
+import * as rideService from '../../services/rideService';
 
 const mockNavigate = jest.fn();
 
@@ -46,6 +48,10 @@ jest.mock('../../services/userService', () => ({
   serializeUserProfile: jest.fn(() => 'profile-param'),
 }));
 
+jest.mock('../../services/rideService', () => ({
+  getRideHistory: jest.fn(),
+}));
+
 describe('UserProfilePage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -67,6 +73,31 @@ describe('UserProfilePage', () => {
         favoriteTrails: 28,
       },
     });
+    (rideService.getRideHistory as jest.Mock).mockResolvedValue([
+      {
+        id: 'ride-1',
+        routeId: 'route-1',
+        routeName: 'Marina Loop',
+        completionDate: 'March 10, 2026',
+        completionTime: '8:00 AM',
+        totalTime: 42,
+        distance: 12.8,
+        avgSpeed: 18.3,
+        checkpoints: 4,
+      },
+      {
+        id: 'ride-2',
+        routeId: 'route-2',
+        routeName: 'Park Connector',
+        completionDate: 'March 12, 2026',
+        completionTime: '6:30 PM',
+        totalTime: 35,
+        distance: 7.5,
+        avgSpeed: 15.2,
+        checkpoints: 3,
+      },
+    ]);
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(['route-1', 'route-2']));
   });
 
   it('navigates to edit profile and does not show an upload action', async () => {
@@ -94,5 +125,13 @@ describe('UserProfilePage', () => {
         expect.objectContaining({ text: 'Sign out', style: 'destructive' }),
       ])
     );
+  });
+
+  it('shows ride and saved trail stats from live app data', async () => {
+    render(<UserProfilePage />);
+
+    expect(await screen.findByTestId('profile-stat-totalRides-value')).toHaveTextContent('2');
+    expect(screen.getByTestId('profile-stat-totalDistanceKm-value')).toHaveTextContent('20.3 km');
+    expect(screen.getByTestId('profile-stat-favoriteTrails-value')).toHaveTextContent('2');
   });
 });
