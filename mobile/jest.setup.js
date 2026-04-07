@@ -2,6 +2,32 @@
 delete global.MessageChannel;
 
 jest.mock('expo-location', () => ({
+  Accuracy: {
+    Balanced: 3,
+    BestForNavigation: 6,
+  },
+  requestForegroundPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'granted' })),
+  getCurrentPositionAsync: jest.fn(() =>
+    Promise.resolve({
+      coords: {
+        latitude: 1.3001,
+        longitude: 103.7701,
+        accuracy: 10,
+      },
+    })
+  ),
+  watchPositionAsync: jest.fn((_options, callback) => {
+    callback({
+      coords: {
+        latitude: 1.3001,
+        longitude: 103.7701,
+        accuracy: 10,
+      },
+    });
+    return Promise.resolve({
+      remove: jest.fn(),
+    });
+  }),
   reverseGeocodeAsync: jest.fn(() => Promise.resolve([])),
 }));
 

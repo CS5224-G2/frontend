@@ -1,6 +1,12 @@
 import type { Route } from '../../../shared/types/index';
 import { mockRoutes } from '../app/types';
-import { boundsFromCoordinates, interpolateAlongRoute, routeToLineCoordinates } from './routeGeometry';
+import {
+  boundsFromCoordinates,
+  haversineDistanceKm,
+  interpolateAlongRoute,
+  projectPointOntoRoute,
+  routeToLineCoordinates,
+} from './routeGeometry';
 
 describe('routeGeometry', () => {
   it('routeToLineCoordinates joins start, checkpoints, end', () => {
@@ -51,5 +57,26 @@ describe('routeGeometry', () => {
     expect(ne[1]).toBeGreaterThan(1);
     expect(sw[0]).toBeLessThan(0);
     expect(sw[1]).toBeLessThan(0);
+  });
+
+  it('projects a point onto the nearest segment of the route', () => {
+    const coords: [number, number][] = [
+      [103.77, 1.3],
+      [103.771, 1.3],
+      [103.772, 1.301],
+    ];
+
+    const projected = projectPointOntoRoute(coords, [103.7705, 1.3002]);
+
+    expect(projected.progress).toBeGreaterThan(0);
+    expect(projected.progress).toBeLessThan(1);
+    expect(projected.snappedPoint[0]).toBeCloseTo(103.7705, 4);
+  });
+
+  it('computes haversine distance in kilometers', () => {
+    const distanceKm = haversineDistanceKm([103.77, 1.3], [103.771, 1.3]);
+
+    expect(distanceKm).toBeGreaterThan(0.05);
+    expect(distanceKm).toBeLessThan(0.2);
   });
 });
