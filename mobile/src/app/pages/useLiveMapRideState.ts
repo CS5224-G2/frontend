@@ -154,7 +154,8 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
         (nextState === 'background' || nextState === 'inactive') &&
         route &&
         sessionReady &&
-        !sessionPausedAt
+        !sessionPausedAt &&
+        !sessionCompletedAt
       ) {
         void notifyRideTrackingInBackground(route.name).catch(() => {});
       }
@@ -165,7 +166,7 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
       clearInterval(id);
       sub?.remove?.();
     };
-  }, [hydrateTrackingFromSession, route, sessionPausedAt, sessionReady]);
+  }, [hydrateTrackingFromSession, route, sessionCompletedAt, sessionPausedAt, sessionReady]);
 
   useEffect(() => {
     let cancelled = false;

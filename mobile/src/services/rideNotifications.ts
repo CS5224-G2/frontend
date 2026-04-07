@@ -1,4 +1,7 @@
 import * as Notifications from 'expo-notifications';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import { STORAGE_KEYS } from '../constants/routeStorage';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -29,7 +32,7 @@ async function sendRideNotification(title: string, body: string): Promise<void> 
     return;
   }
 
-  await Notifications.scheduleNotificationAsync({
+  const id = await Notifications.scheduleNotificationAsync({
     content: {
       title,
       body,
@@ -37,6 +40,11 @@ async function sendRideNotification(title: string, body: string): Promise<void> 
     },
     trigger: null,
   });
+
+  const existingIds = await AsyncStorage.getItem(STORAGE_KEYS.rideNotificationIds);
+  const parsedIds = existingIds ? (JSON.parse(existingIds) as string[]) : [];
+  const nextIds = Array.from(new Set([...parsedIds, id]));
+  await AsyncStorage.setItem(STORAGE_KEYS.rideNotificationIds, JSON.stringify(nextIds));
 }
 
 export async function notifyRideTrackingInBackground(routeName: string): Promise<void> {
@@ -61,7 +69,19 @@ export async function notifyRideResumed(routeName: string): Promise<void> {
 }
 
 export async function clearRideNotifications(): Promise<void> {
-  await Notifications.dismissAllNotificationsAsync();
+  const existingIds = await AsyncStorage.getItem(STORAGE_KEYS.rideNotificationIds);
+  const parsedIds = existingIds ? (JSON.parse(existingIds) as string[]) : [];
+
+  await Promise.all(
+    parsedIds.flatMap((id) => [
+      Notifications.dismissNotificationAsync(id).catch(() => {}),
+      Notifications.cancelScheduledNotificationAsync(id).catch(() => {}),
+    ]),
+  );
+
+  await Notifications.dismissAllNotificationsAsync().catch(() => {});
+  await Notifications.cancelAllScheduledNotificationsAsync().catch(() => {});
+  await AsyncStorage.removeItem(STORAGE_KEYS.rideNotificationIds);
 }
 
 export { ensureRideNotificationPermission };

@@ -48,7 +48,10 @@ jest.mock('expo-notifications', () => ({
   getPermissionsAsync: jest.fn(() => Promise.resolve({ granted: true })),
   requestPermissionsAsync: jest.fn(() => Promise.resolve({ granted: true })),
   scheduleNotificationAsync: jest.fn(() => Promise.resolve('notification-id')),
+  dismissNotificationAsync: jest.fn(() => Promise.resolve()),
+  cancelScheduledNotificationAsync: jest.fn(() => Promise.resolve()),
   dismissAllNotificationsAsync: jest.fn(() => Promise.resolve()),
+  cancelAllScheduledNotificationsAsync: jest.fn(() => Promise.resolve()),
 }));
 
 const mockAsyncStorageStore = new Map();

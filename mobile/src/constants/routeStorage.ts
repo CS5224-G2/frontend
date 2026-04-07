@@ -4,4 +4,5 @@ export const STORAGE_KEYS = {
   routeStartPoint: 'routeStartPoint',
   routeEndPoint: 'routeEndPoint',
   activeRideSession: 'activeRideSession',
+  rideNotificationIds: 'rideNotificationIds',
 } as const;
