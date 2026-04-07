@@ -16,7 +16,6 @@ import { useColorScheme } from 'nativewind';
 import { AuthContext } from '../AuthContext';
 
 import { loginUser } from '../../services/authService';
-import { loginWithApple, loginWithGoogle, OAuthNotImplementedError } from '../../services/oauthService';
 
 export default function LoginPage() {
   const navigation = useNavigation<any>();
@@ -27,23 +26,6 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleOAuth = async (provider: 'google' | 'apple') => {
-    setIsSubmitting(true);
-    try {
-      const result = await (provider === 'google' ? loginWithGoogle() : loginWithApple());
-      await login(result);
-    } catch (error) {
-      if (error instanceof OAuthNotImplementedError) {
-        Alert.alert('Coming soon', `${provider === 'google' ? 'Google' : 'Apple'} sign-in will be available once the backend is connected.`);
-      } else {
-        const message = error instanceof Error ? error.message : 'Something went wrong.';
-        Alert.alert('Sign in failed', message);
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const handleLogin = async () => {
     if (!email.trim() || !password) {
@@ -124,33 +106,7 @@ export default function LoginPage() {
               }}
             >
               <Text className="text-2xl font-bold text-[#0f172a] dark:text-slate-100 mb-1.5">Sign In</Text>
-              <Text className="text-sm text-text-secondary mb-[18px]">Choose your preferred sign-in method</Text>
-
-              <Pressable
-                className="flex-row items-center justify-center border border-border-light dark:border-[#2d2d2d] rounded-cy-xl py-[14px] px-cy-lg mb-3 bg-bg-base dark:bg-[#111111]"
-                onPress={() => handleOAuth('google')}
-              >
-                <View className="w-7 h-7 rounded-full items-center justify-center mr-3 bg-[#f1f5f9] dark:bg-[#1a1a1a]">
-                  <Text className="text-sm font-bold text-[#0f172a] dark:text-slate-100">G</Text>
-                </View>
-                <Text className="text-[15px] font-semibold text-[#0f172a] dark:text-slate-100">Continue with Google</Text>
-              </Pressable>
-
-              <Pressable
-                className="flex-row items-center justify-center border border-border-light dark:border-[#2d2d2d] rounded-cy-xl py-[14px] px-cy-lg mb-3 bg-bg-base dark:bg-[#111111]"
-                onPress={() => handleOAuth('apple')}
-              >
-                <View className="w-7 h-7 rounded-full items-center justify-center mr-3 bg-[#111827]">
-                  <Text className="text-sm font-bold text-white">A</Text>
-                </View>
-                <Text className="text-[15px] font-semibold text-[#0f172a] dark:text-slate-100">Continue with Apple</Text>
-              </Pressable>
-
-              <View className="flex-row items-center my-5">
-                <View className="flex-1 h-px bg-border dark:bg-[#2d2d2d]" />
-                <Text className="mx-3 text-[#94a3b8] dark:text-slate-400 text-xs font-semibold">Or continue with email</Text>
-                <View className="flex-1 h-px bg-border dark:bg-[#2d2d2d]" />
-              </View>
+              <Text className="text-sm text-text-secondary mb-[18px]">Sign in with your email to continue your next ride</Text>
 
               <View className="mb-cy-lg">
                 <Text className="text-sm font-semibold text-[#334155] dark:text-slate-100 mb-2">Email</Text>

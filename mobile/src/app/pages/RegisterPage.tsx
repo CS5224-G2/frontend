@@ -1,4 +1,4 @@
-import { useState, useContext } from 'react';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -13,14 +13,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useColorScheme } from 'nativewind';
-import { AuthContext } from '../AuthContext';
 
 import { registerUser } from '../../services/authService';
-import { loginWithApple, loginWithGoogle, OAuthNotImplementedError } from '../../services/oauthService';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { login } = useContext(AuthContext);
   const { colorScheme } = useColorScheme();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -31,23 +28,6 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleOAuth = async (provider: 'google' | 'apple') => {
-    setIsSubmitting(true);
-    try {
-      const result = await (provider === 'google' ? loginWithGoogle() : loginWithApple());
-      await login(result);
-    } catch (error) {
-      if (error instanceof OAuthNotImplementedError) {
-        Alert.alert('Coming soon', `${provider === 'google' ? 'Google' : 'Apple'} sign-in will be available once the backend is connected.`);
-      } else {
-        const message = error instanceof Error ? error.message : 'Something went wrong.';
-        Alert.alert('Sign up failed', message);
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const handleRegister = async () => {
     if (!firstName.trim() || !lastName.trim() || !email.trim() || !password || !confirmPassword) {
@@ -138,39 +118,7 @@ export default function RegisterPage() {
             }}
           >
             <Text className="text-[24px] font-bold text-slate-900 dark:text-slate-100 mb-1.5">Create Account</Text>
-            <Text className="text-[14px] text-text-secondary mb-[18px]">Choose your preferred sign-up method</Text>
-
-            <Pressable
-              className="flex-row items-center justify-center border border-border-light dark:border-[#2d2d2d] rounded-cy-xl py-[14px] px-cy-lg mb-3 bg-bg-base dark:bg-[#111111]"
-              onPress={() => handleOAuth('google')}
-            >
-              <View
-                className="items-center justify-center mr-3 bg-[#f1f5f9] dark:bg-[#1a1a1a]"
-                style={{ width: 28, height: 28, borderRadius: 14 }}
-              >
-                <Text className="text-[14px] font-bold text-slate-900 dark:text-slate-100">G</Text>
-              </View>
-              <Text className="text-[15px] font-semibold text-slate-900 dark:text-slate-100">Continue with Google</Text>
-            </Pressable>
-
-            <Pressable
-              className="flex-row items-center justify-center border border-border-light dark:border-[#2d2d2d] rounded-cy-xl py-[14px] px-cy-lg mb-3 bg-bg-base dark:bg-[#111111]"
-              onPress={() => handleOAuth('apple')}
-            >
-              <View
-                className="items-center justify-center mr-3 bg-[#111827]"
-                style={{ width: 28, height: 28, borderRadius: 14 }}
-              >
-                <Text className="text-[14px] font-bold text-white">A</Text>
-              </View>
-              <Text className="text-[15px] font-semibold text-slate-900 dark:text-slate-100">Continue with Apple</Text>
-            </Pressable>
-
-            <View className="flex-row items-center my-5">
-              <View className="flex-1 h-px bg-border dark:bg-[#2d2d2d]" />
-              <Text className="mx-3 text-slate-400 dark:text-slate-400 text-[12px] font-semibold">Or sign up with email</Text>
-              <View className="flex-1 h-px bg-border dark:bg-[#2d2d2d]" />
-            </View>
+            <Text className="text-[14px] text-text-secondary mb-[18px]">Create your account with your email to get started</Text>
 
             <View className="flex-row" style={{ marginHorizontal: -6 }}>
               <View className="flex-1 mb-4" style={{ marginHorizontal: 6 }}>
