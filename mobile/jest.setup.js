@@ -40,6 +40,17 @@ jest.mock('expo-task-manager', () => ({
   defineTask: jest.fn(),
 }));
 
+jest.mock('expo-notifications', () => ({
+  IosAuthorizationStatus: {
+    PROVISIONAL: 3,
+  },
+  setNotificationHandler: jest.fn(),
+  getPermissionsAsync: jest.fn(() => Promise.resolve({ granted: true })),
+  requestPermissionsAsync: jest.fn(() => Promise.resolve({ granted: true })),
+  scheduleNotificationAsync: jest.fn(() => Promise.resolve('notification-id')),
+  dismissAllNotificationsAsync: jest.fn(() => Promise.resolve()),
+}));
+
 const mockAsyncStorageStore = new Map();
 jest.mock('@react-native-async-storage/async-storage', () => ({
   __esModule: true,

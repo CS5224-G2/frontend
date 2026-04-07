@@ -45,6 +45,7 @@
         }
       ],
       "expo-asset",
+      "expo-notifications",
       "@rnmapbox/maps",
       "expo-secure-store",
       "expo-sqlite"

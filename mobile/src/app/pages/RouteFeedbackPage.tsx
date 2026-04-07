@@ -21,6 +21,13 @@ type Props = NativeStackScreenProps<any, any>;
 export default function RouteFeedbackPage({ navigation, route }: Props) {
   const routeParam = route.params?.route as Route | undefined;
   const routeId = (route.params?.routeId as string | undefined) ?? routeParam?.id ?? '1';
+  const rideSummary = route.params?.rideSummary as
+    | {
+        distanceKm: number;
+        elapsedMinutes: number;
+        checkpointsVisited: number;
+      }
+    | undefined;
   const [rating, setRating] = useState(0);
   const [hoveredRating, setHoveredRating] = useState(0);
   const [feedback, setFeedback] = useState('');
@@ -175,15 +182,21 @@ export default function RouteFeedbackPage({ navigation, route }: Props) {
           </View>
           <View className="flex-row justify-between mb-2">
             <Text className="font-medium text-[#374151] dark:text-slate-100">Distance:</Text>
-            <Text className="text-[#6b7280] dark:text-slate-400">{routeData.distance} km</Text>
+            <Text className="text-[#6b7280] dark:text-slate-400">
+              {(rideSummary?.distanceKm ?? routeData.distance).toFixed(rideSummary ? 2 : 0)} km
+            </Text>
           </View>
           <View className="flex-row justify-between mb-2">
             <Text className="font-medium text-[#374151] dark:text-slate-100">Time:</Text>
-            <Text className="text-[#6b7280] dark:text-slate-400">{routeData.estimatedTime} minutes</Text>
+            <Text className="text-[#6b7280] dark:text-slate-400">
+              {rideSummary?.elapsedMinutes ?? routeData.estimatedTime} minutes
+            </Text>
           </View>
           <View className="flex-row justify-between mb-2">
             <Text className="font-medium text-[#374151] dark:text-slate-100">Checkpoints Visited:</Text>
-            <Text className="text-[#6b7280] dark:text-slate-400">{routeData.checkpoints.length}</Text>
+            <Text className="text-[#6b7280] dark:text-slate-400">
+              {rideSummary?.checkpointsVisited ?? routeData.checkpoints.length}
+            </Text>
           </View>
         </View>
 

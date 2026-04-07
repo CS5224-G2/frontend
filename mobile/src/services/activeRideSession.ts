@@ -14,10 +14,25 @@ export type ActiveRideSession = {
   routeId: string;
   route: Route;
   startedAt: string;
+  status?: 'active' | 'paused';
+  pausedAt?: string;
+  totalPausedMs?: number;
   lastKnownPosition?: { lat: number; lng: number };
   distanceKm?: number;
   progressPct?: number;
 };
+
+function normalizeActiveRideSession(session: ActiveRideSession): ActiveRideSession {
+  return {
+    ...session,
+    status: session.status === 'paused' ? 'paused' : 'active',
+    pausedAt: session.status === 'paused' && typeof session.pausedAt === 'string' ? session.pausedAt : undefined,
+    totalPausedMs:
+      typeof session.totalPausedMs === 'number' && Number.isFinite(session.totalPausedMs)
+        ? Math.max(0, session.totalPausedMs)
+        : 0,
+  };
+}
 
 function isValidActiveRideSession(value: unknown): value is ActiveRideSession {
   if (!value || typeof value !== 'object') {
@@ -41,14 +56,17 @@ export async function loadActiveRideSession(): Promise<ActiveRideSession | null>
 
   try {
     const parsed = JSON.parse(raw) as unknown;
-    return isValidActiveRideSession(parsed) ? parsed : null;
+    return isValidActiveRideSession(parsed) ? normalizeActiveRideSession(parsed) : null;
   } catch {
     return null;
   }
 }
 
 export async function saveActiveRideSession(session: ActiveRideSession): Promise<void> {
-  await AsyncStorage.setItem(STORAGE_KEYS.activeRideSession, JSON.stringify(session));
+  await AsyncStorage.setItem(
+    STORAGE_KEYS.activeRideSession,
+    JSON.stringify(normalizeActiveRideSession(session)),
+  );
 }
 
 export async function clearActiveRideSession(): Promise<void> {
@@ -60,8 +78,12 @@ export function advanceActiveRideSession(
   nextPosition: { lat: number; lng: number },
   accuracyMeters?: number | null,
 ): ActiveRideSession {
+  if (session.status === 'paused') {
+    return normalizeActiveRideSession(session);
+  }
+
   if (typeof accuracyMeters === 'number' && accuracyMeters > 100) {
-    return session;
+    return normalizeActiveRideSession(session);
   }
 
   const routeCoords = routeToLineCoordinates(session.route);
@@ -80,7 +102,7 @@ export function advanceActiveRideSession(
     : { snappedPoint: nextLngLat, progress: 0 };
 
   return {
-    ...session,
+    ...normalizeActiveRideSession(session),
     lastKnownPosition: {
       lat: nextPosition.lat,
       lng: nextPosition.lng,
@@ -88,4 +110,46 @@ export function advanceActiveRideSession(
     distanceKm: Number(((session.distanceKm ?? 0) + acceptedIncrementKm).toFixed(3)),
     progressPct: Math.max(session.progressPct ?? 0, projected.progress * 100),
   };
+}
+
+export function pauseActiveRideSession(
+  session: ActiveRideSession,
+  pausedAt: string,
+): ActiveRideSession {
+  if (session.status === 'paused') {
+    return normalizeActiveRideSession(session);
+  }
+
+  return normalizeActiveRideSession({
+    ...session,
+    status: 'paused',
+    pausedAt,
+  });
+}
+
+export function resumeActiveRideSession(
+  session: ActiveRideSession,
+  resumedAt: string,
+): ActiveRideSession {
+  if (session.status !== 'paused' || !session.pausedAt) {
+    return normalizeActiveRideSession({
+      ...session,
+      status: 'active',
+      pausedAt: undefined,
+    });
+  }
+
+  const pausedAtMs = Date.parse(session.pausedAt);
+  const resumedAtMs = Date.parse(resumedAt);
+  const pausedIncrementMs =
+    Number.isNaN(pausedAtMs) || Number.isNaN(resumedAtMs)
+      ? 0
+      : Math.max(0, resumedAtMs - pausedAtMs);
+
+  return normalizeActiveRideSession({
+    ...session,
+    status: 'active',
+    pausedAt: undefined,
+    totalPausedMs: (session.totalPausedMs ?? 0) + pausedIncrementMs,
+  });
 }

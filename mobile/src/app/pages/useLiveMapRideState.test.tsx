@@ -237,6 +237,51 @@ describe('useLiveMapRideState', () => {
     expect(await AsyncStorage.getItem(STORAGE_KEYS.activeRideSession)).toBeNull();
   });
 
+  it('pauses and resumes the ride timer without losing the session', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-04-08T00:00:00.000Z'));
+
+    const { result } = renderHook(() => useLiveMapRideState(route.id, route));
+
+    await waitFor(() => {
+      expect(result.current.routeLoading).toBe(false);
+    });
+
+    await act(async () => {
+      jest.advanceTimersByTime(20000);
+    });
+
+    act(() => {
+      result.current.pauseRide();
+    });
+
+    await waitFor(() => {
+      expect(result.current.isPaused).toBe(true);
+    });
+
+    const pausedElapsed = result.current.elapsedSec;
+
+    await act(async () => {
+      jest.advanceTimersByTime(20000);
+    });
+
+    expect(result.current.elapsedSec).toBe(pausedElapsed);
+
+    act(() => {
+      result.current.resumeRide();
+    });
+
+    await waitFor(() => {
+      expect(result.current.isPaused).toBe(false);
+    });
+
+    await act(async () => {
+      jest.advanceTimersByTime(5000);
+    });
+
+    expect(result.current.elapsedSec).toBeGreaterThan(pausedElapsed);
+  });
+
   it('navigates to feedback only when the route is completed', async () => {
     mockLiveMapProgressSimulationEnabled = true;
     jest.useFakeTimers();
@@ -256,13 +301,27 @@ describe('useLiveMapRideState', () => {
       expect(result.current.routeCompleted).toBe(true);
     });
 
+    expect(result.current.showCompletionModal).toBe(true);
+
+    act(() => {
+      result.current.setShowCompletionModal(false);
+    });
+
+    expect(result.current.showCompletionModal).toBe(false);
+
     await act(async () => {
       result.current.confirmEndRide();
     });
 
-    expect(mockNavigate).toHaveBeenCalledWith('RouteFeedback', {
-      routeId: route.id,
-      route,
-    });
+    expect(mockNavigate).toHaveBeenCalledWith(
+      'RouteFeedback',
+      expect.objectContaining({
+        routeId: route.id,
+        route,
+        rideSummary: expect.objectContaining({
+          elapsedMinutes: expect.any(Number),
+        }),
+      }),
+    );
   });
 });

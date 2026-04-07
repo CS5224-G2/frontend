@@ -6,17 +6,28 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import type { Route } from '../../../../shared/types/index';
 import {
+  type ActiveRideSession,
   advanceActiveRideSession,
   loadActiveRideSession,
+  pauseActiveRideSession,
+  resumeActiveRideSession,
   saveActiveRideSession,
 } from '../../services/activeRideSession';
 import {
   clearRideSessionAndStopTracking,
   ensureBackgroundRideTrackingStarted,
+  stopBackgroundRideTracking,
 } from '../../services/backgroundRideTracking';
 import { LIVE_MAP_PROGRESS_SIMULATION } from '../../config/runtime';
 import { resolveRouteById } from '../../services/routeLookup';
 import { saveRide } from '../../services/rideService';
+import {
+  clearRideNotifications,
+  ensureRideNotificationPermission,
+  notifyRidePaused,
+  notifyRideResumed,
+  notifyRideTrackingInBackground,
+} from '../../services/rideNotifications';
 import {
   boundsFromCoordinates,
   haversineDistanceKm,
@@ -43,13 +54,18 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
   const [routeLoading, setRouteLoading] = useState(!initialRoute);
   const [sessionReady, setSessionReady] = useState(false);
   const [sessionStartedAt, setSessionStartedAt] = useState<string | null>(null);
+  const [sessionPausedAt, setSessionPausedAt] = useState<string | null>(null);
+  const [pausedDurationMs, setPausedDurationMs] = useState(0);
   const [tracking, setTracking] = useState<TrackingState>(EMPTY_TRACKING);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [checkpointBanner, setCheckpointBanner] = useState<string | null>(null);
   const [showExitModal, setShowExitModal] = useState(false);
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
   const persistRidePromiseRef = useRef<Promise<void> | null>(null);
   const initializedSessionRouteIdRef = useRef<string | undefined>(undefined);
   const previousCheckpointRef = useRef(0);
+  const completionModalShownRef = useRef(false);
+  const appStateRef = useRef(AppState.currentState);
 
   const hydrateTrackingFromSession = useCallback(async () => {
     if (!routeId) {
@@ -62,6 +78,8 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
     }
 
     setSessionStartedAt(session.startedAt);
+    setSessionPausedAt(session.status === 'paused' ? session.pausedAt ?? session.startedAt : null);
+    setPausedDurationMs(session.totalPausedMs ?? 0);
     setTracking({
       position: session.lastKnownPosition
         ? [session.lastKnownPosition.lng, session.lastKnownPosition.lat]
@@ -104,21 +122,39 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
   useEffect(() => {
     setSessionReady(false);
     setSessionStartedAt(null);
+    setSessionPausedAt(null);
+    setPausedDurationMs(0);
     setTracking(EMPTY_TRACKING);
     setCheckpointBanner(null);
     setShowExitModal(false);
+    setShowCompletionModal(false);
     initializedSessionRouteIdRef.current = undefined;
     persistRidePromiseRef.current = null;
     previousCheckpointRef.current = 0;
+    completionModalShownRef.current = false;
   }, [routeId]);
 
   useEffect(() => {
     const updateNow = () => setNowMs(Date.now());
     const id = setInterval(updateNow, 1000);
     const sub = AppState.addEventListener('change', (nextState) => {
+      const previousState = appStateRef.current;
+      appStateRef.current = nextState;
+
       if (nextState === 'active') {
         updateNow();
+        void clearRideNotifications().catch(() => {});
         void hydrateTrackingFromSession();
+      }
+
+      if (
+        previousState === 'active' &&
+        (nextState === 'background' || nextState === 'inactive') &&
+        route &&
+        sessionReady &&
+        !sessionPausedAt
+      ) {
+        void notifyRideTrackingInBackground(route.name).catch(() => {});
       }
     });
     updateNow();
@@ -127,7 +163,7 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
       clearInterval(id);
       sub?.remove?.();
     };
-  }, []);
+  }, [hydrateTrackingFromSession, route, sessionPausedAt, sessionReady]);
 
   useEffect(() => {
     let cancelled = false;
@@ -162,11 +198,14 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
           setRoute(activeSession.route);
         }
         setSessionReady(true);
+        void ensureRideNotificationPermission().catch(() => {});
         return;
       }
 
       const startedAt = new Date().toISOString();
       setSessionStartedAt(startedAt);
+      setSessionPausedAt(null);
+      setPausedDurationMs(0);
       setTracking(EMPTY_TRACKING);
       setSessionReady(true);
       await saveActiveRideSession({
@@ -175,6 +214,7 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
         route,
         startedAt,
       });
+      void ensureRideNotificationPermission().catch(() => {});
     }
 
     void bootstrapSession();
@@ -185,10 +225,36 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
   }, [hydrateTrackingFromSession, initialRoute, route, routeId]);
 
   const lineCoords = useMemo(() => (route ? routeToLineCoordinates(route) : []), [route]);
+  const isPaused = sessionPausedAt !== null;
+
+  const buildSession = useCallback(
+    (overrides: Partial<ActiveRideSession> = {}): ActiveRideSession | null => {
+      if (!routeId || !route || !sessionStartedAt) {
+        return null;
+      }
+
+      return {
+        version: 1,
+        routeId,
+        route,
+        startedAt: sessionStartedAt,
+        status: sessionPausedAt ? 'paused' : 'active',
+        pausedAt: sessionPausedAt ?? undefined,
+        totalPausedMs: pausedDurationMs,
+        lastKnownPosition: tracking.position
+          ? { lat: tracking.position[1], lng: tracking.position[0] }
+          : undefined,
+        distanceKm: tracking.distanceKm,
+        progressPct: tracking.progressPct,
+        ...overrides,
+      };
+    },
+    [pausedDurationMs, route, routeId, sessionPausedAt, sessionStartedAt, tracking],
+  );
 
   const applyTrackedPosition = useCallback(
     (nextPosition: LngLat, accuracyMeters?: number | null) => {
-      if (!route || !routeId || !sessionStartedAt) {
+      if (!route || !routeId || !sessionStartedAt || isPaused) {
         return;
       }
 
@@ -199,6 +265,8 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
             routeId,
             route,
             startedAt: sessionStartedAt,
+            status: 'active',
+            totalPausedMs: pausedDurationMs,
             lastKnownPosition: prev.position
               ? { lat: prev.position[1], lng: prev.position[0] }
               : undefined,
@@ -218,11 +286,11 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
         };
       });
     },
-    [route, routeId, sessionStartedAt]
+    [isPaused, pausedDurationMs, route, routeId, sessionStartedAt]
   );
 
   useEffect(() => {
-    if (LIVE_MAP_PROGRESS_SIMULATION || !sessionReady || !route || !routeId) {
+    if (LIVE_MAP_PROGRESS_SIMULATION || !sessionReady || !route || !routeId || isPaused) {
       return undefined;
     }
 
@@ -269,35 +337,30 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
       active = false;
       subscription?.remove();
     };
-  }, [applyTrackedPosition, route, routeId, sessionReady]);
+  }, [applyTrackedPosition, isPaused, route, routeId, sessionReady]);
 
   useEffect(() => {
-    if (LIVE_MAP_PROGRESS_SIMULATION || !sessionReady || !route || !routeId) {
+    if (LIVE_MAP_PROGRESS_SIMULATION || !sessionReady || !route || !routeId || isPaused) {
       return;
     }
 
     void ensureBackgroundRideTrackingStarted().catch((error) => {
       console.warn('[BackgroundRideTracking] Failed to start background tracking', error);
     });
-  }, [route, routeId, sessionReady]);
+  }, [isPaused, route, routeId, sessionReady]);
 
   useEffect(() => {
     if (!routeId || !route || !sessionStartedAt || !sessionReady) {
       return;
     }
 
-    void saveActiveRideSession({
-      version: 1,
-      routeId,
-      route,
-      startedAt: sessionStartedAt,
-      lastKnownPosition: tracking.position
-        ? { lat: tracking.position[1], lng: tracking.position[0] }
-        : undefined,
-      distanceKm: tracking.distanceKm,
-      progressPct: tracking.progressPct,
-    });
-  }, [routeId, route, sessionReady, sessionStartedAt, tracking]);
+    const session = buildSession();
+    if (!session) {
+      return;
+    }
+
+    void saveActiveRideSession(session);
+  }, [buildSession, routeId, route, sessionReady, sessionStartedAt]);
 
   const elapsedSec = useMemo(() => {
     if (!sessionStartedAt) {
@@ -309,8 +372,11 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
       return 0;
     }
 
-    return Math.max(0, Math.floor((nowMs - startedAtMs) / 1000));
-  }, [nowMs, sessionStartedAt]);
+    const referenceMs = sessionPausedAt ? Date.parse(sessionPausedAt) : nowMs;
+    const safeReferenceMs = Number.isNaN(referenceMs) ? nowMs : referenceMs;
+
+    return Math.max(0, Math.floor((safeReferenceMs - startedAtMs - pausedDurationMs) / 1000));
+  }, [nowMs, pausedDurationMs, sessionPausedAt, sessionStartedAt]);
 
   const simulatedProgressPct = useMemo(
     () => Math.min(100, elapsedSec * 2),
@@ -368,6 +434,13 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
   const routeCompleted =
     progressPct >= 99 || (!LIVE_MAP_PROGRESS_SIMULATION && distanceToEndKm <= 0.05);
 
+  useEffect(() => {
+    if (routeCompleted && !completionModalShownRef.current) {
+      setShowCompletionModal(true);
+      completionModalShownRef.current = true;
+    }
+  }, [routeCompleted]);
+
   const currentCheckpoint = useMemo(() => {
     if (!route || !route.checkpoints.length) {
       return 0;
@@ -415,16 +488,23 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
       ).toFixed(2)
     : '0.00';
 
+  const rideSummary = useMemo(
+    () => ({
+      distanceKm: routeCompleted && route ? route.distance : Number(distanceTraveled),
+      elapsedMinutes: Math.max(1, Math.round(elapsedSec / 60)),
+      checkpointsVisited: routeCompleted && route ? route.checkpoints.length : currentCheckpoint,
+    }),
+    [currentCheckpoint, distanceTraveled, elapsedSec, route, routeCompleted],
+  );
+
   const persistRideCompletion = useCallback(async () => {
     if (!route || !routeId || !routeCompleted) {
       return;
     }
 
     if (!persistRidePromiseRef.current) {
-      const completedDistance = routeCompleted ? route.distance : Number(distanceTraveled);
-      const safeDistance = Number.isFinite(completedDistance) ? completedDistance : 0;
+      const safeDistance = Number.isFinite(rideSummary.distanceKm) ? rideSummary.distanceKm : 0;
       const avgSpeed = elapsedSec > 0 ? Number((safeDistance / (elapsedSec / 3600)).toFixed(1)) : 0;
-      const checkpointsVisited = routeCompleted ? route.checkpoints.length : currentCheckpoint;
 
       persistRidePromiseRef.current = saveRide({
         route,
@@ -432,7 +512,7 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
         endTime: new Date().toISOString(),
         distance: safeDistance,
         avgSpeed,
-        checkpointsVisited,
+        checkpointsVisited: rideSummary.checkpointsVisited,
         pointsOfInterestVisited: route.pointsOfInterestVisited,
       })
         .then(() => {})
@@ -443,34 +523,77 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
 
     await persistRidePromiseRef.current;
   }, [
-    currentCheckpoint,
-    distanceTraveled,
     elapsedSec,
     nowMs,
     route,
     routeCompleted,
     routeId,
+    rideSummary,
     sessionStartedAt,
   ]);
+
+  const pauseRide = useCallback(() => {
+    const run = async () => {
+      const pausedAt = new Date().toISOString();
+      const nextSession = buildSession();
+      if (!nextSession || !route) {
+        return;
+      }
+
+      const pausedSession = pauseActiveRideSession(nextSession, pausedAt);
+      setSessionPausedAt(pausedAt);
+      await saveActiveRideSession(pausedSession);
+      await stopBackgroundRideTracking();
+      await notifyRidePaused(route.name).catch(() => {});
+    };
+
+    void run();
+  }, [buildSession, route]);
+
+  const resumeRide = useCallback(() => {
+    const run = async () => {
+      const resumedAt = new Date().toISOString();
+      const currentSession = buildSession();
+      if (!currentSession || !route) {
+        return;
+      }
+
+      const resumedSession = resumeActiveRideSession(currentSession, resumedAt);
+      setSessionPausedAt(null);
+      setPausedDurationMs(resumedSession.totalPausedMs ?? 0);
+      await saveActiveRideSession(resumedSession);
+      await ensureBackgroundRideTrackingStarted().catch((error) => {
+        console.warn('[BackgroundRideTracking] Failed to resume background tracking', error);
+      });
+      await notifyRideResumed(route.name).catch(() => {});
+      await clearRideNotifications().catch(() => {});
+    };
+
+    void run();
+  }, [buildSession, route]);
 
   const goFeedback = useCallback(() => {
     const navigate = async () => {
       setShowExitModal(false);
+      setShowCompletionModal(false);
       await persistRideCompletion();
+      await clearRideNotifications().catch(() => {});
       await clearRideSessionAndStopTracking();
       if (routeId) {
-        navigation.navigate('RouteFeedback', { routeId, route });
+        navigation.navigate('RouteFeedback', { routeId, route, rideSummary });
       } else {
-        navigation.navigate('RouteFeedback', route ? { route } : undefined);
+        navigation.navigate('RouteFeedback', route ? { route, rideSummary } : undefined);
       }
     };
 
     void navigate();
-  }, [navigation, persistRideCompletion, route, routeId]);
+  }, [navigation, persistRideCompletion, rideSummary, route, routeId]);
 
   const abandonIncompleteRide = useCallback(() => {
     const navigate = async () => {
       setShowExitModal(false);
+      setShowCompletionModal(false);
+      await clearRideNotifications().catch(() => {});
       await clearRideSessionAndStopTracking();
       navigation.reset({
         index: 0,
@@ -483,7 +606,7 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
 
   const stopCycling = () => {
     if (routeCompleted) {
-      goFeedback();
+      setShowCompletionModal(true);
       return;
     }
     setShowExitModal(true);
@@ -505,16 +628,22 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
     progress: progressPct,
     elapsedSec,
     routeCompleted,
+    isPaused,
     currentCheckpoint,
     checkpointBanner,
     showExitModal,
     setShowExitModal,
+    showCompletionModal,
+    setShowCompletionModal,
     lineCoords,
     lineFeature,
     bounds,
     riderPoint,
     formatTime,
     distanceTraveled,
+    rideSummary,
+    pauseRide,
+    resumeRide,
     goFeedback,
     stopCycling,
     confirmEndRide,

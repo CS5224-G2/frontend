@@ -48,6 +48,12 @@ describe('advanceActiveRideSession', () => {
       250,
     );
 
-    expect(next).toEqual(session);
+    expect(next).toEqual(
+      expect.objectContaining({
+        ...session,
+        status: 'active',
+        totalPausedMs: 0,
+      }),
+    );
   });
 });
