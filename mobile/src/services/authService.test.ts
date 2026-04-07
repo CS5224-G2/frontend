@@ -6,12 +6,53 @@ jest.mock('./secureSession', () => ({
   saveSession: jest.fn(),
 }));
 
+jest.mock('../config/runtime', () => ({
+  getApiBaseUrl: jest.fn(() => 'https://api.cyclelink.test'),
+}));
+
 import { httpClient } from './httpClient';
-import { loginUser, registerUser } from './authService';
+import { loginUser, registerUser, requestPasswordReset, resetPassword } from './authService';
 
 const mockPost = httpClient.post as jest.Mock;
+const originalFetch = global.fetch;
+const mockFetch = jest.fn();
 
-beforeEach(() => jest.clearAllMocks());
+function createMockResponse({
+  ok = true,
+  status = 200,
+  contentType = 'application/json',
+  jsonData = {},
+  textData = '',
+}: {
+  ok?: boolean;
+  status?: number;
+  contentType?: string;
+  jsonData?: unknown;
+  textData?: string;
+}) {
+  return {
+    ok,
+    status,
+    headers: {
+      get: (name: string) => (name.toLowerCase() === 'content-type' ? contentType : null),
+    },
+    json: jest.fn().mockResolvedValue(jsonData),
+    text: jest.fn().mockResolvedValue(textData),
+  } as unknown as Response;
+}
+
+beforeAll(() => {
+  global.fetch = mockFetch as unknown as typeof fetch;
+});
+
+afterAll(() => {
+  global.fetch = originalFetch;
+});
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockFetch.mockReset();
+});
 
 describe('loginUser()', () => {
   it('maps BackendAuthResponse to AuthResult camelCase shape', async () => {
@@ -92,5 +133,68 @@ describe('registerUser()', () => {
       firstName: 'X', lastName: 'Y', email: 'x@y.com',
       password: 'abc', confirmPassword: 'xyz', agreedToTerms: true,
     })).rejects.toThrow('Passwords do not match.');
+  });
+});
+
+describe('requestPasswordReset()', () => {
+  it('posts a normalized email to /auth/forgot-password', async () => {
+    mockFetch.mockResolvedValueOnce(
+      createMockResponse({
+        jsonData: { message: 'If an account exists, a reset token has been sent.' },
+      }),
+    );
+
+    await expect(requestPasswordReset('  ALEX@EXAMPLE.COM  ')).resolves.toContain('reset token');
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      'https://api.cyclelink.test/auth/forgot-password',
+      expect.objectContaining({
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'alex@example.com' }),
+      }),
+    );
+  });
+
+  it('throws when email is missing', async () => {
+    await expect(requestPasswordReset('')).rejects.toThrow('Email is required.');
+  });
+});
+
+describe('resetPassword()', () => {
+  it('posts the token and trimmed password to /auth/reset-password', async () => {
+    mockFetch.mockResolvedValueOnce(
+      createMockResponse({
+        jsonData: { message: 'Password reset successful.' },
+      }),
+    );
+
+    await expect(resetPassword('  token-123  ', ' NewPassword123! ')).resolves.toContain('successful');
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      'https://api.cyclelink.test/auth/reset-password',
+      expect.objectContaining({
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: 'token-123', new_password: 'NewPassword123!' }),
+      }),
+    );
+  });
+
+  it('surfaces backend failure messages', async () => {
+    mockFetch.mockResolvedValueOnce(
+      createMockResponse({
+        ok: false,
+        status: 400,
+        contentType: 'text/plain',
+        textData: 'Reset token expired.',
+      }),
+    );
+
+    await expect(resetPassword('token-123', 'NewPassword123!')).rejects.toThrow('Reset token expired.');
+  });
+
+  it('throws when the token is missing', async () => {
+    await expect(resetPassword('', 'NewPassword123!')).rejects.toThrow('Reset token is required.');
   });
 });

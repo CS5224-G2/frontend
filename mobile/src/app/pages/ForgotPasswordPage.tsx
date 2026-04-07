@@ -13,11 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useColorScheme } from 'nativewind';
-import { httpClient } from '../../services/httpClient';
-
-async function requestPasswordReset(email: string): Promise<void> {
-  await httpClient.post<void>('/auth/forgot-password', { email });
-}
+import { requestPasswordReset } from '@/services/authService';
 
 export default function ForgotPasswordPage() {
   const navigation = useNavigation<any>();
@@ -144,9 +140,15 @@ export default function ForgotPasswordPage() {
                   </Text>
                   <Pressable
                     className="mt-2 bg-primary dark:bg-blue-500 rounded-[18px] items-center justify-center py-cy-lg w-full"
+                    onPress={() => navigation.navigate('reset-password')}
+                  >
+                    <Text className="text-white text-base font-bold">Enter reset token</Text>
+                  </Pressable>
+                  <Pressable
+                    className="w-full items-center justify-center py-3"
                     onPress={() => navigation.goBack()}
                   >
-                    <Text className="text-white text-base font-bold">Back to sign in</Text>
+                    <Text className="text-[14px] font-bold text-primary dark:text-blue-400">Back to sign in</Text>
                   </Pressable>
                 </View>
               ) : (
@@ -190,6 +192,15 @@ export default function ForgotPasswordPage() {
                     ) : (
                       <Text className="text-white text-base font-bold">Send reset link</Text>
                     )}
+                  </Pressable>
+
+                  <Pressable
+                    className="items-center justify-center py-2"
+                    onPress={() => navigation.navigate('reset-password')}
+                  >
+                    <Text className="text-[13px] font-bold text-primary dark:text-blue-400">
+                      Already have a token? Reset password
+                    </Text>
                   </Pressable>
                 </>
               )}
