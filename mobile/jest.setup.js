@@ -7,6 +7,11 @@ jest.mock('expo-location', () => ({
     BestForNavigation: 6,
   },
   requestForegroundPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'granted' })),
+  requestBackgroundPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'granted' })),
+  isBackgroundLocationAvailableAsync: jest.fn(() => Promise.resolve(true)),
+  hasStartedLocationUpdatesAsync: jest.fn(() => Promise.resolve(false)),
+  startLocationUpdatesAsync: jest.fn(() => Promise.resolve()),
+  stopLocationUpdatesAsync: jest.fn(() => Promise.resolve()),
   getCurrentPositionAsync: jest.fn(() =>
     Promise.resolve({
       coords: {
@@ -29,6 +34,10 @@ jest.mock('expo-location', () => ({
     });
   }),
   reverseGeocodeAsync: jest.fn(() => Promise.resolve([])),
+}));
+
+jest.mock('expo-task-manager', () => ({
+  defineTask: jest.fn(),
 }));
 
 const mockAsyncStorageStore = new Map();

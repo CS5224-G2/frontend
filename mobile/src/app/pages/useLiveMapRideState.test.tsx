@@ -35,9 +35,8 @@ describe('useLiveMapRideState', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
-    jest.useFakeTimers();
+    jest.useRealTimers();
     mockLiveMapProgressSimulationEnabled = false;
-    jest.setSystemTime(new Date('2026-04-07T10:00:00.000Z'));
     await AsyncStorage.clear();
     (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue({
       coords: {
@@ -59,9 +58,7 @@ describe('useLiveMapRideState', () => {
   });
 
   afterEach(async () => {
-    await act(async () => {
-      jest.runOnlyPendingTimers();
-    });
+    jest.clearAllTimers();
     jest.useRealTimers();
     process.env = { ...originalEnv };
   });
@@ -146,9 +143,15 @@ describe('useLiveMapRideState', () => {
   });
 
   it('auto-advances progress only when simulation is enabled', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-04-07T10:00:00.000Z'));
     mockLiveMapProgressSimulationEnabled = true;
 
     const { result } = renderHook(() => useLiveMapRideState(route.id, route));
+
+    await act(async () => {
+      await Promise.resolve();
+    });
 
     await waitFor(() => {
       expect(result.current.routeLoading).toBe(false);
@@ -188,6 +191,9 @@ describe('useLiveMapRideState', () => {
   });
 
   it('restores elapsed time from a persisted active session', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-04-07T10:00:00.000Z'));
+
     await AsyncStorage.setItem(
       STORAGE_KEYS.activeRideSession,
       JSON.stringify({

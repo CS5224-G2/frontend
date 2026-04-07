@@ -2,6 +2,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import type { Route } from '../../../shared/types/index';
 import { STORAGE_KEYS } from '../constants/routeStorage';
+import {
+  haversineDistanceKm,
+  projectPointOntoRoute,
+  routeToLineCoordinates,
+  type LngLat,
+} from '@/utils/routeGeometry';
 
 export type ActiveRideSession = {
   version: 1;
@@ -47,4 +53,39 @@ export async function saveActiveRideSession(session: ActiveRideSession): Promise
 
 export async function clearActiveRideSession(): Promise<void> {
   await AsyncStorage.removeItem(STORAGE_KEYS.activeRideSession);
+}
+
+export function advanceActiveRideSession(
+  session: ActiveRideSession,
+  nextPosition: { lat: number; lng: number },
+  accuracyMeters?: number | null,
+): ActiveRideSession {
+  if (typeof accuracyMeters === 'number' && accuracyMeters > 100) {
+    return session;
+  }
+
+  const routeCoords = routeToLineCoordinates(session.route);
+  const nextLngLat: LngLat = [nextPosition.lng, nextPosition.lat];
+  const previousLngLat: LngLat | null = session.lastKnownPosition
+    ? [session.lastKnownPosition.lng, session.lastKnownPosition.lat]
+    : null;
+
+  const incrementKm =
+    previousLngLat === null ? 0 : haversineDistanceKm(previousLngLat, nextLngLat);
+  const acceptedIncrementKm =
+    incrementKm >= 0.003 && incrementKm <= 0.5 ? incrementKm : 0;
+
+  const projected = routeCoords.length
+    ? projectPointOntoRoute(routeCoords, nextLngLat)
+    : { snappedPoint: nextLngLat, progress: 0 };
+
+  return {
+    ...session,
+    lastKnownPosition: {
+      lat: nextPosition.lat,
+      lng: nextPosition.lng,
+    },
+    distanceKm: Number(((session.distanceKm ?? 0) + acceptedIncrementKm).toFixed(3)),
+    progressPct: Math.max(session.progressPct ?? 0, projected.progress * 100),
+  };
 }
