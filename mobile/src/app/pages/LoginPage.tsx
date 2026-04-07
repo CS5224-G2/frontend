@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
 import { useColorScheme } from 'nativewind';
 import { AuthContext } from '../AuthContext';
 
@@ -19,7 +19,7 @@ import { loginUser } from '../../services/authService';
 import { loginWithApple, loginWithGoogle, OAuthNotImplementedError } from '../../services/oauthService';
 
 export default function LoginPage() {
-  const router = useRouter();
+  const navigation = useNavigation<any>();
   const { login } = useContext(AuthContext);
   const { colorScheme } = useColorScheme();
   const [email, setEmail] = useState('');
@@ -201,7 +201,7 @@ export default function LoginPage() {
                   <Text className="text-[#475569] dark:text-slate-400 text-[13px]">Remember me</Text>
                 </Pressable>
 
-                <Pressable>
+                <Pressable onPress={() => navigation.navigate('forgot-password')}>
                   <Text className="text-primary dark:text-blue-400 text-[13px] font-bold">Forgot password?</Text>
                 </Pressable>
               </View>
@@ -231,7 +231,7 @@ export default function LoginPage() {
 
             <View className="flex-row justify-center items-center mt-4">
               <Text className="text-text-secondary text-[13px]">Do not have an account? </Text>
-              <Pressable onPress={() => router.push('/register')}>
+              <Pressable onPress={() => navigation.navigate('register')}>
                 <Text className="text-primary dark:text-blue-400 text-[13px] font-bold">Sign up</Text>
               </Pressable>
             </View>

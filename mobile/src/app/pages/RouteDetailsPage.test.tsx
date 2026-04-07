@@ -1,6 +1,9 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import RouteDetailsPage from './RouteDetailsPage';
+import { getRouteById } from '../types';
+
+const mockResolveRouteById = jest.fn(async (id: string | undefined) => getRouteById(id) ?? null);
 
 jest.mock('react-native-maps', () => {
   const React = require('react');
@@ -17,12 +20,8 @@ jest.mock('react-native-maps', () => {
 });
 
 jest.mock('../../services/routeLookup', () => {
-  const types = jest.requireActual('../types') as { getRouteById: (id: string | undefined) => unknown };
   return {
-    resolveRouteById: jest.fn(async (id: string | undefined) => {
-      const r = types.getRouteById(id);
-      return r ?? null;
-    }),
+    resolveRouteById: (id: string | undefined) => mockResolveRouteById(id),
   };
 });
 
@@ -31,7 +30,7 @@ const mockGoBack = jest.fn();
 const mockReset = jest.fn();
 const mockSetOptions = jest.fn();
 const mockCanGoBack = jest.fn(() => true);
-const mockRouteParams = { routeId: '1' };
+const mockRouteParams: { routeId?: string; route?: ReturnType<typeof getRouteById> } = { routeId: '1' };
 
 jest.mock('@react-navigation/elements', () => {
   const React = require('react');
@@ -62,6 +61,8 @@ describe('RouteDetailsPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockRouteParams.routeId = '1';
+    delete mockRouteParams.route;
+    mockResolveRouteById.mockImplementation(async (id: string | undefined) => getRouteById(id) ?? null);
   });
 
   it('renders route details for a valid route id', async () => {
@@ -82,7 +83,27 @@ describe('RouteDetailsPage', () => {
     render(<RouteDetailsPage />);
     await waitFor(() => expect(screen.getByTestId('route-details-confirm')).toBeTruthy());
     fireEvent.press(screen.getByTestId('route-details-confirm'));
-    expect(mockNavigate).toHaveBeenCalledWith('RouteConfirmed', { routeId: '1' });
+    expect(mockNavigate).toHaveBeenCalledWith(
+      'RouteConfirmed',
+      expect.objectContaining({
+        routeId: '1',
+        route: expect.objectContaining({ id: '1', name: 'Riverside Park Loop' }),
+      }),
+    );
+  });
+
+  it('renders from the passed route when the detail lookup fails', async () => {
+    const route = getRouteById('1');
+    mockRouteParams.routeId = route?.id;
+    mockRouteParams.route = route;
+    mockResolveRouteById.mockResolvedValueOnce(null);
+
+    render(<RouteDetailsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Riverside Park Loop/i)).toBeTruthy();
+    });
+    expect(screen.queryByText('Route not found')).toBeNull();
   });
 
   it('shows missing state and go back for unknown route id', async () => {

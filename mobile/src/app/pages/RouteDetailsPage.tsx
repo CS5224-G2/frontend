@@ -27,20 +27,32 @@ import { fitRegionForCoordinates, routeToMapCoordinates } from '@/utils/routeGeo
 export default function RouteDetailsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const routeNav = useRoute<any>();
-  const routeId = routeNav.params?.routeId as string | undefined;
+  const routeParam = routeNav.params?.route as Route | undefined;
+  const routeId = (routeNav.params?.routeId as string | undefined) ?? routeParam?.id;
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
 
-  const [route, setRoute] = useState<Route | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [route, setRoute] = useState<Route | null>(routeParam ?? null);
+  const [loading, setLoading] = useState(!routeParam);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      setLoading(true);
+      if (!routeId) {
+        if (!cancelled) {
+          setRoute(routeParam ?? null);
+          setLoading(false);
+        }
+        return;
+      }
+
+      if (!routeParam) {
+        setLoading(true);
+      }
+
       const r = await resolveRouteById(routeId);
       if (!cancelled) {
-        setRoute(r);
+        setRoute(r ?? routeParam ?? null);
         setLoading(false);
       }
     })();
@@ -305,7 +317,7 @@ export default function RouteDetailsScreen() {
 
         <Pressable
           className="bg-[#2563eb] rounded-cy-md py-4 items-center"
-          onPress={() => navigation.navigate('RouteConfirmed', { routeId: route.id })}
+          onPress={() => navigation.navigate('RouteConfirmed', { routeId: route.id, route })}
           testID="route-details-confirm"
         >
           <Text className="text-white text-base font-bold">Confirm route</Text>

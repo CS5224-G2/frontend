@@ -150,7 +150,19 @@ describe('RouteHistoryDetailsPage', () => {
 
     expect(mockNavigate).toHaveBeenCalledWith('HomeTab', {
       state: {
-        routes: [{ name: 'HomePage' }, { name: 'RouteDetails', params: { routeId: 'route-1' } }],
+        routes: [
+          { name: 'HomePage' },
+          {
+            name: 'RouteDetails',
+            params: expect.objectContaining({
+              routeId: 'route-1',
+              route: expect.objectContaining({
+                id: 'route-1',
+                name: 'City Breeze Connector',
+              }),
+            }),
+          },
+        ],
         index: 1,
       },
     });

@@ -1,23 +1,37 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import type { Route } from '../../../../shared/types/index';
 import { resolveRouteById } from '../../services/routeLookup';
+import { saveRide } from '../../services/rideService';
 import { boundsFromCoordinates, interpolateAlongRoute, routeToLineCoordinates } from '@/utils/routeGeometry';
 
-export function useLiveMapRideState(routeId: string | undefined) {
+export function useLiveMapRideState(routeId: string | undefined, initialRoute?: Route | null) {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
-  const [route, setRoute] = useState<Route | null>(null);
-  const [routeLoading, setRouteLoading] = useState(true);
+  const [route, setRoute] = useState<Route | null>(initialRoute ?? null);
+  const [routeLoading, setRouteLoading] = useState(!initialRoute);
+  const sessionStartedAtRef = useRef(new Date().toISOString());
+  const persistRidePromiseRef = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      setRouteLoading(true);
+      if (!routeId) {
+        if (!cancelled) {
+          setRoute(initialRoute ?? null);
+          setRouteLoading(false);
+        }
+        return;
+      }
+
+      if (!initialRoute) {
+        setRouteLoading(true);
+      }
+
       const r = await resolveRouteById(routeId);
       if (!cancelled) {
-        setRoute(r);
+        setRoute(r ?? initialRoute ?? null);
         setRouteLoading(false);
       }
     })();
@@ -113,17 +127,58 @@ export function useLiveMapRideState(routeId: string | undefined) {
 
   const distanceTraveled = route ? ((route.distance * progress) / 100).toFixed(2) : '0.00';
 
-  const goFeedback = useCallback(() => {
-    // Dismiss modals before navigating: LiveMap stays mounted under the stack and RN Modal
-    // can otherwise stay visible on top of Route Feedback.
-    setRouteCompleted(false);
-    setShowExitModal(false);
-    if (routeId) {
-      navigation.navigate('RouteFeedback', { routeId });
-    } else {
-      navigation.navigate('RouteFeedback');
+  const persistRideCompletion = useCallback(async () => {
+    if (!route || !routeId) {
+      return;
     }
-  }, [navigation, routeId]);
+
+    if (!persistRidePromiseRef.current) {
+      const completedDistance = routeCompleted ? route.distance : Number(distanceTraveled);
+      const safeDistance = Number.isFinite(completedDistance) ? completedDistance : 0;
+      const avgSpeed = elapsedSec > 0 ? Number((safeDistance / (elapsedSec / 3600)).toFixed(1)) : 0;
+      const checkpointsVisited = routeCompleted ? route.checkpoints.length : currentCheckpoint;
+
+      persistRidePromiseRef.current = saveRide({
+        route,
+        startTime: sessionStartedAtRef.current,
+        endTime: new Date().toISOString(),
+        distance: safeDistance,
+        avgSpeed,
+        checkpointsVisited,
+        pointsOfInterestVisited: route.pointsOfInterestVisited,
+      })
+        .then(() => {})
+        .catch((error) => {
+          console.warn('[LiveMap] Failed to persist completed ride', error);
+        });
+    }
+
+    await persistRidePromiseRef.current;
+  }, [
+    currentCheckpoint,
+    distanceTraveled,
+    elapsedSec,
+    route,
+    routeCompleted,
+    routeId,
+  ]);
+
+  const goFeedback = useCallback(() => {
+    const navigate = async () => {
+      // Dismiss modals before navigating: LiveMap stays mounted under the stack and RN Modal
+      // can otherwise stay visible on top of Route Feedback.
+      setRouteCompleted(false);
+      setShowExitModal(false);
+      await persistRideCompletion();
+      if (routeId) {
+        navigation.navigate('RouteFeedback', { routeId, route });
+      } else {
+        navigation.navigate('RouteFeedback', route ? { route } : undefined);
+      }
+    };
+
+    void navigate();
+  }, [navigation, persistRideCompletion, route, routeId]);
 
   const stopCycling = () => {
     if (routeCompleted) {

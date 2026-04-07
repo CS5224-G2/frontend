@@ -20,22 +20,34 @@ import { useFloatingTabBarScrollPadding } from '../utils/floatingTabBarInset';
 export default function RouteConfirmedScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const { params } = useRoute<any>();
-  const routeId = params?.routeId as string | undefined;
+  const routeParam = params?.route as Route | undefined;
+  const routeId = (params?.routeId as string | undefined) ?? routeParam?.id;
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
 
-  const [route, setRoute] = useState<Route | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [route, setRoute] = useState<Route | null>(routeParam ?? null);
+  const [loading, setLoading] = useState(!routeParam);
   const { startLabel, endLabel } = useRouteEndpointLabels(route);
   const scrollBottomPad = useFloatingTabBarScrollPadding(20);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      setLoading(true);
+      if (!routeId) {
+        if (!cancelled) {
+          setRoute(routeParam ?? null);
+          setLoading(false);
+        }
+        return;
+      }
+
+      if (!routeParam) {
+        setLoading(true);
+      }
+
       const r = await resolveRouteById(routeId);
       if (!cancelled) {
-        setRoute(r);
+        setRoute(r ?? routeParam ?? null);
         setLoading(false);
       }
     })();
@@ -247,7 +259,7 @@ export default function RouteConfirmedScreen() {
 
         <Pressable
           className="bg-[#2563eb] rounded-cy-md py-4 items-center mb-5 flex-row justify-center gap-2"
-          onPress={() => navigation.navigate('LiveMap', { routeId: route.id })}
+          onPress={() => navigation.navigate('LiveMap', { routeId: route.id, route })}
           testID="route-confirmed-start-cycling"
         >
           <MaterialCommunityIcons name="navigation-variant" size={22} color="#ffffff" />

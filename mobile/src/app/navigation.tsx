@@ -36,6 +36,7 @@ import RouteConfigScreen from './pages/RouteConfigPage';
 import LiveMapScreen from './pages/LiveMapPage';
 import OnboardingScreen from './pages/OnboardingPage';
 import UserJourneyScreen from './pages/UserJourneyPage';
+import ForgotPasswordScreen from './pages/ForgotPasswordPage';
 import { FLOATING_TAB_BAR_DOCK_HEIGHT } from './utils/floatingTabBarInset';
 
 const Stack = createNativeStackNavigator<any>();
@@ -225,6 +226,7 @@ function AuthNavigator() {
       <AuthStack.Screen name="Login" component={LoginScreen} />
       <AuthStack.Screen name="Register" component={RegisterScreen} />
       <AuthStack.Screen name="Onboarding" component={OnboardingScreen} />
+      <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
     </AuthStack.Navigator>
   );
 }

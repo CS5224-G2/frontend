@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.0.1",
   "scripts": {
+    "postinstall": "node scripts/fix-expo-plist.js",
     "build": "expo build:web",
     "dev": "expo start",
     "start": "expo start",

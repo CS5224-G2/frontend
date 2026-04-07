@@ -128,7 +128,16 @@ describe('RouteRecommendationPage', () => {
     renderPage();
     await screen.findByTestId('route-list-item-1');
     fireEvent.press(screen.getByText('Jurong Lake Loop'));
-    expect(mockNavigate).toHaveBeenCalledWith('RouteDetails', { routeId: '1' });
+    expect(mockNavigate).toHaveBeenCalledWith(
+      'RouteDetails',
+      expect.objectContaining({
+        routeId: '1',
+        route: expect.objectContaining({
+          id: '1',
+          name: 'Jurong Lake Loop',
+        }),
+      }),
+    );
   }, 10000);
 
   it('shows a collapsed mock request dropdown when a saved request exists', async () => {

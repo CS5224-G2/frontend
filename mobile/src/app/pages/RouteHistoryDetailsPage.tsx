@@ -302,7 +302,7 @@ export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
             state: {
               routes: [
                 { name: 'HomePage' },
-                { name: 'RouteDetails', params: { routeId: routeInfo.id } },
+                { name: 'RouteDetails', params: { routeId: routeInfo.id, route: routeInfo } },
               ],
               index: 1,
             },

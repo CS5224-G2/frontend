@@ -3,6 +3,7 @@ import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'rea
 import { useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { type Route } from '../../../../shared/types/index';
 import { routeToLineCoordinates } from '@/utils/routeGeometry';
 import { useFloatingTabBarExtraLift } from '../utils/floatingTabBarInset';
 import { useLiveMapRideState } from './useLiveMapRideState';
@@ -13,7 +14,8 @@ import { useLiveMapRideState } from './useLiveMapRideState';
  */
 export default function LiveMapExpoGoScreen() {
   const { params } = useRoute<any>();
-  const routeId = params?.routeId as string | undefined;
+  const routeParam = params?.route as Route | undefined;
+  const routeId = (params?.routeId as string | undefined) ?? routeParam?.id;
 
   const {
     route,
@@ -31,7 +33,7 @@ export default function LiveMapExpoGoScreen() {
     goFeedback,
     stopCycling,
     confirmExit,
-  } = useLiveMapRideState(routeId);
+  } = useLiveMapRideState(routeId, routeParam);
 
   const polylineCount = useMemo(
     () => (route ? routeToLineCoordinates(route).length : 0),
