@@ -99,7 +99,7 @@ export default function RouteRecommendationPage({ navigation }: Props) {
   const renderRoute = ({ item }: { item: Route }) => (
     <Pressable
       style={({ pressed }) => [{ borderRadius: 12 }, pressed && { opacity: 0.8 }]}
-      onPress={() => navigation.navigate('RouteDetails', { routeId: item.id })}
+      onPress={() => navigation.navigate('RouteDetails', { routeId: item.id, route: item })}
     >
       <Card>
         <CardHeader>
@@ -281,4 +281,3 @@ export default function RouteRecommendationPage({ navigation }: Props) {
     </ScrollView>
   );
 }
-

@@ -6,18 +6,29 @@ import type { Route } from '../../../../shared/types/index';
 import { resolveRouteById } from '../../services/routeLookup';
 import { boundsFromCoordinates, interpolateAlongRoute, routeToLineCoordinates } from '@/utils/routeGeometry';
 
-export function useLiveMapRideState(routeId: string | undefined) {
+export function useLiveMapRideState(routeId: string | undefined, initialRoute?: Route | null) {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
-  const [route, setRoute] = useState<Route | null>(null);
-  const [routeLoading, setRouteLoading] = useState(true);
+  const [route, setRoute] = useState<Route | null>(initialRoute ?? null);
+  const [routeLoading, setRouteLoading] = useState(!initialRoute);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      setRouteLoading(true);
+      if (!routeId) {
+        if (!cancelled) {
+          setRoute(initialRoute ?? null);
+          setRouteLoading(false);
+        }
+        return;
+      }
+
+      if (!initialRoute) {
+        setRouteLoading(true);
+      }
+
       const r = await resolveRouteById(routeId);
       if (!cancelled) {
-        setRoute(r);
+        setRoute(r ?? initialRoute ?? null);
         setRouteLoading(false);
       }
     })();

@@ -344,7 +344,7 @@ export default function HomeScreen({ navigation }: Props) {
                   key={route.id}
                   route={route}
                   isFavorite={true}
-                  onPress={() => navigation.navigate('RouteDetails', { routeId: route.id })}
+                  onPress={() => navigation.navigate('RouteDetails', { routeId: route.id, route })}
                 />
               ))}
             </View>
@@ -372,7 +372,7 @@ export default function HomeScreen({ navigation }: Props) {
                   isFavorite={favorites.includes(route.id)}
                   matchScore={route.matchScore}
                   showMatchBadge={true}
-                  onPress={() => navigation.navigate('RouteDetails', { routeId: route.id })}
+                  onPress={() => navigation.navigate('RouteDetails', { routeId: route.id, route })}
                 />
               ))}
             </View>
@@ -396,7 +396,7 @@ export default function HomeScreen({ navigation }: Props) {
                   route={route}
                   isFavorite={favorites.includes(route.id)}
                   onPress={() =>
-                    navigation.navigate('RouteDetails', { routeId: route.id })
+                    navigation.navigate('RouteDetails', { routeId: route.id, route })
                   }
                 />
               ))}
@@ -411,4 +411,3 @@ export default function HomeScreen({ navigation }: Props) {
     </ScrollView>
   );
 }
-
