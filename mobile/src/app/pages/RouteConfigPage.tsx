@@ -163,16 +163,19 @@ function ActionPill({
   label,
   icon,
   onPress,
+  disabled = false,
 }: {
   label: string;
   icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
   onPress: () => void;
+  disabled?: boolean;
 }) {
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       className="border border-slate-300 dark:border-[#2d2d2d] rounded-[12px] px-cy-md py-3 bg-white dark:bg-[#111111] flex-row items-center justify-center"
-      style={({ pressed }) => [pressed && { opacity: 0.8 }]}
+      style={({ pressed }) => [(pressed || disabled) && { opacity: disabled ? 0.65 : 0.8 }]}
     >
       <MaterialCommunityIcons name={icon} size={16} color="#2563eb" />
       <Text className="ml-2 text-[13px] font-semibold text-slate-700 dark:text-slate-100">{label}</Text>
@@ -351,7 +354,7 @@ export default function RouteConfigPage({ navigation }: Props) {
   const [searchResults, setSearchResults] = useState<RouteRequestLocation[]>([]);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [isSearchingLocations, setIsSearchingLocations] = useState(false);
-  const [isLocating, setIsLocating] = useState(false);
+  const [locatingTarget, setLocatingTarget] = useState<PickerTarget['kind'] | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -554,7 +557,7 @@ export default function RouteConfigPage({ navigation }: Props) {
 
   const handleUseCurrentLocation = async (target: PickerTarget) => {
     try {
-      setIsLocating(true);
+      setLocatingTarget(target.kind);
       const permission = await Location.requestForegroundPermissionsAsync();
 
       if (!permission.granted) {
@@ -578,7 +581,7 @@ export default function RouteConfigPage({ navigation }: Props) {
       console.warn('Unable to resolve current location', error);
       Alert.alert('Location unavailable', 'The app could not read your current location right now.');
     } finally {
-      setIsLocating(false);
+      setLocatingTarget((currentTarget) => (currentTarget === target.kind ? null : currentTarget));
     }
   };
 
@@ -648,7 +651,12 @@ export default function RouteConfigPage({ navigation }: Props) {
             <View className="gap-cy-sm">
               <LocationValueCard title="Start Point" location={startPoint} />
               <View className="gap-cy-sm">
-                <ActionPill label={isLocating ? 'Locating...' : 'Use Current Location'} icon="crosshairs-gps" onPress={() => handleUseCurrentLocation({ kind: 'start' })} />
+                <ActionPill
+                  label={locatingTarget === 'start' ? 'Locating...' : 'Use Current Location'}
+                  icon="crosshairs-gps"
+                  onPress={() => handleUseCurrentLocation({ kind: 'start' })}
+                  disabled={locatingTarget === 'start'}
+                />
                 <ActionPill label="Search on Map" icon="map-search-outline" onPress={() => openPicker({ kind: 'start' }, startPoint)} />
               </View>
             </View>
@@ -656,7 +664,12 @@ export default function RouteConfigPage({ navigation }: Props) {
             <View className="gap-cy-sm">
               <LocationValueCard title="End Point" location={endPoint} />
               <View className="gap-cy-sm">
-                <ActionPill label={isLocating ? 'Locating...' : 'Use Current Location'} icon="crosshairs-gps" onPress={() => handleUseCurrentLocation({ kind: 'end' })} />
+                <ActionPill
+                  label={locatingTarget === 'end' ? 'Locating...' : 'Use Current Location'}
+                  icon="crosshairs-gps"
+                  onPress={() => handleUseCurrentLocation({ kind: 'end' })}
+                  disabled={locatingTarget === 'end'}
+                />
                 <ActionPill label="Search on Map" icon="map-search-outline" onPress={() => openPicker({ kind: 'end' }, endPoint)} />
               </View>
             </View>

@@ -140,7 +140,7 @@ describe('RouteRecommendationPage', () => {
     );
   }, 10000);
 
-  it('shows a collapsed mock request dropdown when a saved request exists', async () => {
+  it('does not render the API request box even when a saved request exists', async () => {
     const AsyncStorage = require('@react-native-async-storage/async-storage');
     const savedRequest = {
       startPoint: { name: 'Marina Bay Sands', lat: 1.2834, lng: 103.8607, source: 'search' },
@@ -158,35 +158,10 @@ describe('RouteRecommendationPage', () => {
 
     renderPage();
 
-    expect(await screen.findByText('API Request')).toBeTruthy();
-    expect(screen.getByText('Show request details')).toBeTruthy();
+    expect(await screen.findByText('Jurong Lake Loop')).toBeTruthy();
+    expect(screen.queryByText('API Request')).toBeNull();
+    expect(screen.queryByText('Show request details')).toBeNull();
     expect(screen.queryByText('Marina Bay Sands')).toBeNull();
-  }, 10000);
-
-  it('expands mock request dropdown to show details when pressed', async () => {
-    const AsyncStorage = require('@react-native-async-storage/async-storage');
-    const savedRequest = {
-      startPoint: { name: 'Marina Bay Sands', lat: 1.2834, lng: 103.8607, source: 'search' },
-      endPoint: { name: 'Sentosa', lat: 1.2494, lng: 103.8303, source: 'map' },
-      checkpoints: [],
-      preferences: {
-        cyclistType: 'commuter',
-        preferredShade: 60,
-        elevation: 40,
-        distance: 15,
-        airQuality: 70,
-      },
-    };
-    AsyncStorage.getItem.mockResolvedValue(JSON.stringify(savedRequest));
-
-    renderPage();
-
-    const toggle = await screen.findByText('Show request details');
-    fireEvent.press(toggle);
-
-    expect(await screen.findByText('Marina Bay Sands')).toBeTruthy();
-    expect(screen.getByText('Sentosa')).toBeTruthy();
-    expect(screen.getByText('Hide request details')).toBeTruthy();
   }, 10000);
 
   it('uses getRouteRecommendations when preferences are present', async () => {
@@ -262,7 +237,7 @@ describe('RouteRecommendationPage', () => {
     expect(screen.getByText('Lau Pa Sat Hawker Centre, Merlion Park')).toBeTruthy();
   }, 10000);
 
-  it('shows current location label for end point source in expanded request details', async () => {
+  it('still requests recommendations when a saved request uses current location', async () => {
     const AsyncStorage = require('@react-native-async-storage/async-storage');
     const savedRequest = {
       startPoint: { name: 'Start', lat: 1.3, lng: 103.8, source: 'search' },
@@ -280,10 +255,10 @@ describe('RouteRecommendationPage', () => {
 
     renderPage();
 
-    const toggle = await screen.findByText('Show request details');
-    fireEvent.press(toggle);
-
-    expect(await screen.findByText('Current End')).toBeTruthy();
-    expect(screen.getByText(/Current location/i)).toBeTruthy();
+    expect(await screen.findByText('Jurong Lake Loop')).toBeTruthy();
+    expect(mockGetRouteRecommendations).toHaveBeenCalledWith(expect.objectContaining({
+      endPoint: expect.objectContaining({ source: 'current-location' }),
+    }), expect.anything());
+    expect(screen.queryByText('API Request')).toBeNull();
   }, 10000);
 });

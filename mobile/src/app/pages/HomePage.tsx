@@ -5,6 +5,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { type RideHistory, type Route, type UserPreferences } from '../../../../shared/types/index';
+import { getFavoriteRouteIds, setFavoriteRouteIds } from '../../services/favoriteRoutesService';
 import { normalizeUserPreferences } from '../utils/routePreferences';
 import { getPopularRoutes, getRoutes } from '../../services/routeService';
 import { getRideHistory } from '../../services/rideService';
@@ -91,9 +92,9 @@ export default function HomeScreen({ navigation }: Props) {
     }
 
     try {
-      const [savedPrefs, savedFavorites, activeSession] = await Promise.all([
+      const [savedPrefs, savedFavoriteIds, activeSession] = await Promise.all([
         AsyncStorage.getItem('userPreferences'),
-        AsyncStorage.getItem('favoriteRoutes'),
+        getFavoriteRouteIds().catch(() => []),
         loadActiveRideSession().catch(() => null),
       ]);
 
@@ -120,7 +121,7 @@ export default function HomeScreen({ navigation }: Props) {
       setPreferences(prefs);
       setActiveRideSession(activeSession);
 
-      const storedFavoriteIds = parseFavoriteRouteIds(savedFavorites);
+      const storedFavoriteIds = parseFavoriteRouteIds(JSON.stringify(savedFavoriteIds));
       const [routes, popular, history] = await Promise.all([
         getRoutes(undefined, undefined, 3),
         getPopularRoutes(3),
@@ -134,8 +135,8 @@ export default function HomeScreen({ navigation }: Props) {
       const sanitizedFavoriteIds = storedFavoriteIds.filter((routeId) => knownRoutesById.has(routeId));
 
       setFavorites(sanitizedFavoriteIds);
-      if (savedFavorites && JSON.stringify(sanitizedFavoriteIds) !== savedFavorites) {
-        await AsyncStorage.setItem('favoriteRoutes', JSON.stringify(sanitizedFavoriteIds));
+      if (JSON.stringify(sanitizedFavoriteIds) !== JSON.stringify(storedFavoriteIds)) {
+        await setFavoriteRouteIds(sanitizedFavoriteIds);
       }
 
       setAllRoutes(routes);
@@ -227,7 +228,7 @@ export default function HomeScreen({ navigation }: Props) {
       ? favorites.filter(id => id !== routeId)
       : [...favorites, routeId];
     setFavorites(updated);
-    await AsyncStorage.setItem('favoriteRoutes', JSON.stringify(updated));
+    await setFavoriteRouteIds(updated);
   };
 
   const RouteCard = ({ route, isFavorite, matchScore, showMatchBadge, onPress }: any) => (

@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
 
 import { STORAGE_KEYS } from '../constants/routeStorage';
 import {
@@ -16,9 +18,17 @@ describe('rideNotifications', () => {
     endPoint: { lat: 1.31, lng: 103.71 },
     checkpoints: [],
   };
+  const originalPlatform = Platform.OS;
+  const constants = Constants as typeof Constants & {
+    executionEnvironment?: string;
+    appOwnership?: string;
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    Object.defineProperty(Platform, 'OS', { value: originalPlatform });
+    constants.executionEnvironment = 'standalone';
+    constants.appOwnership = 'standalone';
     await AsyncStorage.clear();
     await saveActiveRideSession({
       version: 1,
@@ -57,6 +67,17 @@ describe('rideNotifications', () => {
 
     await notifyRideTrackingInBackground('Test Route');
 
+    expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
+  });
+
+  it('skips scheduling notifications on Android Expo Go', async () => {
+    Object.defineProperty(Platform, 'OS', { value: 'android' });
+    constants.executionEnvironment = 'storeClient';
+    constants.appOwnership = 'expo';
+
+    await notifyRideTrackingInBackground('Test Route');
+
+    expect(Notifications.getPermissionsAsync).not.toHaveBeenCalled();
     expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
   });
 });

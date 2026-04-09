@@ -4,37 +4,14 @@ import { useColorScheme } from 'nativewind';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AntDesign, MaterialCommunityIcons } from '@expo/vector-icons';
-import { Card, CardDescription, CardHeader, CardTitle, CardContent } from '../components/native/Common';
-import { type Route, type RouteRecommendationRequest, type RouteRequestLocation } from '../../../../shared/types/index';
-import {
-  getAirQualityPreferenceLabel,
-  getElevationPreferenceLabel,
-  getSelectedPointOfInterestLabels,
-  getShadePreferenceLabel,
-  hasSelectedPointsOfInterest,
-  normalizeUserPreferences,
-} from '../utils/routePreferences';
+import { Card, CardHeader, CardTitle, CardContent } from '../components/native/Common';
+import { type Route, type RouteRecommendationRequest } from '../../../../shared/types/index';
+import { normalizeUserPreferences } from '../utils/routePreferences';
 import { getRouteRecommendations, getRoutes } from '../../services/routeService';
 import { useFloatingTabBarScrollPadding } from '../utils/floatingTabBarInset';
 import { ROUTE_REQUEST_STORAGE_KEY } from '../../services/routeDraftStorage';
 
 type Props = NativeStackScreenProps<any, 'Recommendation'>;
-
-function formatCoordinates(location: Pick<RouteRequestLocation, 'lat' | 'lng'>) {
-  return `${location.lat.toFixed(5)}, ${location.lng.toFixed(5)}`;
-}
-
-function getSourceLabel(source: RouteRequestLocation['source']) {
-  if (source === 'current-location') {
-    return 'Current location';
-  }
-
-  if (source === 'map') {
-    return 'Map pin';
-  }
-
-  return 'Search result';
-}
 
 function formatPreferenceMetric(value: number | string, unit?: string) {
   if (typeof value === 'number') {
@@ -53,8 +30,6 @@ function formatCyclistType(value: string) {
 
 export default function RouteRecommendationPage({ navigation }: Props) {
   const [routes, setRoutes] = useState<Route[]>([]);
-  const [routeRequest, setRouteRequest] = useState<RouteRecommendationRequest | null>(null);
-  const [isRequestExpanded, setIsRequestExpanded] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -71,8 +46,6 @@ export default function RouteRecommendationPage({ navigation }: Props) {
               preferences: normalizeUserPreferences(parsedRequest.preferences),
             }
           : null;
-
-        setRouteRequest(normalizedRequest);
 
         const data = normalizedRequest?.preferences
           ? await getRouteRecommendations(normalizedRequest, normalizedRequest.limit ?? 3)
@@ -174,94 +147,6 @@ export default function RouteRecommendationPage({ navigation }: Props) {
       <View className="flex-row items-center mb-[12px] gap-cy-md">
         <Text testID="route-list-heading" className="text-2xl font-bold text-[#1e293b] dark:text-slate-100">Route Recommendations</Text>
       </View>
-
-      {routeRequest ? (
-        <Card>
-          <CardHeader>
-            <CardTitle style={{ fontSize: 18 }}>API Request</CardTitle>
-            <CardDescription>
-              View your route configurations here.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Pressable
-              onPress={() => setIsRequestExpanded((current) => !current)}
-              accessibilityRole="button"
-              accessibilityLabel="Toggle mock API request details"
-              className="border border-slate-200 dark:border-[#2d2d2d] rounded-[12px] px-cy-md py-cy-md bg-white dark:bg-[#0f0f0f]"
-              style={({ pressed }) => [pressed && { opacity: 0.85 }]}
-            >
-              <View className="flex-row items-center justify-between">
-                <Text className="text-[14px] font-semibold text-slate-800 dark:text-slate-100">
-                  {isRequestExpanded ? 'Hide request details' : 'Show request details'}
-                </Text>
-                <MaterialCommunityIcons
-                  name={isRequestExpanded ? 'chevron-up' : 'chevron-down'}
-                  size={20}
-                  color={isDark ? '#cbd5e1' : '#475569'}
-                />
-              </View>
-            </Pressable>
-
-            {isRequestExpanded ? (
-              <>
-                <View className="border border-slate-200 dark:border-[#2d2d2d] rounded-[12px] px-cy-md py-cy-md bg-white dark:bg-[#0f0f0f]">
-                  <Text className="text-[12px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Start Point</Text>
-                  <Text className="text-[15px] font-semibold text-slate-900 dark:text-slate-100 mt-1">{routeRequest.startPoint.name}</Text>
-                  <Text className="text-[13px] text-slate-500 dark:text-slate-400 mt-1">
-                    {getSourceLabel(routeRequest.startPoint.source)} · {formatCoordinates(routeRequest.startPoint)}
-                  </Text>
-                </View>
-
-                <View className="border border-slate-200 dark:border-[#2d2d2d] rounded-[12px] px-cy-md py-cy-md bg-white dark:bg-[#0f0f0f]">
-                  <Text className="text-[12px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">End Point</Text>
-                  <Text className="text-[15px] font-semibold text-slate-900 dark:text-slate-100 mt-1">{routeRequest.endPoint.name}</Text>
-                  <Text className="text-[13px] text-slate-500 dark:text-slate-400 mt-1">
-                    {getSourceLabel(routeRequest.endPoint.source)} · {formatCoordinates(routeRequest.endPoint)}
-                  </Text>
-                </View>
-
-                <View className="border border-slate-200 dark:border-[#2d2d2d] rounded-[12px] px-cy-md py-cy-md bg-white dark:bg-[#0f0f0f]">
-                  <Text className="text-[12px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Checkpoints</Text>
-                  {routeRequest.checkpoints.length === 0 ? (
-                    <Text className="text-[14px] text-slate-500 dark:text-slate-400 mt-1">No checkpoints added.</Text>
-                  ) : (
-                    routeRequest.checkpoints.map((checkpoint, index) => (
-                      <View key={checkpoint.id} className={index === 0 ? 'mt-2' : 'mt-3'}>
-                        <Text className="text-[14px] font-semibold text-slate-800 dark:text-slate-100">{checkpoint.name}</Text>
-                        <Text className="text-[13px] text-slate-500 dark:text-slate-400">
-                          {getSourceLabel(checkpoint.source)} · {formatCoordinates(checkpoint)}
-                        </Text>
-                      </View>
-                    ))
-                  )}
-                </View>
-
-                <View className="border border-slate-200 dark:border-[#2d2d2d] rounded-[12px] px-cy-md py-cy-md bg-white dark:bg-[#0f0f0f]">
-                  <Text className="text-[12px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Preference Summary</Text>
-                  <Text className="text-[14px] text-slate-700 dark:text-slate-200 mt-2">
-                    Cyclist type: {formatCyclistType(routeRequest.preferences.cyclistType)} · Max distance: {routeRequest.preferences.maxDistanceKm} km
-                  </Text>
-                  <Text className="text-[13px] text-slate-500 dark:text-slate-400 mt-1">
-                    Shade: {getShadePreferenceLabel(routeRequest.preferences.shadePreference)} · Elevation: {getElevationPreferenceLabel(routeRequest.preferences.elevationPreference)} · Air quality: {getAirQualityPreferenceLabel(routeRequest.preferences.airQualityPreference)}
-                  </Text>
-                  <Text className="text-[13px] text-slate-500 dark:text-slate-400 mt-1">
-                    {hasSelectedPointsOfInterest(routeRequest.preferences.pointsOfInterest)
-                      ? `Points of interest enabled: ${getSelectedPointOfInterestLabels(routeRequest.preferences.pointsOfInterest).join(', ')}`
-                      : 'Points of interest enabled: none'}
-                  </Text>
-                  <Text className="text-[13px] text-slate-500 dark:text-slate-400 mt-1">
-                    allow_hawker_center: {routeRequest.preferences.pointsOfInterest.hawkerCenter ? 'true' : 'false'} · allow_park: {routeRequest.preferences.pointsOfInterest.park ? 'true' : 'false'}
-                  </Text>
-                  <Text className="text-[13px] text-slate-500 dark:text-slate-400 mt-1">
-                    allow_historic_site: {routeRequest.preferences.pointsOfInterest.historicSite ? 'true' : 'false'} · allow_tourist_attraction: {routeRequest.preferences.pointsOfInterest.touristAttraction ? 'true' : 'false'}
-                  </Text>
-                </View>
-              </>
-            ) : null}
-          </CardContent>
-        </Card>
-      ) : null}
 
       <Text className="mb-[14px] text-slate-500 dark:text-slate-400">{routes.length} routes found</Text>
 

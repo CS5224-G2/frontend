@@ -40,6 +40,14 @@ jest.mock('expo-task-manager', () => ({
   defineTask: jest.fn(),
 }));
 
+jest.mock('expo-constants', () => ({
+  __esModule: true,
+  default: {
+    executionEnvironment: 'standalone',
+    appOwnership: 'standalone',
+  },
+}));
+
 jest.mock('expo-notifications', () => ({
   IosAuthorizationStatus: {
     PROVISIONAL: 3,

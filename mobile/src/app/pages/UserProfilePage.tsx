@@ -10,7 +10,6 @@ import {
   Text,
   View,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useColorScheme } from 'nativewind';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,6 +19,7 @@ import {
   serializeUserProfile,
   UserProfile,
 } from '@/services/userService';
+import { getFavoriteRouteIds } from '@/services/favoriteRoutesService';
 import { getRideHistory } from '@/services/rideService';
 import { getProfileAvatarSource } from '@/app/utils/profileAvatar';
 import { AuthContext } from '../AuthContext';
@@ -45,21 +45,6 @@ const statCards = [
     textClassName: 'text-[#92400E] dark:text-[#fcd34d]',
   },
 ] as const;
-
-const FAVORITE_ROUTES_STORAGE_KEY = 'favoriteRoutes';
-
-function parseFavoriteRouteIds(value: string | null): string[] | null {
-  if (value === null) {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : [];
-  } catch {
-    return null;
-  }
-}
 
 function buildDynamicProfileStats(
   baseStats: UserProfile['stats'],
@@ -97,12 +82,11 @@ export default function UserProfilePage() {
     }
 
     try {
-      const [profileResult, rideHistory, storedFavoriteRoutes] = await Promise.all([
+      const [profileResult, rideHistory, favoriteRouteIds] = await Promise.all([
         getUserProfile(),
         getRideHistory(),
-        AsyncStorage.getItem(FAVORITE_ROUTES_STORAGE_KEY),
+        getFavoriteRouteIds().catch(() => null),
       ]);
-      const favoriteRouteIds = parseFavoriteRouteIds(storedFavoriteRoutes);
       const rideCount = rideHistory.length;
       const totalDistanceKm = Number(
         rideHistory.reduce((sum, ride) => sum + ride.distance, 0).toFixed(1),

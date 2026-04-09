@@ -76,6 +76,13 @@ type UserPrivacySettingsRow = {
   updated_at: string;
 };
 
+type FavoriteRouteRow = {
+  account_id: string;
+  route_id: string;
+  sort_order: number;
+  created_at: string;
+};
+
 type RouteRow = {
   id: string;
   name: string;
@@ -472,6 +479,26 @@ type TestState = {
 
 let databasePromise: Promise<DatabaseLike> | null = null;
 let synchronizeFromMocksPromise: Promise<void> | null = null;
+let transactionQueue: Promise<void> = Promise.resolve();
+
+async function withSerializedTransaction<T>(
+  db: DatabaseLike,
+  operation: () => Promise<T>,
+): Promise<T> {
+  const waitForTurn = transactionQueue.catch(() => undefined);
+  let release!: () => void;
+  transactionQueue = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+
+  await waitForTurn;
+
+  try {
+    return await db.withTransactionAsync(operation);
+  } finally {
+    release();
+  }
+}
 
 const normalizeEmail = (value: string) => value.trim().toLowerCase();
 const nowIso = () => new Date().toISOString();
@@ -637,6 +664,7 @@ function createSeedState(): TestState {
     },
     userProfiles,
     userPrivacySettings,
+    favoriteRoutes: [] as FavoriteRouteRow[],
     routes,
     routeCheckpoints,
     routePointsOfInterest,
@@ -715,6 +743,19 @@ function createTestDatabase(): DatabaseLike {
         return { lastInsertRowId: 1, changes: 1 } as any;
       }
 
+      if (sql.startsWith('INSERT INTO FAVORITE_ROUTES')) {
+        state.favoriteRoutes = state.favoriteRoutes.filter(
+          (item) => !(item.account_id === params[0] && item.route_id === params[1]),
+        );
+        state.favoriteRoutes.push({
+          account_id: params[0],
+          route_id: params[1],
+          sort_order: params[2],
+          created_at: params[3],
+        });
+        return { lastInsertRowId: 1, changes: 1 } as any;
+      }
+
       if (sql.startsWith('INSERT INTO DISTANCE_STATS')) {
         state.distanceStats.push({
           id: params[0],
@@ -779,6 +820,15 @@ function createTestDatabase(): DatabaseLike {
         return { lastInsertRowId: 0, changes: profile ? 1 : 0 } as any;
       }
 
+      if (sql.startsWith('UPDATE USER_PROFILES SET FAVORITE_TRAILS_COUNT = ?')) {
+        const profile = state.userProfiles.find((item) => item.account_id === params[2]);
+        if (profile) {
+          profile.favorite_trails_count = params[0];
+          profile.updated_at = params[1];
+        }
+        return { lastInsertRowId: 0, changes: profile ? 1 : 0 } as any;
+      }
+
       if (sql.startsWith('UPDATE USER_PRIVACY_SETTINGS SET')) {
         const settings = state.userPrivacySettings.find((item) => item.account_id === params[4]);
         if (settings) {
@@ -814,6 +864,12 @@ function createTestDatabase(): DatabaseLike {
         const before = state.distanceStats.length;
         state.distanceStats = state.distanceStats.filter((r) => r.account_id !== params[0]);
         return { lastInsertRowId: 0, changes: before - state.distanceStats.length } as any;
+      }
+
+      if (sql.startsWith('DELETE FROM FAVORITE_ROUTES WHERE ACCOUNT_ID = ?')) {
+        const before = state.favoriteRoutes.length;
+        state.favoriteRoutes = state.favoriteRoutes.filter((item) => item.account_id !== params[0]);
+        return { lastInsertRowId: 0, changes: before - state.favoriteRoutes.length } as any;
       }
 
       if (sql.startsWith('DELETE FROM ROUTE_PATH_POINTS WHERE ROUTE_ID = ?')) {
@@ -888,6 +944,13 @@ function createTestDatabase(): DatabaseLike {
 
       if (sql.includes('FROM USER_PRIVACY_SETTINGS') && sql.includes('WHERE ACCOUNT_ID = ?')) {
         return state.userPrivacySettings.filter((item) => item.account_id === params[0]) as T[];
+      }
+
+      if (sql.includes('FROM FAVORITE_ROUTES') && sql.includes('WHERE ACCOUNT_ID = ?')) {
+        return state.favoriteRoutes
+          .filter((item) => item.account_id === params[0])
+          .sort((a, b) => a.sort_order - b.sort_order)
+          .map((item) => ({ route_id: item.route_id })) as T[];
       }
 
       if (sql.includes('FROM ROUTE_CHECKPOINTS')) {
@@ -1003,6 +1066,7 @@ async function openDatabase(): Promise<DatabaseLike> {
     await db.execAsync(`
       DROP TABLE IF EXISTS ride_feedback;
       DROP TABLE IF EXISTS distance_stats;
+      DROP TABLE IF EXISTS favorite_routes;
       DROP TABLE IF EXISTS ride_history;
       DROP TABLE IF EXISTS route_path_points;
       DROP TABLE IF EXISTS route_points_of_interest;
@@ -1129,6 +1193,14 @@ async function openDatabase(): Promise<DatabaseLike> {
       user_review TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS favorite_routes (
+      account_id TEXT NOT NULL,
+      route_id TEXT NOT NULL,
+      sort_order INTEGER NOT NULL,
+      created_at TEXT NOT NULL,
+      PRIMARY KEY (account_id, route_id)
+    );
+
     CREATE TABLE IF NOT EXISTS distance_stats (
       id TEXT PRIMARY KEY NOT NULL,
       account_id TEXT NOT NULL,
@@ -1159,6 +1231,9 @@ async function openDatabase(): Promise<DatabaseLike> {
     CREATE INDEX IF NOT EXISTS idx_ride_history_account
       ON ride_history (account_id, completion_date);
 
+    CREATE INDEX IF NOT EXISTS idx_favorite_routes_account_order
+      ON favorite_routes (account_id, sort_order);
+
     CREATE INDEX IF NOT EXISTS idx_distance_stats_account_period
       ON distance_stats (account_id, period, sort_order);
   `);
@@ -1186,7 +1261,7 @@ async function seedDatabaseIfEmpty(db: DatabaseLike): Promise<void> {
 
   const seedHash = await hashPassword(mockStoredPassword);
 
-  await db.withTransactionAsync(async () => {
+  await withSerializedTransaction(db, async () => {
     const authUsers = [mockAuthUser, mockAdminUser, mockBusinessUser];
 
     for (const user of authUsers) {
@@ -1470,7 +1545,7 @@ export async function synchronizeLocalDbFromMocks(): Promise<void> {
   synchronizeFromMocksPromise = (async () => {
     const db = await getLocalDb();
 
-    await db.withTransactionAsync(async () => {
+    await withSerializedTransaction(db, async () => {
       await db.runAsync('DELETE FROM route_path_points');
       await db.runAsync('DELETE FROM route_points_of_interest');
       await db.runAsync('DELETE FROM route_checkpoints');
@@ -1695,6 +1770,53 @@ export async function getActiveMockAccountId(): Promise<string> {
   return session?.current_account_id ?? DEFAULT_ACCOUNT_ID;
 }
 
+export async function getFavoriteRouteIdsLocal(): Promise<string[]> {
+  const db = await getLocalDb();
+  const accountId = await getActiveMockAccountId();
+  const rows = await db.getAllAsync<{ route_id: string }>(
+    `SELECT route_id
+     FROM favorite_routes
+     WHERE account_id = ?
+     ORDER BY sort_order ASC`,
+    accountId,
+  );
+
+  return rows.map((row) => row.route_id);
+}
+
+export async function setFavoriteRouteIdsLocal(routeIds: string[]): Promise<string[]> {
+  const db = await getLocalDb();
+  const accountId = await getActiveMockAccountId();
+  const updatedAt = nowIso();
+  const normalizedIds = [...new Set(routeIds.filter((routeId): routeId is string => typeof routeId === 'string'))];
+
+  await withSerializedTransaction(db, async () => {
+    await db.runAsync('DELETE FROM favorite_routes WHERE account_id = ?', accountId);
+
+    for (const [index, routeId] of normalizedIds.entries()) {
+      await db.runAsync(
+        `INSERT INTO favorite_routes (account_id, route_id, sort_order, created_at)
+         VALUES (?, ?, ?, ?)`,
+        accountId,
+        routeId,
+        index,
+        updatedAt,
+      );
+    }
+
+    await db.runAsync(
+      `UPDATE user_profiles
+       SET favorite_trails_count = ?, updated_at = ?
+       WHERE account_id = ?`,
+      normalizedIds.length,
+      updatedAt,
+      accountId,
+    );
+  });
+
+  return normalizedIds;
+}
+
 /** Persist post-ride feedback locally (offline / demo / when API returns 404 for unknown route). */
 export async function saveRideFeedbackLocal(input: {
   routeId: string;
@@ -1747,7 +1869,7 @@ export async function saveRideLocal(input: {
     Math.round((completedAt.getTime() - startedAt.getTime()) / 60000),
   );
 
-  await db.withTransactionAsync(async () => {
+  await withSerializedTransaction(db, async () => {
     await upsertRouteSnapshot(input.route, db);
     await db.runAsync(
       `INSERT INTO ride_history (
@@ -1950,7 +2072,7 @@ export async function createLocalAccount(input: {
   const fullName = `${input.firstName.trim()} ${input.lastName.trim()}`.trim();
   const newHash = await hashPassword(input.password);
 
-  await db.withTransactionAsync(async () => {
+  await withSerializedTransaction(db, async () => {
     await db.runAsync(
       `INSERT INTO users (
         id,
@@ -2067,7 +2189,8 @@ export async function createLocalAccount(input: {
 
 export async function deleteLocalAccount(accountId: string): Promise<void> {
   const db = await getLocalDb();
-  await db.withTransactionAsync(async () => {
+  await withSerializedTransaction(db, async () => {
+    await db.runAsync('DELETE FROM favorite_routes WHERE account_id = ?', accountId);
     await db.runAsync('DELETE FROM ride_feedback WHERE account_id = ?', accountId);
     await db.runAsync('DELETE FROM distance_stats WHERE account_id = ?', accountId);
     await db.runAsync('DELETE FROM ride_history WHERE account_id = ?', accountId);

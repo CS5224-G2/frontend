@@ -173,6 +173,33 @@ describe('RouteConfigPage', () => {
     });
   });
 
+  it('only shows locating state for the selected location button', async () => {
+    const Location = require('expo-location');
+    let resolvePermission: ((value: { granted: boolean }) => void) | undefined;
+
+    Location.requestForegroundPermissionsAsync.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolvePermission = resolve;
+        }),
+    );
+
+    renderPage();
+    const locateButtons = screen.getAllByText('Use Current Location');
+    fireEvent.press(locateButtons[0]);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Locating...')).toHaveLength(1);
+      expect(screen.getByText('Use Current Location')).toBeTruthy();
+    });
+
+    resolvePermission?.({ granted: true });
+
+    await waitFor(() => {
+      expect(screen.getByText('Raffles Place')).toBeTruthy();
+    });
+  });
+
   it('loads saved preferences and locations from AsyncStorage on mount', async () => {
     const AsyncStorage = require('@react-native-async-storage/async-storage');
     const savedRequest = {

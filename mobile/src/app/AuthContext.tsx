@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
 import type { AuthResult, AuthUser } from '../../../shared/types/index';
 import { registerSessionExpiredHandler } from '../services/authEvents';
+import { setActiveMockAccountId } from '../services/localDb';
 import { clearSession, loadSession, saveSession } from '../services/secureSession';
 
 interface AuthContextType {
@@ -46,6 +47,7 @@ export function AuthProvider({ children }: Readonly<{ children: React.ReactNode 
       try {
         const stored = await loadSession();
         if (!cancelled && stored) {
+          await setActiveMockAccountId(stored.user.id).catch(() => undefined);
           setIsLoggedIn(true);
           setRole(stored.user.role);
           setUser(stored.user);
@@ -63,6 +65,7 @@ export function AuthProvider({ children }: Readonly<{ children: React.ReactNode 
 
   const login = useCallback(async (result: AuthResult) => {
     await saveSession(result);
+    await setActiveMockAccountId(result.user.id).catch(() => undefined);
     setIsLoggedIn(true);
     setRole(result.user.role);
     setUser(result.user);

@@ -1,11 +1,11 @@
 import React from 'react';
 import { Alert } from 'react-native';
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import UserProfilePage from './UserProfilePage';
 import * as userService from '../../services/userService';
 import * as rideService from '../../services/rideService';
+import { setActiveMockAccountId, setFavoriteRouteIdsLocal } from '../../services/localDb';
 
 const mockNavigate = jest.fn();
 
@@ -53,8 +53,10 @@ jest.mock('../../services/rideService', () => ({
 }));
 
 describe('UserProfilePage', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
+    await setActiveMockAccountId('user-profile-test');
+    await setFavoriteRouteIdsLocal(['route-1', 'route-2']);
 
     (userService.getUserProfile as jest.Mock).mockResolvedValue({
       userId: 'rider_1024',
@@ -97,7 +99,6 @@ describe('UserProfilePage', () => {
         checkpoints: 3,
       },
     ]);
-    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(['route-1', 'route-2']));
   });
 
   it('navigates to edit profile and does not show an upload action', async () => {
@@ -108,6 +109,18 @@ describe('UserProfilePage', () => {
 
     fireEvent.press(screen.getByText('Edit profile'));
     expect(mockNavigate).toHaveBeenCalledWith('EditProfile', { profile: 'profile-param' });
+  });
+
+  it('opens the profile settings screens with the existing naming convention', async () => {
+    render(<UserProfilePage />);
+
+    await screen.findByText('Edit profile');
+
+    fireEvent.press(screen.getByText('Privacy'));
+    expect(mockNavigate).toHaveBeenCalledWith('privacy-security');
+
+    fireEvent.press(screen.getByText('Password'));
+    expect(mockNavigate).toHaveBeenCalledWith('change-password');
   });
 
   it('shows a sign-out confirmation alert when the sign out button is pressed', async () => {

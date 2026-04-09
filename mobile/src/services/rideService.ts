@@ -347,6 +347,8 @@ export async function saveRide(payload: SaveRidePayload, token?: string): Promis
     })),
     points_of_interest_visited: payload.pointsOfInterestVisited,
   };
+  // Debug: print the POST /rides payload
+  console.log('[POST /rides] Payload:', JSON.stringify(backendPayload, null, 2));
   const persistLocal = () =>
     saveRideLocal({
       route: payload.route,

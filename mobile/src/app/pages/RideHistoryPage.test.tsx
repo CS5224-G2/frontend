@@ -3,6 +3,7 @@ import { act, render, screen, fireEvent, waitFor } from '@testing-library/react-
 import { Alert, LayoutAnimation } from 'react-native';
 import RideHistoryPage from './RideHistoryPage';
 import { AuthContext } from '../AuthContext';
+import { getFavoriteRouteIdsLocal, setActiveMockAccountId, setFavoriteRouteIdsLocal } from '../../services/localDb';
 
 const mockNavigate = jest.fn();
 const mockGetRideHistory = jest.fn();
@@ -88,9 +89,11 @@ jest.mock('../../services/rideService', () => ({
 }));
 
 describe('RideHistoryPage', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.useFakeTimers();
     jest.clearAllMocks();
+    await setActiveMockAccountId('ride-history-test');
+    await setFavoriteRouteIdsLocal([]);
     jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     jest.spyOn(LayoutAnimation, 'configureNext').mockImplementation(() => {});
 
@@ -217,13 +220,13 @@ describe('RideHistoryPage', () => {
     });
   }, 10000);
 
-  it('clears unknown favorite route ids from storage on load', async () => {
+  it('clears unknown favorite route ids from local storage on load', async () => {
     mockGetItem.mockResolvedValue(JSON.stringify(['1', 'ghost-route']));
 
     await renderRideHistoryPage();
 
-    await waitFor(() => {
-      expect(mockSetItem).toHaveBeenCalledWith('favoriteRoutes', JSON.stringify(['1']));
+    await waitFor(async () => {
+      expect(await getFavoriteRouteIdsLocal()).toEqual(['1']);
     });
   }, 10000);
 
@@ -245,7 +248,7 @@ describe('RideHistoryPage', () => {
       'Favorites limit reached',
       expect.stringContaining('up to 3 routes')
     );
-    expect(mockSetItem).not.toHaveBeenCalled();
+    expect(await getFavoriteRouteIdsLocal()).toEqual(['1', '2', '3']);
   }, 10000);
 
   it('allows adding a third unique route when stored favorites contain duplicates', async () => {
@@ -261,8 +264,8 @@ describe('RideHistoryPage', () => {
     const addFavoriteIcons = screen.UNSAFE_getAllByProps({ name: 'star-outline' });
     fireEvent.press(addFavoriteIcons[0]);
 
-    await waitFor(() => {
-      expect(mockSetItem).toHaveBeenCalledWith('favoriteRoutes', JSON.stringify(['1', '2', '3']));
+    await waitFor(async () => {
+      expect(await getFavoriteRouteIdsLocal()).toEqual(['1', '2', '3']);
     });
   }, 10000);
 
@@ -274,15 +277,15 @@ describe('RideHistoryPage', () => {
     let addFavoriteIcons = screen.UNSAFE_getAllByProps({ name: 'star-outline' });
     fireEvent.press(addFavoriteIcons[0]);
 
-    await waitFor(() => {
-      expect(mockSetItem).toHaveBeenLastCalledWith('favoriteRoutes', JSON.stringify(['1']));
+    await waitFor(async () => {
+      expect(await getFavoriteRouteIdsLocal()).toEqual(['1']);
     });
 
     addFavoriteIcons = screen.UNSAFE_getAllByProps({ name: 'star-outline' });
     fireEvent.press(addFavoriteIcons[0]);
 
-    await waitFor(() => {
-      expect(mockSetItem).toHaveBeenLastCalledWith('favoriteRoutes', JSON.stringify(['1', '2']));
+    await waitFor(async () => {
+      expect(await getFavoriteRouteIdsLocal()).toEqual(['1', '2']);
     });
   }, 10000);
 
@@ -301,8 +304,8 @@ describe('RideHistoryPage', () => {
     const addFavoriteIcons = screen.UNSAFE_getAllByProps({ name: 'star-outline' });
     fireEvent.press(addFavoriteIcons[0]);
 
-    await waitFor(() => {
-      expect(mockSetItem).toHaveBeenCalledWith('favoriteRoutes', JSON.stringify(['route-a', 'route-b']));
+    await waitFor(async () => {
+      expect(await getFavoriteRouteIdsLocal()).toEqual(['route-a', 'route-b']);
     });
     expect(Alert.alert).not.toHaveBeenCalledWith(
       'Favorites limit reached',

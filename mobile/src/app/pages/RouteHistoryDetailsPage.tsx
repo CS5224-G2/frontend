@@ -258,7 +258,7 @@ export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
             </View>
             <View className="bg-slate-50 dark:bg-[#111111] rounded-[10px] p-[10px] border border-[#e2e8f0] dark:border-[#2d2d2d] items-center" style={{ width: '48%' }}>
               <FontAwesome5 name="mountain" size={16} color="#f97316" />
-              <Text className="text-base font-bold mt-[6px] text-[#1e293b] dark:text-slate-100">{routeInfo.elevation} m</Text>
+              <Text className="text-base font-bold mt-[6px] text-[#1e293b] dark:text-slate-100">{routeInfo.elevation}</Text>
               <Text className="text-xs text-[#64748b] dark:text-slate-400">Elevation</Text>
             </View>
             <View className="bg-slate-50 dark:bg-[#111111] rounded-[10px] p-[10px] border border-[#e2e8f0] dark:border-[#2d2d2d] items-center" style={{ width: '48%' }}>

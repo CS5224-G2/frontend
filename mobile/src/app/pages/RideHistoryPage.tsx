@@ -16,7 +16,6 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   GlassView,
@@ -26,6 +25,7 @@ import {
 import { useColorScheme } from 'nativewind';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/native/Common';
 import { type RideHistory, type GraphDataPoint, type GraphPeriod } from '../../../../shared/types/index';
+import { getFavoriteRouteIds, setFavoriteRouteIds } from '../../services/favoriteRoutesService';
 import { getRideHistory, getDistanceStats } from '../../services/rideService';
 
 type Props = NativeStackScreenProps<any, 'RideHistory'>;
@@ -242,11 +242,11 @@ export default function RideHistoryPage({ navigation }: Props) {
     }
 
     try {
-      const [history, weeklyStats, monthlyStats, saved] = await Promise.all([
+      const [history, weeklyStats, monthlyStats, savedFavoriteIds] = await Promise.all([
         getRideHistory(),
         getDistanceStats('week'),
         getDistanceStats('month'),
-        AsyncStorage.getItem('favoriteRoutes'),
+        getFavoriteRouteIds().catch(() => []),
       ]);
       setRideHistory(history);
       setDistanceStats({
@@ -254,15 +254,15 @@ export default function RideHistoryPage({ navigation }: Props) {
         month: monthlyStats,
       });
 
-      const normalizedFavorites = normalizeFavoriteRouteIds(saved);
+      const normalizedFavorites = dedupeFavoriteRouteIds(savedFavoriteIds);
       const rideHistoryRouteIds = new Set(history.map((ride) => ride.routeId));
       const sanitizedFavorites = normalizedFavorites.filter((routeId) => rideHistoryRouteIds.has(routeId));
 
       favoritesRef.current = sanitizedFavorites;
       setFavorites(sanitizedFavorites);
 
-      if (saved && saved !== JSON.stringify(sanitizedFavorites)) {
-        await AsyncStorage.setItem('favoriteRoutes', JSON.stringify(sanitizedFavorites));
+      if (JSON.stringify(savedFavoriteIds) !== JSON.stringify(sanitizedFavorites)) {
+        await setFavoriteRouteIds(sanitizedFavorites);
       }
     } catch (error) {
       console.warn('Error loading ride data', error);
@@ -361,7 +361,7 @@ export default function RideHistoryPage({ navigation }: Props) {
     setFavorites(updatedFavorites);
 
     try {
-      await AsyncStorage.setItem('favoriteRoutes', JSON.stringify(updatedFavorites));
+      await setFavoriteRouteIds(updatedFavorites);
       Alert.alert(
         isFav ? 'Removed from favorites' : 'Added to favorites',
         `${routeName} has been ${isFav ? 'removed from' : 'added to'} favorites.`

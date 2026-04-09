@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react-nativ
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import HomeScreen from './HomePage';
 import { AuthContext } from '../AuthContext';
+import { getFavoriteRouteIdsLocal, setActiveMockAccountId, setFavoriteRouteIdsLocal } from '../../services/localDb';
 
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
 
@@ -64,8 +65,10 @@ jest.mock('../../services/routeService', () => ({
 describe('HomePage', () => {
   const defaultFavorites = JSON.stringify(['p1']);
 
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
+    await setActiveMockAccountId('home-page-test');
+    await setFavoriteRouteIdsLocal([]);
 
     mockGetItem.mockImplementation((key: string) => {
       if (key === 'favoriteRoutes') {
@@ -161,13 +164,13 @@ describe('HomePage', () => {
     expect(screen.getAllByText('Popular Downtown Circuit').length).toBeGreaterThan(0);
   });
 
-  it('clears unknown favorite route ids from storage on load', async () => {
+  it('clears unknown favorite route ids from local storage on load', async () => {
     await renderHomePage({
       favoriteRoutes: JSON.stringify(['p1', 'unknown-route']),
     });
 
-    await waitFor(() => {
-      expect(mockSetItem).toHaveBeenCalledWith('favoriteRoutes', JSON.stringify(['p1']));
+    await waitFor(async () => {
+      expect(await getFavoriteRouteIdsLocal()).toEqual(['p1']);
     });
   });
 
