@@ -1,0 +1,49 @@
+mobile/src/app/pages/RouteHistoryDetailsPage.tsx
+  5091173352afb625 114-116,143,149-166
+mobile/docs/RUNBOOK.md
+  5091173352afb625 72,74-80,82-87,89-90,92-93,97-121,123-132,134,136,138-140,142,144-168,170,178,188,195,201-202
+mobile/src/app/hooks/useRideCompletionFeedback.ts
+  5091173352afb625 1-29
+mobile/src/app/utils/mapMarkers.ts
+  5091173352afb625 1-15
+mobile/src/app/pages/RouteDetailsPage.tsx
+  5091173352afb625 23-24,185,198,205-208,214,216-220,222-223,231
+mobile/src/app/pages/useLiveMapRideState.ts
+  5091173352afb625 8-12,91-94,215-216
+mobile/src/app/pages/LiveMapMapbox.tsx
+  5091173352afb625 46-47,56-57,73-88,121-122,128-129,142-206,208-215,219-221,288-303,383
+mobile/src/app/utils/routeDisplay.ts
+  5091173352afb625 3-8,11-12
+mobile/src/app/utils/poiLabels.ts
+  5091173352afb625 1-10
+mobile/src/utils/liveMapGeojson.ts
+  5091173352afb625 1-62
+mobile/src/app/pages/LiveMapExpoGoScreen.tsx
+  5091173352afb625 40-41,76-78,192,267
+mobile/src/app/pages/RouteConfigPage.tsx
+  5091173352afb625 905
+mobile/jest.setup.js
+  5091173352afb625 4-9
+mobile/src/services/routeService.ts
+  5091173352afb625 148-152,213,309-312,314-315,317-320
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.6",
+  "base_commit_sha": "232f56162523011cbb7ab19e688f0ee6a3f2d2c7",
+  "prompts": {
+    "5091173352afb625": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "82619e05-17f2-4b21-8711-2b8250002e52",
+        "model": "default"
+      },
+      "human_author": "Lichen(Jeffrey) Yang",
+      "messages": [],
+      "total_additions": 465,
+      "total_deletions": 117,
+      "accepted_lines": 415,
+      "overriden_lines": 0
+    }
+  }
+}
