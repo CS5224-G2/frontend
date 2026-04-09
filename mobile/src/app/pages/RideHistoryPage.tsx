@@ -40,6 +40,40 @@ const emptyDistanceStats: DistanceStatsByPeriod = {
 };
 const supportsNativeGlass =
   Platform.OS === 'ios' && isLiquidGlassAvailable() && isGlassEffectAPIAvailable();
+const MAX_FAVORITE_ROUTES = 3;
+
+function dedupeFavoriteRouteIds(routeIds: string[]): string[] {
+  const uniqueIds: string[] = [];
+  const seenRouteIds = new Set<string>();
+
+  for (const routeId of routeIds) {
+    if (typeof routeId !== 'string' || seenRouteIds.has(routeId)) {
+      continue;
+    }
+
+    seenRouteIds.add(routeId);
+    uniqueIds.push(routeId);
+
+    if (uniqueIds.length >= MAX_FAVORITE_ROUTES) {
+      break;
+    }
+  }
+
+  return uniqueIds;
+}
+
+function normalizeFavoriteRouteIds(value: string | null): string[] {
+  if (!value) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? dedupeFavoriteRouteIds(parsed) : [];
+  } catch {
+    return [];
+  }
+}
 
 function getGraphLabel(item: GraphDataPoint) {
   return 'day' in item ? item.day : item.week;
@@ -186,7 +220,12 @@ export default function RideHistoryPage({ navigation }: Props) {
   const [periodToggleWidth, setPeriodToggleWidth] = useState(0);
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const favoritesRef = useRef<string[]>([]);
   const periodIndicator = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    favoritesRef.current = favorites;
+  }, [favorites]);
 
   useEffect(() => {
     const isFabric = Boolean((globalThis as any).nativeFabricUIManager);
@@ -214,7 +253,17 @@ export default function RideHistoryPage({ navigation }: Props) {
         week: weeklyStats,
         month: monthlyStats,
       });
-      setFavorites(saved ? JSON.parse(saved) : []);
+
+      const normalizedFavorites = normalizeFavoriteRouteIds(saved);
+      const rideHistoryRouteIds = new Set(history.map((ride) => ride.routeId));
+      const sanitizedFavorites = normalizedFavorites.filter((routeId) => rideHistoryRouteIds.has(routeId));
+
+      favoritesRef.current = sanitizedFavorites;
+      setFavorites(sanitizedFavorites);
+
+      if (saved && saved !== JSON.stringify(sanitizedFavorites)) {
+        await AsyncStorage.setItem('favoriteRoutes', JSON.stringify(sanitizedFavorites));
+      }
     } catch (error) {
       console.warn('Error loading ride data', error);
     } finally {
@@ -246,6 +295,7 @@ export default function RideHistoryPage({ navigation }: Props) {
       })),
     [graphData]
   );
+  const uniqueFavoriteRouteIds = useMemo(() => dedupeFavoriteRouteIds(favorites), [favorites]);
 
   const handlePeriodChange = (nextPeriod: GraphPeriod) => {
     if (nextPeriod === period) {
@@ -292,8 +342,22 @@ export default function RideHistoryPage({ navigation }: Props) {
   }, [period, periodIndicator]);
 
   const toggleFavorite = async (routeId: string, routeName: string) => {
-    const isFav = favorites.includes(routeId);
-    const updatedFavorites = isFav ? favorites.filter((id) => id !== routeId) : [...favorites, routeId];
+    const previousFavorites = dedupeFavoriteRouteIds(favoritesRef.current);
+    const isFav = previousFavorites.includes(routeId);
+
+    if (!isFav && previousFavorites.length >= MAX_FAVORITE_ROUTES) {
+      Alert.alert(
+        'Favorites limit reached',
+        `You can only save up to ${MAX_FAVORITE_ROUTES} routes. Remove one before adding ${routeName}.`
+      );
+      return;
+    }
+
+    const updatedFavorites = isFav
+      ? previousFavorites.filter((favoriteRouteId) => favoriteRouteId !== routeId)
+      : [...previousFavorites, routeId];
+
+    favoritesRef.current = updatedFavorites;
     setFavorites(updatedFavorites);
 
     try {
@@ -303,6 +367,8 @@ export default function RideHistoryPage({ navigation }: Props) {
         `${routeName} has been ${isFav ? 'removed from' : 'added to'} favorites.`
       );
     } catch (error) {
+      favoritesRef.current = previousFavorites;
+      setFavorites(previousFavorites);
       console.warn('Error saving favorites', error);
       Alert.alert('Error', 'Unable to update favorites right now.');
     }
@@ -315,7 +381,7 @@ export default function RideHistoryPage({ navigation }: Props) {
   };
 
   const renderRide = ({ item }: { item: RideHistory }) => {
-    const isFav = favorites.includes(item.routeId);
+    const isFav = uniqueFavoriteRouteIds.includes(item.routeId);
     const displayName = item.routeName;
 
     return (

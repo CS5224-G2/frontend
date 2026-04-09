@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
+import { Platform, View, Text, ScrollView, ActivityIndicator } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import MapView, { Marker, Polyline, type LatLng, type Region } from 'react-native-maps';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button } from '../components/native/Common';
@@ -120,6 +120,7 @@ export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
           (routeInfo.endPoint.lat === 0 && routeInfo.endPoint.lng === 0)
         )),
   );
+  const showEmbeddedMap = mapUsable && Platform.OS !== 'android';
 
   if (isLoading) {
     return (
@@ -156,7 +157,7 @@ export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
         </CardHeader>
         <CardContent>
           <View className="rounded-[12px] overflow-hidden border border-[#e2e8f0] dark:border-[#2d2d2d]">
-            {mapUsable ? (
+            {showEmbeddedMap ? (
               <MapView
                 style={{ width: '100%', height: 240 }}
                 initialRegion={mapRegion}
@@ -200,10 +201,12 @@ export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
               <View className="h-[240px] items-center justify-center bg-[#e2e8f0] dark:bg-[#0f172a] px-4">
                 <MaterialCommunityIcons name="map-search-outline" size={40} color={isDark ? '#64748b' : '#475569'} />
                 <Text className="mt-2 text-sm font-semibold text-[#334155] dark:text-slate-300">
-                  Route preview unavailable
+                  {Platform.OS === 'android' ? 'Map preview unavailable on Android' : 'Route preview unavailable'}
                 </Text>
                 <Text className="mt-1 text-center text-xs text-[#64748b] dark:text-slate-500">
-                  This ride record does not include route coordinates yet.
+                  {Platform.OS === 'android'
+                    ? 'This screen avoids the embedded Google map on Android. Ride stats and route info are still shown below.'
+                    : 'This ride record does not include route coordinates yet.'}
                 </Text>
               </View>
             )}

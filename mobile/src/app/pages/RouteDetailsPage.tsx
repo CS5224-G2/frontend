@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -112,6 +113,7 @@ export default function RouteDetailsScreen() {
         hasRouteCoordinates(route.endPoint.lat, route.endPoint.lng) ||
         route.checkpoints.some((c) => hasRouteCoordinates(c.lat, c.lng))),
   );
+  const showEmbeddedMap = mapUsable && Platform.OS !== 'android';
 
   if (loading) {
     return (
@@ -155,7 +157,7 @@ export default function RouteDetailsScreen() {
         </View>
 
         <View className="mb-cy-md rounded-cy-md overflow-hidden border border-[#bfdbfe] dark:border-[#1e3a5f] min-h-[220px] bg-[#e2e8f0] dark:bg-[#0c1929]">
-          {mapUsable ? (
+          {showEmbeddedMap ? (
             <MapView
               style={{ width: '100%', height: 240 }}
               initialRegion={mapRegion}
@@ -226,11 +228,12 @@ export default function RouteDetailsScreen() {
             <View className="flex-1 min-h-[220px] items-center justify-center px-cy-md py-cy-lg">
               <MaterialCommunityIcons name="map-search-outline" size={48} color={isDark ? '#64748b' : '#64748b'} />
               <Text className="text-base font-semibold text-[#475569] dark:text-slate-400 mt-2 text-center">
-                Map preview unavailable
+                {Platform.OS === 'android' ? 'Map preview unavailable on Android' : 'Map preview unavailable'}
               </Text>
               <Text className="text-xs text-[#64748b] dark:text-slate-500 text-center mt-1 px-4">
-                This route has no coordinates yet. Once the backend returns start/end points, checkpoints, or a
-                route_path, the map will show here.
+                {Platform.OS === 'android'
+                  ? 'This screen avoids the embedded Google map on Android. Route points and stats are still available below.'
+                  : 'This route has no coordinates yet. Once the backend returns start/end points, checkpoints, or a route_path, the map will show here.'}
               </Text>
             </View>
           )}

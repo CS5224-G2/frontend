@@ -1,5 +1,6 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { Platform } from 'react-native';
 import RouteDetailsPage from './RouteDetailsPage';
 import { getRouteById } from '../types';
 
@@ -90,6 +91,25 @@ describe('RouteDetailsPage', () => {
         route: expect.objectContaining({ id: '1', name: 'Riverside Park Loop' }),
       }),
     );
+  });
+
+  it('shows the non-map fallback on Android', async () => {
+    const osDescriptor = Object.getOwnPropertyDescriptor(Platform, 'OS');
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      get: () => 'android',
+    });
+
+    render(<RouteDetailsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Map preview unavailable on Android')).toBeTruthy();
+    });
+    expect(screen.queryByTestId('route-details-map')).toBeNull();
+
+    if (osDescriptor) {
+      Object.defineProperty(Platform, 'OS', osDescriptor);
+    }
   });
 
   it('renders from the passed route when the detail lookup fails', async () => {
