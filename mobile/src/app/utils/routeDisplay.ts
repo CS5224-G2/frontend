@@ -1,10 +1,15 @@
 import type { Route } from '../../../../shared/types/index';
 
-export function formatRouteElevation(e: Route['elevation']): string {
-  if (typeof e === 'number') return `${Math.round(e)} m`;
+/**
+ * API contract: `elevation` is usually `"lower"` | `"dont-care"` | `"higher"`; numeric `elevation_m` may still appear from some backends.
+ */
+export function formatRouteElevation(e: Route['elevation'] | undefined | null): string {
+  if (e === undefined || e === null) return 'Balanced';
+  if (typeof e === 'number' && Number.isFinite(e)) return `${Math.round(e)} m`;
   if (e === 'higher') return 'Higher climbs';
   if (e === 'lower') return 'Flatter';
-  return '—';
+  if (e === 'dont-care') return 'Balanced';
+  return 'Balanced';
 }
 
 export function hasRouteCoordinates(lat: number, lng: number): boolean {

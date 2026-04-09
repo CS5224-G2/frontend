@@ -5,7 +5,12 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { Route } from '../../../../shared/types/index';
 import { resolveRouteById } from '../../services/routeLookup';
 import { saveRide } from '../../services/rideService';
-import { boundsFromCoordinates, interpolateAlongRoute, routeToLineCoordinates } from '@/utils/routeGeometry';
+import {
+  type LngLat,
+  boundsFromCoordinates,
+  interpolateAlongRoute,
+  routeToLineCoordinates,
+} from '@/utils/routeGeometry';
 
 export function useLiveMapRideState(routeId: string | undefined, initialRoute?: Route | null) {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
@@ -83,11 +88,10 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
 
   const bounds = useMemo(() => boundsFromCoordinates(lineCoords), [lineCoords]);
 
-  const riderPosition = useMemo(
-    () =>
-      lineCoords.length ? interpolateAlongRoute(lineCoords, progress / 100) : [0, 0],
-    [lineCoords, progress]
-  );
+  const riderPosition = useMemo((): LngLat => {
+    if (!lineCoords.length) return [0, 0];
+    return interpolateAlongRoute(lineCoords, progress / 100);
+  }, [lineCoords, progress]);
 
   const riderPoint = useMemo(
     () => ({
@@ -208,6 +212,8 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
     lineFeature,
     bounds,
     riderPoint,
+    /** Rider position as GeoJSON [lng, lat] — same order as Mapbox. */
+    riderLngLat: riderPosition,
     formatTime,
     distanceTraveled,
     goFeedback,

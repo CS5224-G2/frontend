@@ -2,9 +2,11 @@ import { useMemo } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { type Route } from '../../../../shared/types/index';
 import { routeToLineCoordinates } from '@/utils/routeGeometry';
+import { useRideCompletionFeedback } from '../hooks/useRideCompletionFeedback';
 import { useFloatingTabBarExtraLift } from '../utils/floatingTabBarInset';
 import { useLiveMapRideState } from './useLiveMapRideState';
 
@@ -34,6 +36,8 @@ export default function LiveMapExpoGoScreen() {
     stopCycling,
     confirmExit,
   } = useLiveMapRideState(routeId, routeParam);
+
+  useRideCompletionFeedback(routeCompleted);
 
   const polylineCount = useMemo(
     () => (route ? routeToLineCoordinates(route).length : 0),
@@ -69,6 +73,9 @@ export default function LiveMapExpoGoScreen() {
           checkpoints, and feedback flow. For the real map, run a development build (e.g. npx expo run:ios).
         </Text>
         <Text style={styles.fallbackMeta}>Polyline points computed: {polylineCount}</Text>
+        <Text style={styles.fallbackLegend}>
+          With Mapbox: blue rings = checkpoints, amber = POIs, magenta = hawker centres (name match).
+        </Text>
       </View>
 
       <SafeAreaView style={styles.topOverlay} edges={['top']} pointerEvents="box-none">
@@ -122,9 +129,17 @@ export default function LiveMapExpoGoScreen() {
 
       <Modal visible={routeCompleted} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard} testID="live-map-complete-modal">
-            <Text style={styles.modalTitle}>Route Completed!</Text>
-            <Text style={styles.modalSub}>Congratulations on finishing your ride.</Text>
+          <View
+            style={styles.modalCard}
+            testID="live-map-complete-modal"
+            accessibilityViewIsModal
+            accessibilityLiveRegion="polite"
+          >
+            <View style={styles.modalCelebration} accessible accessibilityRole="image" accessibilityLabel="Destination reached">
+              <MaterialCommunityIcons name="flag-checkered" size={40} color="#16a34a" />
+            </View>
+            <Text style={styles.modalTitle}>You’ve arrived!</Text>
+            <Text style={styles.modalSub}>Destination reached — congratulations on finishing your ride.</Text>
             <Text style={styles.modalMeta}>Distance: {route.distance} km</Text>
             <Text style={styles.modalMeta}>Time: {route.estimatedTime} minutes</Text>
             <Text style={styles.modalMeta}>Checkpoints: {route.checkpoints.length}</Text>
@@ -174,6 +189,7 @@ const styles = StyleSheet.create({
   fallbackTitle: { fontSize: 18, fontWeight: '800', color: '#1e3a8a', marginBottom: 8 },
   fallbackBody: { fontSize: 14, color: '#1e40af', lineHeight: 20 },
   fallbackMeta: { marginTop: 12, fontSize: 12, color: '#334155' },
+  fallbackLegend: { marginTop: 10, fontSize: 11, color: '#475569', lineHeight: 16 },
   topOverlay: { position: 'absolute', top: 0, left: 0, right: 0 },
   statsCard: {
     marginHorizontal: 16,
@@ -248,6 +264,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 360,
   },
+  modalCelebration: { alignItems: 'center', marginBottom: 12 },
   modalTitle: { fontSize: 22, fontWeight: '800', color: '#0f172a', marginBottom: 8 },
   modalSub: { fontSize: 14, color: '#64748b', marginBottom: 16, lineHeight: 20 },
   modalMeta: { fontSize: 14, color: '#334155', marginBottom: 4 },
