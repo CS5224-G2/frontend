@@ -1,5 +1,12 @@
+import type { Route } from '../../../shared/types/index';
 import { mockRoutes } from '../app/types';
-import { boundsFromCoordinates, interpolateAlongRoute, routeToLineCoordinates } from './routeGeometry';
+import {
+  boundsFromCoordinates,
+  haversineDistanceKm,
+  interpolateAlongRoute,
+  projectPointOntoRoute,
+  routeToLineCoordinates,
+} from './routeGeometry';
 
 describe('routeGeometry', () => {
   it('routeToLineCoordinates joins start, checkpoints, end', () => {
@@ -8,6 +15,25 @@ describe('routeGeometry', () => {
     expect(coords[0]).toEqual([route.startPoint.lng, route.startPoint.lat]);
     expect(coords[coords.length - 1]).toEqual([route.endPoint.lng, route.endPoint.lat]);
     expect(coords.length).toBe(1 + route.checkpoints.length + 1);
+  });
+
+  it('routeToLineCoordinates prefers routePath when provided', () => {
+    const route: Route = {
+      ...mockRoutes[0],
+      routePath: [
+        { lat: 1.3001, lng: 103.7701 },
+        { lat: 1.3008, lng: 103.7714 },
+        { lat: 1.3015, lng: 103.7722 },
+      ],
+    };
+
+    const coords = routeToLineCoordinates(route);
+
+    expect(coords).toEqual([
+      [103.7701, 1.3001],
+      [103.7714, 1.3008],
+      [103.7722, 1.3015],
+    ]);
   });
 
   it('interpolateAlongRoute returns start at 0 and end at 1', () => {
@@ -31,5 +57,27 @@ describe('routeGeometry', () => {
     expect(ne[1]).toBeGreaterThan(1);
     expect(sw[0]).toBeLessThan(0);
     expect(sw[1]).toBeLessThan(0);
+  });
+
+  it('projects a point onto the nearest segment of the route', () => {
+    const coords: [number, number][] = [
+      [103.77, 1.3],
+      [103.771, 1.3],
+      [103.772, 1.301],
+    ];
+
+    const projected = projectPointOntoRoute(coords, [103.7705, 1.3002]);
+
+    expect(projected.progress).toBeGreaterThan(0);
+    expect(projected.progress).toBeLessThan(1);
+    expect(projected.snappedPoint[0]).toBeCloseTo(103.7705, 4);
+    expect(projected.distanceKmFromRoute).toBeGreaterThan(0);
+  });
+
+  it('computes haversine distance in kilometers', () => {
+    const distanceKm = haversineDistanceKm([103.77, 1.3], [103.771, 1.3]);
+
+    expect(distanceKm).toBeGreaterThan(0.05);
+    expect(distanceKm).toBeLessThan(0.2);
   });
 });

@@ -69,7 +69,7 @@ After **Start Cycling Now**, Maestro asserts:
 1. **RouteConfigPage:** Change start/end, sliders, cyclist type → **Find Routes** → lands on recommendation list.
 2. **Route list:** Tap a card → **RouteConfirmedPage** shows correct distance / time / checkpoints.
 3. **External maps:** **View Route on Google / Apple Maps** opens the native maps app (platform-dependent URL).
-4. **LiveMapPage:** Blue **LineString** follows start → checkpoints → end; rider dot moves as simulated progress advances; checkpoint banner and completion modal behave as in the wireframe.
+4. **LiveMapPage:** Blue **LineString** follows start → checkpoints → end; checkpoint banner and completion modal behave as in the wireframe. Enable `EXPO_PUBLIC_LIVE_MAP_PROGRESS_SIMULATION=true` only if you want the old simulated rider movement during QA.
 5. **Stop / exit:** **Stop Cycling** → completion or exit modal → **Feedback** screen.
 
 ## CI tips

@@ -31,15 +31,17 @@ import {
   hasSelectedPointsOfInterest,
   normalizeUserPreferences,
 } from '../utils/routePreferences';
+import {
+  LEGACY_ROUTE_END_STORAGE_KEY,
+  LEGACY_ROUTE_START_STORAGE_KEY,
+  ROUTE_REQUEST_STORAGE_KEY,
+} from '../../services/routeDraftStorage';
 
 type Props = NativeStackScreenProps<any, 'RouteConfig'>;
 type PickerTarget = { kind: 'start' | 'end' | 'checkpoint'; checkpointId?: string };
 type RouteCheckpointInput = RouteRecommendationRequest['checkpoints'][number];
 
-const ROUTE_REQUEST_STORAGE_KEY = 'routeRecommendationRequest';
 const USER_PREFERENCES_STORAGE_KEY = 'userPreferences';
-const LEGACY_ROUTE_START_STORAGE_KEY = 'routeStartPoint';
-const LEGACY_ROUTE_END_STORAGE_KEY = 'routeEndPoint';
 
 const cyclistTypes: { type: CyclistType; label: string }[] = [
   { type: 'recreational', label: 'Recreational' },

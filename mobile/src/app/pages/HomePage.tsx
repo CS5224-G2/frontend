@@ -1,13 +1,15 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, ScrollView, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { type Route, type UserPreferences } from '../../../../shared/types/index';
+import { type RideHistory, type Route, type UserPreferences } from '../../../../shared/types/index';
 import { normalizeUserPreferences } from '../utils/routePreferences';
 import { getPopularRoutes, getRoutes } from '../../services/routeService';
+import { getRideHistory } from '../../services/rideService';
 import { getUserProfile } from '../../services/userService';
+import { loadActiveRideSession, type ActiveRideSession } from '../../services/activeRideSession';
 import { FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useColorScheme } from 'nativewind';
@@ -22,6 +24,46 @@ function mapProfileCyclingPreferenceToCyclistType(
   return 'fitness';
 }
 
+function parseFavoriteRouteIds(value: string | null): string[] {
+  if (!value) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? [...new Set(parsed.filter((id): id is string => typeof id === 'string'))] : [];
+  } catch {
+    return [];
+  }
+}
+
+function buildFavoriteRouteFromHistory(
+  ride: RideHistory,
+  fallbackCyclistType?: UserPreferences['cyclistType'],
+): Route {
+  if (ride.routeDetails) {
+    return ride.routeDetails;
+  }
+
+  return {
+    id: ride.routeId,
+    name: ride.routeName,
+    description: ride.userReview?.trim() || 'Saved from your ride history',
+    distance: ride.distance,
+    elevation: 0,
+    estimatedTime: ride.totalTime,
+    rating: ride.userRating ?? 4.5,
+    reviewCount: ride.userReview ? 1 : 0,
+    startPoint: { lat: 0, lng: 0, name: 'Saved ride start' },
+    endPoint: { lat: 0, lng: 0, name: 'Saved ride finish' },
+    checkpoints: ride.visitedCheckpoints ?? [],
+    cyclistType: fallbackCyclistType ?? 'general',
+    shade: 'dont-care',
+    airQuality: 'dont-care',
+    pointsOfInterestVisited: ride.pointsOfInterestVisited,
+  };
+}
+
 export default function HomeScreen({ navigation }: Props) {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -30,7 +72,9 @@ export default function HomeScreen({ navigation }: Props) {
   const [favorites, setFavorites] = useState<string[]>([]);
   const [allRoutes, setAllRoutes] = useState<Route[]>([]);
   const [popularRoutes, setPopularRoutes] = useState<Route[]>([]);
+  const [rideHistory, setRideHistory] = useState<RideHistory[]>([]);
   const [suggestedRoutes, setSuggestedRoutes] = useState<(Route & { matchScore: number })[]>([]);
+  const [activeRideSession, setActiveRideSession] = useState<ActiveRideSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const preferencesRef = useRef<UserPreferences | null>(null);
@@ -47,9 +91,10 @@ export default function HomeScreen({ navigation }: Props) {
     }
 
     try {
-      const [savedPrefs, savedFavorites] = await Promise.all([
+      const [savedPrefs, savedFavorites, activeSession] = await Promise.all([
         AsyncStorage.getItem('userPreferences'),
         AsyncStorage.getItem('favoriteRoutes'),
+        loadActiveRideSession().catch(() => null),
       ]);
 
       const storedPreferences = savedPrefs ? normalizeUserPreferences(JSON.parse(savedPrefs)) : null;
@@ -73,15 +118,29 @@ export default function HomeScreen({ navigation }: Props) {
           : null;
 
       setPreferences(prefs);
-      setFavorites(savedFavorites ? JSON.parse(savedFavorites) : []);
+      setActiveRideSession(activeSession);
 
-      const [routes, popular] = await Promise.all([
+      const storedFavoriteIds = parseFavoriteRouteIds(savedFavorites);
+      const [routes, popular, history] = await Promise.all([
         getRoutes(undefined, undefined, 3),
         getPopularRoutes(3),
+        getRideHistory().catch(() => []),
       ]);
+
+      const historyRoutes = history.map((ride) => buildFavoriteRouteFromHistory(ride, prefs?.cyclistType));
+      const knownRoutesById = new Map<string, Route>(
+        [...historyRoutes, ...routes, ...popular].map((route) => [route.id, route]),
+      );
+      const sanitizedFavoriteIds = storedFavoriteIds.filter((routeId) => knownRoutesById.has(routeId));
+
+      setFavorites(sanitizedFavoriteIds);
+      if (savedFavorites && JSON.stringify(sanitizedFavoriteIds) !== savedFavorites) {
+        await AsyncStorage.setItem('favoriteRoutes', JSON.stringify(sanitizedFavoriteIds));
+      }
 
       setAllRoutes(routes);
       setPopularRoutes(popular);
+      setRideHistory(history);
       setSuggestedRoutes(
         routes
           .map((r) => ({ ...r, matchScore: calculateMatchScore(r, prefs) }))
@@ -147,7 +206,12 @@ export default function HomeScreen({ navigation }: Props) {
     return score;
   };
   // Derived state from service data
-  const routesById = new Map<string, Route>([...allRoutes, ...popularRoutes].map((route) => [route.id, route]));
+  const historyRoutes = rideHistory.map((ride) =>
+    buildFavoriteRouteFromHistory(ride, preferences?.cyclistType),
+  );
+  const routesById = new Map<string, Route>(
+    [...historyRoutes, ...allRoutes, ...popularRoutes].map((route) => [route.id, route]),
+  );
   const favoriteRoutes = favorites
     .map((routeId) => routesById.get(routeId))
     .filter((route): route is Route => Boolean(route));
@@ -324,6 +388,34 @@ export default function HomeScreen({ navigation }: Props) {
           <MaterialCommunityIcons name="plus" size={20} color="white" />
           <Text className="text-white text-base font-semibold">Create Custom Route</Text>
         </Pressable>
+
+        {activeRideSession ? (
+          <Pressable
+            onPress={() =>
+              navigation.navigate('LiveMap', {
+                routeId: activeRideSession.routeId,
+                route: activeRideSession.route,
+              })
+            }
+            className="mb-[24px] rounded-cy-md border border-[#86efac] bg-[#f0fdf4] px-cy-md py-cy-md dark:border-[#166534] dark:bg-[#052e16]"
+            testID="resume-active-ride-card"
+          >
+            <View className="flex-row items-center gap-cy-md">
+              <View className="h-10 w-10 items-center justify-center rounded-full bg-[#16a34a]">
+                <MaterialCommunityIcons name="bike-fast" size={20} color="white" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-base font-bold text-[#166534] dark:text-[#bbf7d0]">
+                  Resume active ride
+                </Text>
+                <Text className="mt-1 text-xs text-[#166534] dark:text-[#86efac]">
+                  {activeRideSession.route.name}
+                </Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={20} color={isDark ? '#86efac' : '#166534'} />
+            </View>
+          </Pressable>
+        ) : null}
 
         {/* Favorite Routes Section */}
         {favoriteRoutes.length > 0 && (

@@ -57,6 +57,7 @@ Use these steps to run and verify the **CycleLink mobile** package. Paths assume
    - **`EXPO_PUBLIC_API_BASE_URL`** — backend base URL when using the real API.
    - **`EXPO_PUBLIC_USE_MOCKS`** — `true` to avoid network calls and use mocks/local data; set `false` when pointing at a real backend.
    - **`EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN`** — required for **native Mapbox** in a dev build (see below). Not used in Expo Go’s live-map fallback UI.
+   - **`EXPO_PUBLIC_LIVE_MAP_PROGRESS_SIMULATION`** — optional QA/demo flag; set `true` only if you want the rider marker / progress HUD to auto-advance.
    - **`EXPO_PUBLIC_ONEMAP_API_KEY`** — optional; enables OneMap place search in route configuration (see `README.md`).
    - **`EXPO_PUBLIC_API_LOGGING`** — optional structured API logging (`true` / `false`).
 3. Restart Metro after changing `.env` (`npx expo start` with a full restart).

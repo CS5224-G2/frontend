@@ -16,10 +16,9 @@ import {
 } from '../utils/routePreferences';
 import { getRouteRecommendations, getRoutes } from '../../services/routeService';
 import { useFloatingTabBarScrollPadding } from '../utils/floatingTabBarInset';
+import { ROUTE_REQUEST_STORAGE_KEY } from '../../services/routeDraftStorage';
 
 type Props = NativeStackScreenProps<any, 'Recommendation'>;
-
-const ROUTE_REQUEST_STORAGE_KEY = 'routeRecommendationRequest';
 
 function formatCoordinates(location: Pick<RouteRequestLocation, 'lat' | 'lng'>) {
   return `${location.lat.toFixed(5)}, ${location.lng.toFixed(5)}`;

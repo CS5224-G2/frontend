@@ -12,6 +12,7 @@ describe('runtime config', () => {
     jest.resetModules();
     process.env = { ...originalEnv };
     delete process.env.EXPO_PUBLIC_USE_MOCKS;
+    delete process.env.EXPO_PUBLIC_LIVE_MAP_PROGRESS_SIMULATION;
     delete process.env.EXPO_PUBLIC_API_BASE_URL;
     delete process.env.EXPO_PUBLIC_ONEMAP_BASE_URL;
     delete process.env.EXPO_PUBLIC_ONEMAP_API_KEY;
@@ -24,9 +25,18 @@ describe('runtime config', () => {
   });
 
   it('defaults to network mode when EXPO_PUBLIC_USE_MOCKS is unset', () => {
-    const { USE_MOCKS } = require('./runtime') as typeof import('./runtime');
+    const { USE_MOCKS, LIVE_MAP_PROGRESS_SIMULATION } = require('./runtime') as typeof import('./runtime');
 
     expect(USE_MOCKS).toBe(false);
+    expect(LIVE_MAP_PROGRESS_SIMULATION).toBe(false);
+  });
+
+  it('enables live map progress simulation only when explicitly configured', () => {
+    process.env.EXPO_PUBLIC_LIVE_MAP_PROGRESS_SIMULATION = 'true';
+
+    const { LIVE_MAP_PROGRESS_SIMULATION } = require('./runtime') as typeof import('./runtime');
+
+    expect(LIVE_MAP_PROGRESS_SIMULATION).toBe(true);
   });
 
   it('throws a clear error when network mode is enabled without a real API base URL', () => {

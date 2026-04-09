@@ -1,10 +1,12 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { Platform } from 'react-native';
 import RouteHistoryDetailsPage from './RouteHistoryDetailsPage';
 
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
 const mockGetRideById = jest.fn();
+const mockResolveRouteById = jest.fn();
 
 jest.mock('@expo/vector-icons', () => {
   const React = require('react');
@@ -38,9 +40,14 @@ jest.mock('../../services/rideService', () => ({
   getRideById: (...args: unknown[]) => mockGetRideById(...args),
 }));
 
+jest.mock('../../services/routeLookup', () => ({
+  resolveRouteById: (...args: unknown[]) => mockResolveRouteById(...args),
+}));
+
 describe('RouteHistoryDetailsPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockResolveRouteById.mockResolvedValue(null);
   });
 
   const renderPage = () =>
@@ -166,5 +173,92 @@ describe('RouteHistoryDetailsPage', () => {
         index: 1,
       },
     });
+  });
+
+  it('hydrates missing route details from route lookup', async () => {
+    mockGetRideById.mockResolvedValue({
+      id: 'ride-1',
+      routeId: 'route-1',
+      routeName: 'Recovered Route',
+      completionDate: 'March 29, 2026',
+      completionTime: '8:15 AM',
+      totalTime: 45,
+      distance: 12.4,
+      avgSpeed: 16.5,
+      checkpoints: 2,
+    });
+    mockResolveRouteById.mockResolvedValue({
+      id: 'route-1',
+      name: 'Recovered Route',
+      description: 'Recovered from route lookup.',
+      distance: 12.4,
+      elevation: 120,
+      estimatedTime: 42,
+      rating: 4.6,
+      reviewCount: 320,
+      startPoint: { lat: 1.2837, lng: 103.8515, name: 'Raffles Place MRT' },
+      endPoint: { lat: 1.3025, lng: 103.9128, name: 'East Coast Park' },
+      checkpoints: [],
+      routePath: [
+        { lat: 1.2837, lng: 103.8515 },
+        { lat: 1.3025, lng: 103.9128 },
+      ],
+      cyclistType: 'recreational',
+      shade: 70,
+      airQuality: 85,
+    });
+
+    renderPage();
+
+    expect(await screen.findByText('Recovered Route')).toBeTruthy();
+    expect(mockResolveRouteById).toHaveBeenCalledWith('route-1');
+  });
+
+  it('shows the Android fallback instead of the embedded map', async () => {
+    const osDescriptor = Object.getOwnPropertyDescriptor(Platform, 'OS');
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      get: () => 'android',
+    });
+
+    mockGetRideById.mockResolvedValue({
+      id: 'ride-1',
+      routeId: 'route-1',
+      routeName: 'City Breeze Connector',
+      completionDate: 'March 29, 2026',
+      completionTime: '8:15 AM',
+      totalTime: 45,
+      distance: 12.4,
+      avgSpeed: 16.5,
+      checkpoints: 2,
+      routeDetails: {
+        id: 'route-1',
+        name: 'City Breeze Connector',
+        description: 'Balanced city ride with park connectors and moderate shade.',
+        distance: 12.4,
+        elevation: 120,
+        estimatedTime: 42,
+        rating: 4.6,
+        reviewCount: 320,
+        startPoint: { lat: 1.2837, lng: 103.8515, name: 'Raffles Place MRT' },
+        endPoint: { lat: 1.3025, lng: 103.9128, name: 'East Coast Park' },
+        checkpoints: [],
+        routePath: [
+          { lat: 1.2837, lng: 103.8515 },
+          { lat: 1.3025, lng: 103.9128 },
+        ],
+        cyclistType: 'recreational',
+        shade: 70,
+        airQuality: 85,
+      },
+    });
+
+    renderPage();
+
+    expect(await screen.findByText('Map preview unavailable on Android')).toBeTruthy();
+
+    if (osDescriptor) {
+      Object.defineProperty(Platform, 'OS', osDescriptor);
+    }
   });
 });

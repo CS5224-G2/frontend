@@ -1,6 +1,6 @@
 import React from 'react';
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react-native';
-import { LayoutAnimation } from 'react-native';
+import { Alert, LayoutAnimation } from 'react-native';
 import RideHistoryPage from './RideHistoryPage';
 import { AuthContext } from '../AuthContext';
 
@@ -91,6 +91,7 @@ describe('RideHistoryPage', () => {
   beforeEach(() => {
     jest.useFakeTimers();
     jest.clearAllMocks();
+    jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     jest.spyOn(LayoutAnimation, 'configureNext').mockImplementation(() => {});
 
     mockGetRideHistory.mockResolvedValue([
@@ -214,5 +215,98 @@ describe('RideHistoryPage', () => {
       expect(mockGetRideHistory).toHaveBeenCalledTimes(2);
       expect(mockGetDistanceStats).toHaveBeenCalledTimes(4);
     });
+  }, 10000);
+
+  it('clears unknown favorite route ids from storage on load', async () => {
+    mockGetItem.mockResolvedValue(JSON.stringify(['1', 'ghost-route']));
+
+    await renderRideHistoryPage();
+
+    await waitFor(() => {
+      expect(mockSetItem).toHaveBeenCalledWith('favoriteRoutes', JSON.stringify(['1']));
+    });
+  }, 10000);
+
+  it('does not allow adding more than 3 unique favorite routes', async () => {
+    mockGetRideHistory.mockResolvedValue([
+      { id: '1', routeId: '1', routeName: 'Waterfront Loop', completionDate: 'March 12, 2026', completionTime: '10:30 AM', totalTime: 48, distance: 12.5, avgSpeed: 15.6, checkpoints: 3, userRating: 5 },
+      { id: '2', routeId: '2', routeName: 'Mountain Ridge Trail', completionDate: 'March 10, 2026', completionTime: '2:15 PM', totalTime: 95, distance: 18.3, avgSpeed: 11.6, checkpoints: 5 },
+      { id: '3', routeId: '3', routeName: 'City Express', completionDate: 'March 8, 2026', completionTime: '8:45 AM', totalTime: 32, distance: 8.2, avgSpeed: 15.4, checkpoints: 2 },
+      { id: '4', routeId: '4', routeName: 'Sunset Sprint', completionDate: 'March 6, 2026', completionTime: '6:45 PM', totalTime: 30, distance: 7.6, avgSpeed: 15.2, checkpoints: 2 },
+    ]);
+    mockGetItem.mockResolvedValue(JSON.stringify(['1', '2', '3']));
+
+    await renderRideHistoryPage();
+
+    const addFavoriteIcon = screen.UNSAFE_getByProps({ name: 'star-outline' });
+    fireEvent.press(addFavoriteIcon);
+
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Favorites limit reached',
+      expect.stringContaining('up to 3 routes')
+    );
+    expect(mockSetItem).not.toHaveBeenCalled();
+  }, 10000);
+
+  it('allows adding a third unique route when stored favorites contain duplicates', async () => {
+    mockGetRideHistory.mockResolvedValue([
+      { id: '1', routeId: '1', routeName: 'Waterfront Loop', completionDate: 'March 12, 2026', completionTime: '10:30 AM', totalTime: 48, distance: 12.5, avgSpeed: 15.6, checkpoints: 3, userRating: 5 },
+      { id: '2', routeId: '2', routeName: 'Mountain Ridge Trail', completionDate: 'March 10, 2026', completionTime: '2:15 PM', totalTime: 95, distance: 18.3, avgSpeed: 11.6, checkpoints: 5 },
+      { id: '3', routeId: '3', routeName: 'City Express', completionDate: 'March 8, 2026', completionTime: '8:45 AM', totalTime: 32, distance: 8.2, avgSpeed: 15.4, checkpoints: 2 },
+    ]);
+    mockGetItem.mockResolvedValue(JSON.stringify(['1', '1', '2']));
+
+    await renderRideHistoryPage();
+
+    const addFavoriteIcons = screen.UNSAFE_getAllByProps({ name: 'star-outline' });
+    fireEvent.press(addFavoriteIcons[0]);
+
+    await waitFor(() => {
+      expect(mockSetItem).toHaveBeenCalledWith('favoriteRoutes', JSON.stringify(['1', '2', '3']));
+    });
+  }, 10000);
+
+  it('keeps multiple distinct favorites when routes are selected one after another', async () => {
+    mockGetItem.mockResolvedValue(JSON.stringify([]));
+
+    await renderRideHistoryPage();
+
+    let addFavoriteIcons = screen.UNSAFE_getAllByProps({ name: 'star-outline' });
+    fireEvent.press(addFavoriteIcons[0]);
+
+    await waitFor(() => {
+      expect(mockSetItem).toHaveBeenLastCalledWith('favoriteRoutes', JSON.stringify(['1']));
+    });
+
+    addFavoriteIcons = screen.UNSAFE_getAllByProps({ name: 'star-outline' });
+    fireEvent.press(addFavoriteIcons[0]);
+
+    await waitFor(() => {
+      expect(mockSetItem).toHaveBeenLastCalledWith('favoriteRoutes', JSON.stringify(['1', '2']));
+    });
+  }, 10000);
+
+  it('treats multiple ride history entries of the same routeId as one unique favorite', async () => {
+    mockGetRideHistory.mockResolvedValue([
+      { id: 'ride-1', routeId: 'route-a', routeName: 'Waterfront Loop', completionDate: 'March 12, 2026', completionTime: '10:30 AM', totalTime: 48, distance: 12.5, avgSpeed: 15.6, checkpoints: 3, userRating: 5 },
+      { id: 'ride-2', routeId: 'route-a', routeName: 'Waterfront Loop', completionDate: 'March 11, 2026', completionTime: '9:10 AM', totalTime: 46, distance: 12.5, avgSpeed: 16.0, checkpoints: 3, userRating: 4 },
+      { id: 'ride-3', routeId: 'route-a', routeName: 'Waterfront Loop', completionDate: 'March 10, 2026', completionTime: '8:05 AM', totalTime: 47, distance: 12.5, avgSpeed: 15.8, checkpoints: 3, userRating: 5 },
+      { id: 'ride-4', routeId: 'route-b', routeName: 'Mountain Ridge Trail', completionDate: 'March 9, 2026', completionTime: '2:15 PM', totalTime: 95, distance: 18.3, avgSpeed: 11.6, checkpoints: 5 },
+      { id: 'ride-5', routeId: 'route-c', routeName: 'City Express', completionDate: 'March 8, 2026', completionTime: '8:45 AM', totalTime: 32, distance: 8.2, avgSpeed: 15.4, checkpoints: 2 },
+    ]);
+    mockGetItem.mockResolvedValue(JSON.stringify(['route-a', 'route-a', 'route-a']));
+
+    await renderRideHistoryPage();
+
+    const addFavoriteIcons = screen.UNSAFE_getAllByProps({ name: 'star-outline' });
+    fireEvent.press(addFavoriteIcons[0]);
+
+    await waitFor(() => {
+      expect(mockSetItem).toHaveBeenCalledWith('favoriteRoutes', JSON.stringify(['route-a', 'route-b']));
+    });
+    expect(Alert.alert).not.toHaveBeenCalledWith(
+      'Favorites limit reached',
+      expect.any(String)
+    );
   }, 10000);
 });
