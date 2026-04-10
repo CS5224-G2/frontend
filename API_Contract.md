@@ -1,6 +1,6 @@
 # CycleLink API Contract
 
-> **Revision**: 1.2 · **Date**: 2026-03-26  
+> **Revision**: 1.3 · **Date**: 2026-04-11  
 > **Status**: Design by Contract — Defines the idealised JSON shapes the frontend adapters expect.  
 > Both the Mobile (Expo/React Native) and Web App (Vite/React) frontends are written against this contract.  
 > The backend team MUST conform to these exactly; the adapter layer maps backend → frontend types and will break if shapes deviate.
@@ -819,6 +819,33 @@ Same shape as `GET /user/privacy`.
 | `401` | Token missing or expired |
 | `409` | Route already saved by the user |
 
+> Users can save a maximum of 3 routes. When the limit is reached, delete an existing saved route before saving a new one. Attempting to save when at the limit returns `409`.
+
+---
+
+### `DELETE /routes/saved/{saved_route_id}`
+
+**Purpose**: Delete a specific saved route from the authenticated user's favorites list.  
+**Client(s)**: Mobile  
+**Auth**: Bearer token required
+
+#### Path Parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| `saved_route_id` | UUID string | The `saved_route_id` returned by `GET /routes/saved` or `POST /routes/save` |
+
+#### Ideal JSON Response — `204 No Content`
+
+No response body.
+
+#### Error Responses
+
+| Status | Condition |
+|---|---|
+| `401` | Token missing or expired |
+| `404` | Saved route not found or does not belong to the authenticated user |
+
 ---
 
 ## 5. Ride History
@@ -1419,6 +1446,7 @@ Mapping notes:
 | `/routes/:routeId` | GET | Optional | ✅ | — |
 | `/routes/recommendations` | POST | Optional | ✅ | — |
 | `/routes/save` | POST | Token | ✅ | — |
+| `/routes/saved/{saved_route_id}` | DELETE | Token | ✅ | — |
 | `/rides` | POST | Token | ✅ | — |
 | `/rides/location` | POST | Token | ✅ | — |
 | `/rides/history` | GET | Token | ✅ | — |
@@ -1430,4 +1458,4 @@ Mapping notes:
 | `/business/stats` | GET | Token (business) | — | ✅ |
 | `/business/locations` | GET | Token (business) | — | ✅ |
 
-**Total: 24 endpoints across 2 clients (22 live + 2 planned OAuth)**
+**Total: 25 endpoints across 2 clients (23 live + 2 planned OAuth)**
