@@ -72,13 +72,15 @@ Use these steps to run and verify the **CycleLink mobile** package. Paths assume
 
 ### 5. Run on iOS (simulator or device)
 
-1. **Expo Go (quick UI, no Mapbox native map):**
+1. **Expo Go (quick UI, limited native features):**
    ```bash
    npm run ios
    ```
+   - `@rnmapbox/maps` is not available inside standard Expo Go.
+   - On **Android Expo Go**, `expo-notifications` features removed in SDK 53+ are disabled in this repo; use a **development build** if you need real native notification behavior.
    Or open the project in Xcode only after a native prebuild (step 6).
 
-2. **Development build (Mapbox live map):** `@rnmapbox/maps` is not available inside standard Expo Go. Use a **dev client**:
+2. **Development build (Mapbox live map / native notifications):** Use a **dev client**:
    ```bash
    npx expo prebuild
    npx expo run:ios
