@@ -823,6 +823,76 @@ Same shape as `GET /user/privacy`.
 
 ---
 
+### `GET /routes/saved`
+
+**Purpose**: Retrieve all routes saved to the authenticated user's favorites list.  
+**Client(s)**: Mobile  
+**Auth**: Bearer token required
+
+#### Query Parameters
+
+None. Returns all saved routes (max 3 per user).
+
+#### Ideal JSON Response — `200 OK`
+
+```json
+{
+  "saved_routes": [
+    {
+      "saved_route_id": "3f2a1b4c-8d9e-4f0a-b1c2-d3e4f5a6b7c8",
+      "route_id": "route_001",
+      "name": "City Breeze Connector",
+      "description": "Balanced city ride with park connectors and moderate shade.",
+      "saved_at": "2026-03-28T09:15:00.000Z",
+      "distance": 12.4,
+      "estimated_time": 42,
+      "elevation": "higher",
+      "shade": "reduce-shade",
+      "air_quality": "care",
+      "cyclist_type": "recreational",
+      "checkpoints": [
+        {
+          "checkpoint_id": "cp_001",
+          "checkpoint_name": "Lau Pa Sat Hawker Centre",
+          "description": "Historic outdoor hawker market with diverse local food",
+          "lat": 1.2846,
+          "lng": 103.8498
+        }
+      ],
+      "points_of_interest_visited": [
+        {
+          "name": "Lau Pa Sat Hawker Centre",
+          "description": "Historic outdoor hawker market with diverse local food",
+          "lat": 1.2846,
+          "lng": 103.8498
+        }
+      ],
+      "route_path": [
+        { "lat": 1.2837, "lng": 103.8515 },
+        { "lat": 1.2840, "lng": 103.8520 },
+        { "lat": 1.2869, "lng": 103.8545 }
+      ]
+    }
+  ],
+  "total": 1
+}
+```
+
+> Results are ordered by `saved_at` descending (most recently saved first).
+> `elevation` must be: `"lower"` | `"dont-care"` | `"higher"`.
+> `shade` must be: `"reduce-shade"` | `"dont-care"`.
+> `air_quality` must be: `"care"` | `"dont-care"`.
+> `route_path`, `checkpoints`, and `points_of_interest_visited` are returned as stored at save time.
+> `total` reflects the actual count (`0`-`3`).
+
+#### Error Responses
+
+| Status | Condition |
+|---|---|
+| `401` | Token missing or expired |
+
+---
+
 ### `DELETE /routes/saved/{saved_route_id}`
 
 **Purpose**: Delete a specific saved route from the authenticated user's favorites list.  
@@ -1446,6 +1516,7 @@ Mapping notes:
 | `/routes/:routeId` | GET | Optional | ✅ | — |
 | `/routes/recommendations` | POST | Optional | ✅ | — |
 | `/routes/save` | POST | Token | ✅ | — |
+| `/routes/saved` | GET | Token | ✅ | — |
 | `/routes/saved/{saved_route_id}` | DELETE | Token | ✅ | — |
 | `/rides` | POST | Token | ✅ | — |
 | `/rides/location` | POST | Token | ✅ | — |
@@ -1458,4 +1529,4 @@ Mapping notes:
 | `/business/stats` | GET | Token (business) | — | ✅ |
 | `/business/locations` | GET | Token (business) | — | ✅ |
 
-**Total: 25 endpoints across 2 clients (23 live + 2 planned OAuth)**
+**Total: 26 endpoints across 2 clients (24 live + 2 planned OAuth)**
