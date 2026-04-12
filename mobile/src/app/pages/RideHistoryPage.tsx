@@ -16,7 +16,6 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   GlassView,
@@ -27,6 +26,12 @@ import { useColorScheme } from 'nativewind';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/native/Common';
 import { type RideHistory, type GraphDataPoint, type GraphPeriod } from '../../../../shared/types/index';
 import { getRideHistory, getDistanceStats } from '../../services/rideService';
+import {
+  MAX_FAVORITE_ROUTES,
+  addFavoriteRouteByRouteId,
+  getLocalFavoriteRouteIds,
+  removeFavoriteRouteByRouteId,
+} from '../../services/favoriteRoutesService';
 
 type Props = NativeStackScreenProps<any, 'RideHistory'>;
 type DistanceStatsByPeriod = Record<GraphPeriod, GraphDataPoint[]>;
@@ -40,7 +45,6 @@ const emptyDistanceStats: DistanceStatsByPeriod = {
 };
 const supportsNativeGlass =
   Platform.OS === 'ios' && isLiquidGlassAvailable() && isGlassEffectAPIAvailable();
-const MAX_FAVORITE_ROUTES = 3;
 
 function dedupeFavoriteRouteIds(routeIds: string[]): string[] {
   const uniqueIds: string[] = [];
@@ -60,19 +64,6 @@ function dedupeFavoriteRouteIds(routeIds: string[]): string[] {
   }
 
   return uniqueIds;
-}
-
-function normalizeFavoriteRouteIds(value: string | null): string[] {
-  if (!value) {
-    return [];
-  }
-
-  try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? dedupeFavoriteRouteIds(parsed) : [];
-  } catch {
-    return [];
-  }
 }
 
 function getGraphLabel(item: GraphDataPoint) {
@@ -242,11 +233,11 @@ export default function RideHistoryPage({ navigation }: Props) {
     }
 
     try {
-      const [history, weeklyStats, monthlyStats, saved] = await Promise.all([
+      const [history, weeklyStats, monthlyStats, localFavoriteIds] = await Promise.all([
         getRideHistory(),
         getDistanceStats('week'),
         getDistanceStats('month'),
-        AsyncStorage.getItem('favoriteRoutes'),
+        getLocalFavoriteRouteIds(),
       ]);
       setRideHistory(history);
       setDistanceStats({
@@ -254,16 +245,10 @@ export default function RideHistoryPage({ navigation }: Props) {
         month: monthlyStats,
       });
 
-      const normalizedFavorites = normalizeFavoriteRouteIds(saved);
-      const rideHistoryRouteIds = new Set(history.map((ride) => ride.routeId));
-      const sanitizedFavorites = normalizedFavorites.filter((routeId) => rideHistoryRouteIds.has(routeId));
+      const sanitizedFavorites = dedupeFavoriteRouteIds(localFavoriteIds);
 
       favoritesRef.current = sanitizedFavorites;
       setFavorites(sanitizedFavorites);
-
-      if (saved && saved !== JSON.stringify(sanitizedFavorites)) {
-        await AsyncStorage.setItem('favoriteRoutes', JSON.stringify(sanitizedFavorites));
-      }
     } catch (error) {
       console.warn('Error loading ride data', error);
     } finally {
@@ -342,7 +327,7 @@ export default function RideHistoryPage({ navigation }: Props) {
   }, [period, periodIndicator]);
 
   const toggleFavorite = async (routeId: string, routeName: string) => {
-    const previousFavorites = dedupeFavoriteRouteIds(favoritesRef.current);
+    const previousFavorites = dedupeFavoriteRouteIds(await getLocalFavoriteRouteIds());
     const isFav = previousFavorites.includes(routeId);
 
     if (!isFav && previousFavorites.length >= MAX_FAVORITE_ROUTES) {
@@ -353,24 +338,40 @@ export default function RideHistoryPage({ navigation }: Props) {
       return;
     }
 
-    const updatedFavorites = isFav
-      ? previousFavorites.filter((favoriteRouteId) => favoriteRouteId !== routeId)
-      : [...previousFavorites, routeId];
-
-    favoritesRef.current = updatedFavorites;
-    setFavorites(updatedFavorites);
-
     try {
-      await AsyncStorage.setItem('favoriteRoutes', JSON.stringify(updatedFavorites));
+      if (isFav) {
+        await removeFavoriteRouteByRouteId(routeId);
+      } else {
+        await addFavoriteRouteByRouteId(routeId);
+      }
+
+      const syncedFavorites = dedupeFavoriteRouteIds(await getLocalFavoriteRouteIds());
+      favoritesRef.current = syncedFavorites;
+      setFavorites(syncedFavorites);
+
       Alert.alert(
         isFav ? 'Removed from favorites' : 'Added to favorites',
         `${routeName} has been ${isFav ? 'removed from' : 'added to'} favorites.`
       );
     } catch (error) {
-      favoritesRef.current = previousFavorites;
-      setFavorites(previousFavorites);
       console.warn('Error saving favorites', error);
+
+      const statusCode =
+        typeof error === 'object' && error && 'status' in error
+          ? Number((error as { status?: unknown }).status)
+          : undefined;
+
+      if (!isFav && statusCode === 409) {
+        Alert.alert(
+          'Favorites limit reached',
+          `You can only save up to ${MAX_FAVORITE_ROUTES} routes. Remove one before adding ${routeName}.`
+        );
+        await loadData('refresh');
+        return;
+      }
+
       Alert.alert('Error', 'Unable to update favorites right now.');
+      await loadData('refresh');
     }
   };
 

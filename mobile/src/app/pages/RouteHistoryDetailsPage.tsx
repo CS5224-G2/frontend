@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Platform, View, Text, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import MapView, { Marker, Polyline, type LatLng, type Region } from 'react-native-maps';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button } from '../components/native/Common';
@@ -9,7 +9,8 @@ import { type RideHistory } from '../../../../shared/types/index';
 import { getRideById } from '../../services/rideService';
 import { resolveRouteById } from '../../services/routeLookup';
 import { useFloatingTabBarScrollPadding } from '../utils/floatingTabBarInset';
-import { fitRegionForCoordinates, routeToMapCoordinates } from '@/utils/routeGeometry';
+import { fitRegionForCoordinates, routeToLineCoordinates, routeToMapCoordinates } from '@/utils/routeGeometry';
+import { canUseAndroidMapbox } from '../utils/mapboxSupport';
 
 type Props = NativeStackScreenProps<any, 'HistoryDetails'>;
 
@@ -20,6 +21,9 @@ export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
   const scrollBottomPad = useFloatingTabBarScrollPadding(40);
+  const androidMapboxEnabled = canUseAndroidMapbox();
+  const RouteMapPreviewMapbox =
+    androidMapboxEnabled ? require('./RouteMapPreviewMapbox').default : null;
 
   useEffect(() => {
     const loadData = async () => {
@@ -91,6 +95,14 @@ export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
     [routeInfo],
   );
 
+  const lineCoords = useMemo(
+    () =>
+      routeInfo
+        ? routeToLineCoordinates(routeInfo).filter(([lng, lat]) => !(lat === 0 && lng === 0))
+        : [],
+    [routeInfo],
+  );
+
   const mapRegion = useMemo<Region>(() => {
     const points: LatLng[] = [...pathCoords, ...checkpointCoords, ...poiCoords];
     if (routeInfo) {
@@ -120,7 +132,26 @@ export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
           (routeInfo.endPoint.lat === 0 && routeInfo.endPoint.lng === 0)
         )),
   );
-  const showEmbeddedMap = mapUsable && Platform.OS !== 'android';
+  const showEmbeddedMap = mapUsable && !androidMapboxEnabled;
+  const showAndroidMapboxMap = mapUsable && androidMapboxEnabled && RouteMapPreviewMapbox;
+
+  const mapboxMarkers = useMemo(
+    () => [
+      ...visitedCheckpoints.map((checkpoint) => ({
+        id: `checkpoint-${checkpoint.id}`,
+        coordinate: [checkpoint.lng, checkpoint.lat] as [number, number],
+        color: '#2563eb',
+        kind: 'waypoint' as const,
+      })),
+      ...visitedPoisWithCoords.map((poi, index) => ({
+        id: `poi-${poi.name}-${index}`,
+        coordinate: [poi.lng, poi.lat] as [number, number],
+        color: '#f59e0b',
+        kind: 'poi' as const,
+      })),
+    ],
+    [visitedCheckpoints, visitedPoisWithCoords],
+  );
 
   if (isLoading) {
     return (
@@ -197,16 +228,25 @@ export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
                   </Marker>
                 ))}
               </MapView>
+            ) : showAndroidMapboxMap ? (
+              <RouteMapPreviewMapbox
+                lineCoordinates={lineCoords}
+                markers={mapboxMarkers}
+                strokeColor="#22c55e"
+                testID="route-history-details-map"
+                scrollEnabled={false}
+                zoomEnabled={false}
+              />
             ) : (
               <View className="h-[240px] items-center justify-center bg-[#e2e8f0] dark:bg-[#0f172a] px-4">
                 <MaterialCommunityIcons name="map-search-outline" size={40} color={isDark ? '#64748b' : '#475569'} />
                 <Text className="mt-2 text-sm font-semibold text-[#334155] dark:text-slate-300">
-                  {Platform.OS === 'android' ? 'Map preview unavailable on Android' : 'Route preview unavailable'}
+                  {androidMapboxEnabled ? 'Route preview unavailable' : 'Mapbox preview unavailable'}
                 </Text>
                 <Text className="mt-1 text-center text-xs text-[#64748b] dark:text-slate-500">
-                  {Platform.OS === 'android'
-                    ? 'This screen avoids the embedded Google map on Android. Ride stats and route info are still shown below.'
-                    : 'This ride record does not include route coordinates yet.'}
+                  {androidMapboxEnabled
+                    ? 'This ride record does not include route coordinates yet.'
+                    : 'Use a development build with EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN configured to render the Android history preview with Mapbox.'}
                 </Text>
               </View>
             )}

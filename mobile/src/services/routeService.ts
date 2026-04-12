@@ -14,6 +14,11 @@ import { normalizeUserPreferences } from '../app/utils/routePreferences';
 import { httpClient } from './httpClient';
 
 export type { Route };
+export type SavedRoute = {
+  savedRouteId: string;
+  savedAt: string;
+  route: Route;
+};
 
 // ---------------------------------------------------------------------------
 // Backend shapes (internal)
@@ -112,6 +117,49 @@ type BackendRecommendationRoute = {
   end_point?: { lat?: number; lng?: number; name?: string };
   checkpoints?: BackendCheckpoint[];
   route_path?: BackendLatLng[];
+};
+
+type BackendSavedRoute = BackendRoute & {
+  saved_route_id: string;
+  saved_at: string;
+};
+
+type BackendSavedRoutesResponse = {
+  saved_routes?: BackendSavedRoute[];
+  total?: number;
+};
+
+type BackendSaveRouteResponse = {
+  saved_route_id: string;
+  route_id: string;
+  saved_at: string;
+  status?: string;
+};
+
+type BackendSaveRoutePayload = {
+  route_id: string;
+  name: string;
+  description: string;
+  distance: number;
+  estimated_time: number;
+  elevation: 'higher' | 'lower' | 'dont-care';
+  shade: 'reduce-shade' | 'dont-care';
+  air_quality: 'care' | 'dont-care';
+  cyclist_type: 'recreational' | 'commuter' | 'fitness' | 'general';
+  checkpoints: Array<{
+    checkpoint_id: string;
+    checkpoint_name: string;
+    description: string;
+    lat: number;
+    lng: number;
+  }>;
+  points_of_interest_visited?: Array<{
+    name: string;
+    description?: string;
+    lat?: number;
+    lng?: number;
+  }>;
+  route_path?: Array<{ lat: number; lng: number }>;
 };
 
 // ---------------------------------------------------------------------------
@@ -384,6 +432,37 @@ function toFrontendRecommendedRoute(
   return finalizeRouteEndpoints(base);
 }
 
+function toSavedRoute(route: BackendSavedRoute): SavedRoute {
+  return {
+    savedRouteId: route.saved_route_id,
+    savedAt: route.saved_at,
+    route: toFrontendRoute(route),
+  };
+}
+
+function toSaveRoutePayload(route: Route): BackendSaveRoutePayload {
+  return {
+    route_id: route.id,
+    name: route.name,
+    description: route.description,
+    distance: route.distance,
+    estimated_time: route.estimatedTime,
+    elevation: normalizeElevation(route.elevation),
+    shade: normalizeShade(route.shade),
+    air_quality: normalizeAirQuality(route.airQuality),
+    cyclist_type: route.cyclistType,
+    checkpoints: route.checkpoints.map((checkpoint) => ({
+      checkpoint_id: checkpoint.id,
+      checkpoint_name: checkpoint.name,
+      description: checkpoint.description,
+      lat: checkpoint.lat,
+      lng: checkpoint.lng,
+    })),
+    points_of_interest_visited: route.pointsOfInterestVisited,
+    route_path: route.routePath,
+  };
+}
+
 type RecommendationInput = UserPreferences | RouteRecommendationRequest;
 
 function isRouteRecommendationRequest(
@@ -433,6 +512,37 @@ export async function getRouteById(id: string, token?: string): Promise<Route | 
   } catch {
     return null;
   }
+}
+
+/** Fetch all routes saved by the authenticated user. */
+export async function getSavedRoutes(token?: string): Promise<SavedRoute[]> {
+  const response = await httpClient.get<BackendSavedRoutesResponse>('/routes/saved', token);
+  const savedRoutes = response.saved_routes ?? [];
+  return savedRoutes.map(toSavedRoute);
+}
+
+/** Save a route to the authenticated user's backend favorites list. */
+export async function saveRoute(tokenOrRoute: string | Route, maybeRoute?: Route): Promise<SavedRoute> {
+  const token = typeof tokenOrRoute === 'string' ? tokenOrRoute : undefined;
+  const route = typeof tokenOrRoute === 'string' ? maybeRoute : tokenOrRoute;
+
+  if (!route) {
+    throw new Error('Route is required to save favorites');
+  }
+
+  const payload = toSaveRoutePayload(route);
+  const response = await httpClient.post<BackendSaveRouteResponse>('/routes/save', payload, token);
+
+  return {
+    savedRouteId: response.saved_route_id,
+    savedAt: response.saved_at,
+    route,
+  };
+}
+
+/** Remove one saved route from backend favorites by saved_route_id. */
+export async function deleteSavedRoute(savedRouteId: string, token?: string): Promise<void> {
+  await httpClient.delete<void>(`/routes/saved/${savedRouteId}`, token);
 }
 
 /**
