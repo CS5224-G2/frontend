@@ -28,6 +28,8 @@ export interface Route {
   startPoint: { lat: number; lng: number; name: string };
   endPoint: { lat: number; lng: number; name: string };
   checkpoints: Checkpoint[];
+  /** Detailed path from routing engine; when set, maps use this instead of straight segments. */
+  routePath?: Array<{ lat: number; lng: number }>;
   cyclistType: CyclistType;
   shade: number;
   airQuality: number;

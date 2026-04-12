@@ -25,10 +25,12 @@ export default function LiveMapExpoGoScreen() {
     progress,
     elapsedSec,
     routeCompleted,
-    currentCheckpoint,
+    checkpointsVisitedCount,
     checkpointBanner,
     showExitModal,
     setShowExitModal,
+    offRouteWarning,
+    locationDenied,
     navigation,
     formatTime,
     distanceTraveled,
@@ -69,8 +71,8 @@ export default function LiveMapExpoGoScreen() {
       <View style={styles.mapFallback} testID="live-map-expo-go">
         <Text style={styles.fallbackTitle}>Map preview (Expo Go)</Text>
         <Text style={styles.fallbackBody}>
-          Mapbox is not available inside Expo Go. You can still try the live ride HUD, progress simulation,
-          checkpoints, and feedback flow. For the real map, run a development build (e.g. npx expo run:ios).
+          Mapbox is not available inside Expo Go. You can still use GPS-based progress, off-route alerts,
+          checkpoint detection, and the feedback flow. For the map, run a development build (e.g. npx expo run:ios).
         </Text>
         <Text style={styles.fallbackMeta}>Polyline points computed: {polylineCount}</Text>
         <Text style={styles.fallbackLegend}>
@@ -91,7 +93,7 @@ export default function LiveMapExpoGoScreen() {
           </View>
           <View style={styles.statsFooter}>
             <Text style={styles.statsMeta}>
-              {currentCheckpoint}/{route.checkpoints.length} checkpoints
+              {checkpointsVisitedCount}/{route.checkpoints.length} checkpoints
             </Text>
             <Text style={styles.statsMeta}>{distanceTraveled} km traveled</Text>
           </View>
@@ -101,6 +103,20 @@ export default function LiveMapExpoGoScreen() {
           <View style={styles.banner} testID="live-map-checkpoint-banner">
             <Text style={styles.bannerTitle}>Checkpoint reached!</Text>
             <Text style={styles.bannerBody}>{checkpointBanner}</Text>
+          </View>
+        ) : null}
+
+        {locationDenied ? (
+          <View style={styles.warnBanner} testID="live-map-location-denied">
+            <Text style={styles.warnTitle}>Location off</Text>
+            <Text style={styles.warnBody}>Enable location permission to track your ride.</Text>
+          </View>
+        ) : null}
+
+        {offRouteWarning ? (
+          <View style={styles.warnBanner} testID="live-map-off-route">
+            <Text style={styles.warnTitle}>Off route</Text>
+            <Text style={styles.warnBody}>You are far from the planned route. Return to the route when safe.</Text>
           </View>
         ) : null}
       </SafeAreaView>
@@ -221,6 +237,17 @@ const styles = StyleSheet.create({
   },
   bannerTitle: { fontWeight: '800', color: '#166534', marginBottom: 4 },
   bannerBody: { fontSize: 13, color: '#15803d' },
+  warnBanner: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    backgroundColor: '#fef3c7',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#fcd34d',
+  },
+  warnTitle: { fontWeight: '800', color: '#92400e', marginBottom: 4 },
+  warnBody: { fontSize: 13, color: '#a16207', lineHeight: 18 },
   bottomBar: {
     position: 'absolute',
     bottom: 0,

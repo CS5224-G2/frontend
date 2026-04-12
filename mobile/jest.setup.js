@@ -9,6 +9,13 @@ jest.mock('expo-haptics', () => ({
 
 jest.mock('expo-location', () => ({
   reverseGeocodeAsync: jest.fn(() => Promise.resolve([])),
+  requestForegroundPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'granted' })),
+  Accuracy: { Balanced: 4, High: 6 },
+  watchPositionAsync: jest.fn(() =>
+    Promise.resolve({
+      remove: jest.fn(),
+    }),
+  ),
 }));
 
 const mockAsyncStorageStore = new Map();

@@ -36,7 +36,7 @@ export default function LiveMapMapboxScreen() {
     progress,
     elapsedSec,
     routeCompleted,
-    currentCheckpoint,
+    checkpointsVisitedCount,
     checkpointBanner,
     showExitModal,
     setShowExitModal,
@@ -44,6 +44,9 @@ export default function LiveMapMapboxScreen() {
     bounds,
     riderPoint,
     riderLngLat,
+    riderHasFix,
+    offRouteWarning,
+    locationDenied,
     lineCoords,
     navigation,
     formatTime,
@@ -72,19 +75,22 @@ export default function LiveMapMapboxScreen() {
 
   const navBounds = useMemo(() => {
     const coords = [...lineCoords];
-    if (riderLngLat[0] !== 0 || riderLngLat[1] !== 0) {
+    if (riderHasFix && riderLngLat) {
       coords.push(riderLngLat);
     }
     if (!coords.length) return bounds;
     return boundsFromCoordinates(coords);
-  }, [lineCoords, riderLngLat, bounds]);
+  }, [lineCoords, riderLngLat, riderHasFix, bounds]);
 
   const checkpointGeo = useMemo(() => liveMapCheckpointCollection(route), [route]);
   const { hawker: hawkerPoiGeo, other: otherPoiGeo } = useMemo(
     () => liveMapPoiCollections(route),
     [route],
   );
-  const riderHalo = useMemo(() => liveMapRiderHaloFeature(riderLngLat), [riderLngLat]);
+  const riderHalo = useMemo(
+    () => (riderHasFix && riderLngLat ? liveMapRiderHaloFeature(riderLngLat) : null),
+    [riderLngLat, riderHasFix],
+  );
 
   if (routeLoading) {
     return (
@@ -194,35 +200,39 @@ export default function LiveMapMapboxScreen() {
               />
             </ShapeSource>
           ) : null}
-          <ShapeSource id="riderHalo" shape={riderHalo}>
-            <CircleLayer
-              id="riderHaloLayer"
-              style={{
-                circleRadius: 22,
-                circleColor: '#2563eb',
-                circleOpacity: 0.22,
-              }}
-            />
-          </ShapeSource>
-          <ShapeSource id="riderPoint" shape={riderPoint}>
-            <CircleLayer
-              id="riderCircleOuter"
-              style={{
-                circleRadius: 14,
-                circleColor: '#93c5fd',
-                circleOpacity: 0.9,
-              }}
-            />
-            <CircleLayer
-              id="riderCircle"
-              style={{
-                circleRadius: 9,
-                circleColor: '#1d4ed8',
-                circleStrokeWidth: 3,
-                circleStrokeColor: '#ffffff',
-              }}
-            />
-          </ShapeSource>
+          {riderHalo && riderPoint ? (
+            <>
+              <ShapeSource id="riderHalo" shape={riderHalo}>
+                <CircleLayer
+                  id="riderHaloLayer"
+                  style={{
+                    circleRadius: 22,
+                    circleColor: '#2563eb',
+                    circleOpacity: 0.22,
+                  }}
+                />
+              </ShapeSource>
+              <ShapeSource id="riderPoint" shape={riderPoint}>
+                <CircleLayer
+                  id="riderCircleOuter"
+                  style={{
+                    circleRadius: 14,
+                    circleColor: '#93c5fd',
+                    circleOpacity: 0.9,
+                  }}
+                />
+                <CircleLayer
+                  id="riderCircle"
+                  style={{
+                    circleRadius: 9,
+                    circleColor: '#1d4ed8',
+                    circleStrokeWidth: 3,
+                    circleStrokeColor: '#ffffff',
+                  }}
+                />
+              </ShapeSource>
+            </>
+          ) : null}
         </MapView>
       ) : (
         <View style={styles.mapFallback} testID="live-map-no-token">
@@ -247,7 +257,7 @@ export default function LiveMapMapboxScreen() {
           </View>
           <View style={styles.statsFooter}>
             <Text style={styles.statsMeta}>
-              {currentCheckpoint}/{route.checkpoints.length} checkpoints
+              {checkpointsVisitedCount}/{route.checkpoints.length} checkpoints
             </Text>
             <Text style={styles.statsMeta}>{distanceTraveled} km traveled</Text>
           </View>
@@ -257,6 +267,20 @@ export default function LiveMapMapboxScreen() {
           <View style={styles.banner} testID="live-map-checkpoint-banner">
             <Text style={styles.bannerTitle}>Checkpoint reached!</Text>
             <Text style={styles.bannerBody}>{checkpointBanner}</Text>
+          </View>
+        ) : null}
+
+        {locationDenied ? (
+          <View style={styles.warnBanner} testID="live-map-location-denied">
+            <Text style={styles.warnTitle}>Location off</Text>
+            <Text style={styles.warnBody}>Enable location permission to see your position and progress on the route.</Text>
+          </View>
+        ) : null}
+
+        {offRouteWarning ? (
+          <View style={styles.warnBanner} testID="live-map-off-route">
+            <Text style={styles.warnTitle}>Off route</Text>
+            <Text style={styles.warnBody}>You are far from the planned route. Head back toward the blue line when safe.</Text>
           </View>
         ) : null}
       </SafeAreaView>
@@ -380,6 +404,17 @@ const styles = StyleSheet.create({
   },
   bannerTitle: { fontWeight: '800', color: '#166534', marginBottom: 4 },
   bannerBody: { fontSize: 13, color: '#15803d' },
+  warnBanner: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    backgroundColor: '#fef3c7',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#fcd34d',
+  },
+  warnTitle: { fontWeight: '800', color: '#92400e', marginBottom: 4 },
+  warnBody: { fontSize: 13, color: '#a16207', lineHeight: 18 },
   modalCelebration: { alignItems: 'center', marginBottom: 12 },
   bottomBar: {
     position: 'absolute',
