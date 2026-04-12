@@ -1,0 +1,35 @@
+mobile/src/app/pages/useLiveMapRideState.ts
+  1f8ae092ff60b666 4,12-13,17-30,38-47,49-51,78-89,96,98-104,106-108,110-173,181,187-195,198-209,227,237,248-249,259,292-293,301-306,308
+mobile/src/app/pages/LiveMapExpoGoScreen.tsx
+  1f8ae092ff60b666 28,32-33,74-75,96,108-121,240-250
+mobile/src/utils/routeGeometry.test.ts
+  1f8ae092ff60b666 2-7,18-44
+mobile/src/app/pages/LiveMapMapbox.tsx
+  1f8ae092ff60b666 78,83,90-93,203-235,260,272-285,407-417
+mobile/src/app/types.ts
+  1f8ae092ff60b666 31-32
+mobile/jest.setup.js
+  1f8ae092ff60b666 12-18
+mobile/src/utils/routeGeometry.ts
+  1f8ae092ff60b666 8-10,55-71,73-152
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "515bb591f3ead786a68fdcf1ed8076a4a2e95214",
+  "prompts": {
+    "1f8ae092ff60b666": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "23db95e2-881d-45c0-b427-62e86c92d968",
+        "model": "default"
+      },
+      "human_author": "Lichen(Jeffrey) Yang",
+      "messages": [],
+      "total_additions": 404,
+      "total_deletions": 111,
+      "accepted_lines": 396,
+      "overriden_lines": 0
+    }
+  }
+}
