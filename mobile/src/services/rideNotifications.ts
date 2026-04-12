@@ -1,30 +1,76 @@
-import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
 import { STORAGE_KEYS } from '../constants/routeStorage';
 import { loadActiveRideSession } from './activeRideSession';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+type NotificationsModule = typeof import('expo-notifications');
 
-async function ensureRideNotificationPermission(): Promise<boolean> {
-  const existing = await Notifications.getPermissionsAsync();
-  if (existing.granted || existing.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL) {
-    return true;
+let notificationsModule: NotificationsModule | null | undefined;
+let notificationHandlerConfigured = false;
+
+function isExpoGoAndroidNotificationsUnavailable(): boolean {
+  return (
+    Platform.OS === 'android' &&
+    (Constants.executionEnvironment === 'storeClient' ||
+      (Constants as typeof Constants & { appOwnership?: string }).appOwnership === 'expo')
+  );
+}
+
+function getNotificationsModule(): NotificationsModule | null {
+  if (isExpoGoAndroidNotificationsUnavailable()) {
+    return null;
   }
 
-  const requested = await Notifications.requestPermissionsAsync();
-  return (
-    requested.granted ||
-    requested.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL
-  );
+  if (notificationsModule === undefined) {
+    try {
+      notificationsModule = require('expo-notifications') as NotificationsModule;
+    } catch {
+      notificationsModule = null;
+    }
+  }
+
+  if (notificationsModule && !notificationHandlerConfigured) {
+    notificationsModule.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+    notificationHandlerConfigured = true;
+  }
+
+  return notificationsModule ?? null;
+}
+
+export function initializeRideNotifications(): void {
+  getNotificationsModule();
+}
+
+async function ensureRideNotificationPermission(): Promise<boolean> {
+  const Notifications = getNotificationsModule();
+  if (!Notifications) {
+    return false;
+  }
+
+  try {
+    const existing = await Notifications.getPermissionsAsync();
+    if (existing.granted || existing.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL) {
+      return true;
+    }
+
+    const requested = await Notifications.requestPermissionsAsync();
+    return (
+      requested.granted ||
+      requested.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL
+    );
+  } catch {
+    return false;
+  }
 }
 
 async function sendRideNotification(title: string, body: string): Promise<void> {
@@ -35,6 +81,11 @@ async function sendRideNotification(title: string, body: string): Promise<void> 
 
   const activeSession = await loadActiveRideSession();
   if (!activeSession) {
+    return;
+  }
+
+  const Notifications = getNotificationsModule();
+  if (!Notifications) {
     return;
   }
 
@@ -77,6 +128,12 @@ export async function notifyRideResumed(routeName: string): Promise<void> {
 export async function clearRideNotifications(): Promise<void> {
   const existingIds = await AsyncStorage.getItem(STORAGE_KEYS.rideNotificationIds);
   const parsedIds = existingIds ? (JSON.parse(existingIds) as string[]) : [];
+  const Notifications = getNotificationsModule();
+
+  if (!Notifications) {
+    await AsyncStorage.removeItem(STORAGE_KEYS.rideNotificationIds);
+    return;
+  }
 
   await Promise.all(
     parsedIds.flatMap((id) => [
