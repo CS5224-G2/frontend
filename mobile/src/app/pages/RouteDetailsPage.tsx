@@ -20,6 +20,8 @@ import {
   hasRouteCoordinates,
   routeCoordinateSubtitle,
 } from '../utils/routeDisplay';
+import { mapDotMarkerProps, mapPinMarkerProps } from '../utils/mapMarkers';
+import { isLikelyHawkerCentre } from '../utils/poiLabels';
 import { useRouteEndpointLabels } from '../utils/placeGeocode';
 import { useFloatingTabBarScrollPadding } from '../utils/floatingTabBarInset';
 import { fitRegionForCoordinates, routeToMapCoordinates } from '@/utils/routeGeometry';
@@ -180,6 +182,7 @@ export default function RouteDetailsScreen() {
                   title="Start"
                   description={startLabel}
                   testID="route-details-marker-start"
+                  {...mapDotMarkerProps()}
                 >
                   <View style={styles.markerStart} />
                 </Marker>
@@ -192,24 +195,32 @@ export default function RouteDetailsScreen() {
                     coordinate={{ latitude: cp.lat, longitude: cp.lng }}
                     title={cp.name}
                     description={cp.description}
+                    {...mapPinMarkerProps()}
                   >
                     <MaterialCommunityIcons name="map-marker" size={28} color="#2563eb" />
                   </Marker>
                 ) : null,
               )}
 
-              {(route.pointsOfInterestVisited ?? []).map((poi, i) =>
-                typeof poi.lat === 'number' && typeof poi.lng === 'number' ? (
+              {(route.pointsOfInterestVisited ?? []).map((poi, i) => {
+                if (typeof poi.lat !== 'number' || typeof poi.lng !== 'number') return null;
+                const hawker = isLikelyHawkerCentre(poi.name);
+                return (
                   <Marker
                     key={`poi-${poi.name}-${i}`}
                     coordinate={{ latitude: poi.lat, longitude: poi.lng }}
                     title={poi.name}
                     description={poi.description}
+                    {...mapPinMarkerProps()}
                   >
-                    <MaterialCommunityIcons name="map-marker" size={26} color="#f59e0b" />
+                    <MaterialCommunityIcons
+                      name={hawker ? 'food' : 'map-marker'}
+                      size={26}
+                      color={hawker ? '#be185d' : '#f59e0b'}
+                    />
                   </Marker>
-                ) : null,
-              )}
+                );
+              })}
 
               {hasRouteCoordinates(route.endPoint.lat, route.endPoint.lng) ? (
                 <Marker
@@ -217,6 +228,7 @@ export default function RouteDetailsScreen() {
                   title="End"
                   description={endLabel}
                   testID="route-details-marker-end"
+                  {...mapDotMarkerProps()}
                 >
                   <View style={styles.markerEnd} />
                 </Marker>

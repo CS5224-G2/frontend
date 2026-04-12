@@ -1,8 +1,21 @@
 // Avoid Jest hangs with react-native + certain async patterns (see @rnmapbox/maps/setup-jest).
 delete global.MessageChannel;
 
+jest.mock('expo-haptics', () => ({
+  notificationAsync: jest.fn(() => Promise.resolve()),
+  impactAsync: jest.fn(() => Promise.resolve()),
+  NotificationFeedbackType: { Success: 'success' },
+}));
+
 jest.mock('expo-location', () => ({
   reverseGeocodeAsync: jest.fn(() => Promise.resolve([])),
+  requestForegroundPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'granted' })),
+  Accuracy: { Balanced: 4, High: 6 },
+  watchPositionAsync: jest.fn(() =>
+    Promise.resolve({
+      remove: jest.fn(),
+    }),
+  ),
 }));
 
 const mockAsyncStorageStore = new Map();

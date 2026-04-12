@@ -143,6 +143,20 @@ function mapBackendCheckpoints(checkpoints: BackendCheckpoint[] | undefined): Ro
   }));
 }
 
+/** Prefer contract string enums; fall back to numeric `elevation_m` when present (legacy / partial APIs). */
+function parseRouteElevationFromBackend(r: BackendRoute): Route['elevation'] {
+  const raw: unknown = r.elevation;
+  if (raw === 'higher' || raw === 'lower' || raw === 'dont-care') return raw;
+  if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
+  if (typeof raw === 'string') {
+    const s = raw.trim().toLowerCase().replace(/_/g, '-');
+    if (s === 'higher' || s === 'lower' || s === 'dont-care') return s;
+  }
+  const m = r.elevation_m;
+  if (typeof m === 'number' && Number.isFinite(m)) return m;
+  return 'dont-care';
+}
+
 /** Fill missing start/end coordinates and labels from route_path or checkpoints (API list/detail gaps). */
 export function finalizeRouteEndpoints(route: Route): Route {
   const path = route.routePath ?? [];
@@ -196,7 +210,7 @@ const toFrontendRoute = (r: BackendRoute): Route => {
     name: r.name ?? r.route_name ?? 'Unnamed route',
     description: r.description,
     distance: r.distance ?? r.distance_km ?? 0,
-    elevation: r.elevation ?? r.elevation_m ?? 'dont-care',
+    elevation: parseRouteElevationFromBackend(r),
     estimatedTime: r.estimated_time ?? r.estimated_time_min ?? 0,
     rating: r.rating,
     reviewCount: r.review_count,
@@ -292,13 +306,19 @@ function normalizeVisitedPoiNames(
 }
 
 /** Convert numeric elevation (meters) to preference string or return existing string. */
-function normalizeElevation(elevation: number | 'higher' | 'lower' | 'dont-care'): 'higher' | 'lower' | 'dont-care' {
+function normalizeElevation(
+  elevation: number | 'higher' | 'lower' | 'dont-care' | undefined | null,
+): 'higher' | 'lower' | 'dont-care' {
+  if (elevation === undefined || elevation === null) return 'dont-care';
   if (typeof elevation === 'string') {
-    return elevation;
+    if (elevation === 'higher' || elevation === 'lower' || elevation === 'dont-care') return elevation;
+    return 'dont-care';
   }
-  // meters: 0-100 → lower, 100-200 → dont-care, 200+ → higher
-  if (elevation < 100) return 'lower';
-  if (elevation > 200) return 'higher';
+  if (typeof elevation === 'number' && Number.isFinite(elevation)) {
+    if (elevation < 100) return 'lower';
+    if (elevation > 200) return 'higher';
+    return 'dont-care';
+  }
   return 'dont-care';
 }
 

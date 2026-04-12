@@ -1,5 +1,10 @@
 import { mockRoutes } from '../app/types';
-import { boundsFromCoordinates, interpolateAlongRoute, routeToLineCoordinates } from './routeGeometry';
+import {
+  boundsFromCoordinates,
+  interpolateAlongRoute,
+  projectPointOntoPolyline,
+  routeToLineCoordinates,
+} from './routeGeometry';
 
 describe('routeGeometry', () => {
   it('routeToLineCoordinates joins start, checkpoints, end', () => {
@@ -8,6 +13,35 @@ describe('routeGeometry', () => {
     expect(coords[0]).toEqual([route.startPoint.lng, route.startPoint.lat]);
     expect(coords[coords.length - 1]).toEqual([route.endPoint.lng, route.endPoint.lat]);
     expect(coords.length).toBe(1 + route.checkpoints.length + 1);
+  });
+
+  it('routeToLineCoordinates prefers routePath when present', () => {
+    const path = [
+      { lat: 1.0, lng: 2.0 },
+      { lat: 1.1, lng: 2.1 },
+      { lat: 1.2, lng: 2.2 },
+    ];
+    const route = {
+      ...mockRoutes[0],
+      routePath: path,
+    };
+    const coords = routeToLineCoordinates(route);
+    expect(coords).toEqual([
+      [2.0, 1.0],
+      [2.1, 1.1],
+      [2.2, 1.2],
+    ]);
+  });
+
+  it('projectPointOntoPolyline finds nearest segment', () => {
+    const line: [number, number][] = [
+      [0, 0],
+      [0.001, 0],
+    ];
+    const { distToRouteM, progress01 } = projectPointOntoPolyline(0, 0.0005, line);
+    expect(distToRouteM).toBeLessThan(200);
+    expect(progress01).toBeGreaterThan(0.2);
+    expect(progress01).toBeLessThan(0.8);
   });
 
   it('interpolateAlongRoute returns start at 0 and end at 1', () => {

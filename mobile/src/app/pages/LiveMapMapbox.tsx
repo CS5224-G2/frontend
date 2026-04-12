@@ -11,10 +11,18 @@ import {
 } from '@rnmapbox/maps';
 import { useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { type Route } from '../../../../shared/types/index';
+import { useRideCompletionFeedback } from '../hooks/useRideCompletionFeedback';
 import { useFloatingTabBarExtraLift } from '../utils/floatingTabBarInset';
 import { useLiveMapRideState } from './useLiveMapRideState';
+import { boundsFromCoordinates } from '@/utils/routeGeometry';
+import {
+  liveMapCheckpointCollection,
+  liveMapPoiCollections,
+  liveMapRiderHaloFeature,
+} from '@/utils/liveMapGeojson';
 
 export default function LiveMapMapboxScreen() {
   const { params } = useRoute<any>();
@@ -28,13 +36,18 @@ export default function LiveMapMapboxScreen() {
     progress,
     elapsedSec,
     routeCompleted,
-    currentCheckpoint,
+    checkpointsVisitedCount,
     checkpointBanner,
     showExitModal,
     setShowExitModal,
     lineFeature,
     bounds,
     riderPoint,
+    riderLngLat,
+    riderHasFix,
+    offRouteWarning,
+    locationDenied,
+    lineCoords,
     navigation,
     formatTime,
     distanceTraveled,
@@ -42,6 +55,8 @@ export default function LiveMapMapboxScreen() {
     stopCycling,
     confirmExit,
   } = useLiveMapRideState(routeId, routeParam);
+
+  useRideCompletionFeedback(routeCompleted);
 
   useEffect(() => {
     if (mapboxToken) {
@@ -57,6 +72,25 @@ export default function LiveMapMapboxScreen() {
   }, [lineFeature]);
   const bottomTabLift = useFloatingTabBarExtraLift(16);
   const cameraPaddingBottom = 220 + bottomTabLift;
+
+  const navBounds = useMemo(() => {
+    const coords = [...lineCoords];
+    if (riderHasFix && riderLngLat) {
+      coords.push(riderLngLat);
+    }
+    if (!coords.length) return bounds;
+    return boundsFromCoordinates(coords);
+  }, [lineCoords, riderLngLat, riderHasFix, bounds]);
+
+  const checkpointGeo = useMemo(() => liveMapCheckpointCollection(route), [route]);
+  const { hawker: hawkerPoiGeo, other: otherPoiGeo } = useMemo(
+    () => liveMapPoiCollections(route),
+    [route],
+  );
+  const riderHalo = useMemo(
+    () => (riderHasFix && riderLngLat ? liveMapRiderHaloFeature(riderLngLat) : null),
+    [riderLngLat, riderHasFix],
+  );
 
   if (routeLoading) {
     return (
@@ -90,14 +124,15 @@ export default function LiveMapMapboxScreen() {
         >
           <Camera
             bounds={{
-              ne: bounds.ne,
-              sw: bounds.sw,
+              ne: navBounds.ne,
+              sw: navBounds.sw,
               paddingTop: 160,
               paddingBottom: cameraPaddingBottom,
               paddingLeft: 32,
               paddingRight: 32,
             }}
-            animationDuration={0}
+            animationMode="easeTo"
+            animationDuration={350}
           />
           <ShapeSource id="routeLine" shape={lineFeature}>
             <LineLayer
@@ -110,17 +145,94 @@ export default function LiveMapMapboxScreen() {
               }}
             />
           </ShapeSource>
-          <ShapeSource id="riderPoint" shape={riderPoint}>
-            <CircleLayer
-              id="riderCircle"
-              style={{
-                circleRadius: 8,
-                circleColor: '#2563eb',
-                circleStrokeWidth: 2,
-                circleStrokeColor: '#ffffff',
-              }}
-            />
-          </ShapeSource>
+          {checkpointGeo.features.length > 0 ? (
+            <ShapeSource id="liveMapCheckpoints" shape={checkpointGeo}>
+              <CircleLayer
+                id="checkpointOuter"
+                style={{
+                  circleRadius: 11,
+                  circleColor: '#2563eb',
+                  circleOpacity: 0.35,
+                }}
+              />
+              <CircleLayer
+                id="checkpointInner"
+                style={{
+                  circleRadius: 5,
+                  circleColor: '#ffffff',
+                  circleStrokeWidth: 2,
+                  circleStrokeColor: '#1d4ed8',
+                }}
+              />
+            </ShapeSource>
+          ) : null}
+          {otherPoiGeo.features.length > 0 ? (
+            <ShapeSource id="liveMapPoiOther" shape={otherPoiGeo}>
+              <CircleLayer
+                id="poiOther"
+                style={{
+                  circleRadius: 6,
+                  circleColor: '#f59e0b',
+                  circleStrokeWidth: 2,
+                  circleStrokeColor: '#ffffff',
+                }}
+              />
+            </ShapeSource>
+          ) : null}
+          {hawkerPoiGeo.features.length > 0 ? (
+            <ShapeSource id="liveMapPoiHawker" shape={hawkerPoiGeo}>
+              <CircleLayer
+                id="poiHawkerRing"
+                style={{
+                  circleRadius: 12,
+                  circleColor: '#db2777',
+                  circleOpacity: 0.4,
+                }}
+              />
+              <CircleLayer
+                id="poiHawkerCore"
+                style={{
+                  circleRadius: 7,
+                  circleColor: '#be185d',
+                  circleStrokeWidth: 2,
+                  circleStrokeColor: '#ffffff',
+                }}
+              />
+            </ShapeSource>
+          ) : null}
+          {riderHalo && riderPoint ? (
+            <>
+              <ShapeSource id="riderHalo" shape={riderHalo}>
+                <CircleLayer
+                  id="riderHaloLayer"
+                  style={{
+                    circleRadius: 22,
+                    circleColor: '#2563eb',
+                    circleOpacity: 0.22,
+                  }}
+                />
+              </ShapeSource>
+              <ShapeSource id="riderPoint" shape={riderPoint}>
+                <CircleLayer
+                  id="riderCircleOuter"
+                  style={{
+                    circleRadius: 14,
+                    circleColor: '#93c5fd',
+                    circleOpacity: 0.9,
+                  }}
+                />
+                <CircleLayer
+                  id="riderCircle"
+                  style={{
+                    circleRadius: 9,
+                    circleColor: '#1d4ed8',
+                    circleStrokeWidth: 3,
+                    circleStrokeColor: '#ffffff',
+                  }}
+                />
+              </ShapeSource>
+            </>
+          ) : null}
         </MapView>
       ) : (
         <View style={styles.mapFallback} testID="live-map-no-token">
@@ -145,7 +257,7 @@ export default function LiveMapMapboxScreen() {
           </View>
           <View style={styles.statsFooter}>
             <Text style={styles.statsMeta}>
-              {currentCheckpoint}/{route.checkpoints.length} checkpoints
+              {checkpointsVisitedCount}/{route.checkpoints.length} checkpoints
             </Text>
             <Text style={styles.statsMeta}>{distanceTraveled} km traveled</Text>
           </View>
@@ -155,6 +267,20 @@ export default function LiveMapMapboxScreen() {
           <View style={styles.banner} testID="live-map-checkpoint-banner">
             <Text style={styles.bannerTitle}>Checkpoint reached!</Text>
             <Text style={styles.bannerBody}>{checkpointBanner}</Text>
+          </View>
+        ) : null}
+
+        {locationDenied ? (
+          <View style={styles.warnBanner} testID="live-map-location-denied">
+            <Text style={styles.warnTitle}>Location off</Text>
+            <Text style={styles.warnBody}>Enable location permission to see your position and progress on the route.</Text>
+          </View>
+        ) : null}
+
+        {offRouteWarning ? (
+          <View style={styles.warnBanner} testID="live-map-off-route">
+            <Text style={styles.warnTitle}>Off route</Text>
+            <Text style={styles.warnBody}>You are far from the planned route. Head back toward the blue line when safe.</Text>
           </View>
         ) : null}
       </SafeAreaView>
@@ -183,9 +309,22 @@ export default function LiveMapMapboxScreen() {
 
       <Modal visible={routeCompleted} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard} testID="live-map-complete-modal">
-            <Text style={styles.modalTitle}>Route Completed!</Text>
-            <Text style={styles.modalSub}>Congratulations on finishing your ride.</Text>
+          <View
+            style={styles.modalCard}
+            testID="live-map-complete-modal"
+            accessibilityViewIsModal
+            accessibilityLiveRegion="polite"
+          >
+            <View
+              style={styles.modalCelebration}
+              accessible
+              accessibilityRole="image"
+              accessibilityLabel="Destination reached"
+            >
+              <MaterialCommunityIcons name="flag-checkered" size={40} color="#16a34a" />
+            </View>
+            <Text style={styles.modalTitle}>You’ve arrived!</Text>
+            <Text style={styles.modalSub}>Destination reached — congratulations on finishing your ride.</Text>
             <Text style={styles.modalMeta}>Distance: {route.distance} km</Text>
             <Text style={styles.modalMeta}>Time: {route.estimatedTime} minutes</Text>
             <Text style={styles.modalMeta}>Checkpoints: {route.checkpoints.length}</Text>
@@ -265,6 +404,18 @@ const styles = StyleSheet.create({
   },
   bannerTitle: { fontWeight: '800', color: '#166534', marginBottom: 4 },
   bannerBody: { fontSize: 13, color: '#15803d' },
+  warnBanner: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    backgroundColor: '#fef3c7',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#fcd34d',
+  },
+  warnTitle: { fontWeight: '800', color: '#92400e', marginBottom: 4 },
+  warnBody: { fontSize: 13, color: '#a16207', lineHeight: 18 },
+  modalCelebration: { alignItems: 'center', marginBottom: 12 },
   bottomBar: {
     position: 'absolute',
     bottom: 0,

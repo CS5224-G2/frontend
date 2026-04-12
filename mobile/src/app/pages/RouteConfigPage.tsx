@@ -1,10 +1,11 @@
-﻿import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useColorScheme } from 'nativewind';
 import * as Location from 'expo-location';
 import MapView, { Marker, type LongPressEvent, type MapPressEvent, type Region } from 'react-native-maps';
+import { mapPinMarkerProps } from '../utils/mapMarkers';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button } from '../components/native/Common';
@@ -901,6 +902,7 @@ export default function RouteConfigPage({ navigation }: Props) {
                     coordinate={{ latitude: draftLocation.lat, longitude: draftLocation.lng }}
                     title={searchQuery.trim() || draftLocation.name}
                     description="Tap elsewhere on the map to move this pin."
+                    {...mapPinMarkerProps()}
                   />
                 ) : null}
               </MapView>
