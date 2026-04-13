@@ -11,11 +11,28 @@ jest.mock('expo-location', () => ({
   reverseGeocodeAsync: jest.fn(() => Promise.resolve([])),
   requestForegroundPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'granted' })),
   Accuracy: { Balanced: 4, High: 6 },
-  watchPositionAsync: jest.fn(() =>
-    Promise.resolve({
-      remove: jest.fn(),
-    }),
-  ),
+  watchPositionAsync: jest.fn((_options, callback) => {
+    const subscription = { remove: jest.fn() };
+    return new Promise((resolve) => {
+      setImmediate(() => {
+        if (typeof callback === 'function') {
+          callback({
+            coords: {
+              latitude: 1.2966,
+              longitude: 103.7764,
+              altitude: null,
+              accuracy: 12,
+              altitudeAccuracy: null,
+              heading: null,
+              speed: null,
+            },
+            timestamp: Date.now(),
+          });
+        }
+        resolve(subscription);
+      });
+    });
+  }),
 }));
 
 const mockAsyncStorageStore = new Map();

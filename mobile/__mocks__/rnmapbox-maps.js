@@ -14,4 +14,6 @@ module.exports = {
   ShapeSource: ({ children }) => React.createElement(View, { testID: 'mock-shape-source' }, children),
   LineLayer: () => null,
   CircleLayer: () => null,
+  SymbolLayer: () => null,
+  Images: () => null,
 };

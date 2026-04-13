@@ -289,7 +289,6 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
     progress,
     elapsedSec,
     routeCompleted,
-    /** Number of checkpoints visited (GPS proximity). */
     checkpointsVisitedCount,
     checkpointBanner,
     showExitModal,

@@ -3,10 +3,12 @@ import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'rea
 import {
   Camera,
   CircleLayer,
+  Images,
   LineLayer,
   MapView,
   ShapeSource,
   StyleURL,
+  SymbolLayer,
   setAccessToken,
 } from '@rnmapbox/maps';
 import { useRoute } from '@react-navigation/native';
@@ -20,9 +22,13 @@ import { useLiveMapRideState } from './useLiveMapRideState';
 import { boundsFromCoordinates } from '@/utils/routeGeometry';
 import {
   liveMapCheckpointCollection,
-  liveMapPoiCollections,
+  liveMapEndPointCollection,
+  liveMapFoodPoisAlongRoute,
   liveMapRiderHaloFeature,
+  liveMapStartPointCollection,
 } from '@/utils/liveMapGeojson';
+
+const LIVE_MAP_RESTAURANT_PIN = require('../../../assets/live-map-restaurant-pin.png');
 
 export default function LiveMapMapboxScreen() {
   const { params } = useRoute<any>();
@@ -83,10 +89,9 @@ export default function LiveMapMapboxScreen() {
   }, [lineCoords, riderLngLat, riderHasFix, bounds]);
 
   const checkpointGeo = useMemo(() => liveMapCheckpointCollection(route), [route]);
-  const { hawker: hawkerPoiGeo, other: otherPoiGeo } = useMemo(
-    () => liveMapPoiCollections(route),
-    [route],
-  );
+  const startPointGeo = useMemo(() => liveMapStartPointCollection(route), [route]);
+  const endPointGeo = useMemo(() => liveMapEndPointCollection(route), [route]);
+  const foodPoiGeo = useMemo(() => liveMapFoodPoisAlongRoute(route), [route]);
   const riderHalo = useMemo(
     () => (riderHasFix && riderLngLat ? liveMapRiderHaloFeature(riderLngLat) : null),
     [riderLngLat, riderHasFix],
@@ -134,6 +139,7 @@ export default function LiveMapMapboxScreen() {
             animationMode="easeTo"
             animationDuration={350}
           />
+          <Images images={{ liveMapRestaurantPin: LIVE_MAP_RESTAURANT_PIN }} />
           <ShapeSource id="routeLine" shape={lineFeature}>
             <LineLayer
               id="routeLineLayer"
@@ -145,6 +151,48 @@ export default function LiveMapMapboxScreen() {
               }}
             />
           </ShapeSource>
+          {startPointGeo.features.length > 0 ? (
+            <ShapeSource id="liveMapRouteStart" shape={startPointGeo}>
+              <CircleLayer
+                id="routeStartOuter"
+                style={{
+                  circleRadius: 12,
+                  circleColor: '#22c55e',
+                  circleOpacity: 0.35,
+                }}
+              />
+              <CircleLayer
+                id="routeStartInner"
+                style={{
+                  circleRadius: 7,
+                  circleColor: '#16a34a',
+                  circleStrokeWidth: 2,
+                  circleStrokeColor: '#ffffff',
+                }}
+              />
+            </ShapeSource>
+          ) : null}
+          {endPointGeo.features.length > 0 ? (
+            <ShapeSource id="liveMapRouteEnd" shape={endPointGeo}>
+              <CircleLayer
+                id="routeEndOuter"
+                style={{
+                  circleRadius: 12,
+                  circleColor: '#f87171',
+                  circleOpacity: 0.35,
+                }}
+              />
+              <CircleLayer
+                id="routeEndInner"
+                style={{
+                  circleRadius: 7,
+                  circleColor: '#dc2626',
+                  circleStrokeWidth: 2,
+                  circleStrokeColor: '#ffffff',
+                }}
+              />
+            </ShapeSource>
+          ) : null}
           {checkpointGeo.features.length > 0 ? (
             <ShapeSource id="liveMapCheckpoints" shape={checkpointGeo}>
               <CircleLayer
@@ -166,36 +214,16 @@ export default function LiveMapMapboxScreen() {
               />
             </ShapeSource>
           ) : null}
-          {otherPoiGeo.features.length > 0 ? (
-            <ShapeSource id="liveMapPoiOther" shape={otherPoiGeo}>
-              <CircleLayer
-                id="poiOther"
+          {foodPoiGeo.features.length > 0 ? (
+            <ShapeSource id="liveMapFoodPois" shape={foodPoiGeo}>
+              <SymbolLayer
+                id="foodPoiRestaurantIcon"
                 style={{
-                  circleRadius: 6,
-                  circleColor: '#f59e0b',
-                  circleStrokeWidth: 2,
-                  circleStrokeColor: '#ffffff',
-                }}
-              />
-            </ShapeSource>
-          ) : null}
-          {hawkerPoiGeo.features.length > 0 ? (
-            <ShapeSource id="liveMapPoiHawker" shape={hawkerPoiGeo}>
-              <CircleLayer
-                id="poiHawkerRing"
-                style={{
-                  circleRadius: 12,
-                  circleColor: '#db2777',
-                  circleOpacity: 0.4,
-                }}
-              />
-              <CircleLayer
-                id="poiHawkerCore"
-                style={{
-                  circleRadius: 7,
-                  circleColor: '#be185d',
-                  circleStrokeWidth: 2,
-                  circleStrokeColor: '#ffffff',
+                  iconImage: 'liveMapRestaurantPin',
+                  iconSize: 0.95,
+                  iconAllowOverlap: true,
+                  iconIgnorePlacement: true,
+                  iconAnchor: 'bottom',
                 }}
               />
             </ShapeSource>
@@ -260,6 +288,20 @@ export default function LiveMapMapboxScreen() {
               {checkpointsVisitedCount}/{route.checkpoints.length} checkpoints
             </Text>
             <Text style={styles.statsMeta}>{distanceTraveled} km traveled</Text>
+          </View>
+          <View style={styles.startEndRow} testID="live-map-start-end-legend">
+            <View style={styles.startEndItem}>
+              <View style={[styles.routeDot, styles.routeDotStart]} accessibilityLabel="Route start" />
+              <Text style={styles.startEndLabel} numberOfLines={1}>
+                Start · {route.startPoint.name}
+              </Text>
+            </View>
+            <View style={styles.startEndItem}>
+              <View style={[styles.routeDot, styles.routeDotEnd]} accessibilityLabel="Route end" />
+              <Text style={styles.startEndLabel} numberOfLines={1}>
+                End · {route.endPoint.name}
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -393,6 +435,12 @@ const styles = StyleSheet.create({
   progressFill: { height: '100%', backgroundColor: '#2563eb', borderRadius: 3 },
   statsFooter: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
   statsMeta: { fontSize: 12, color: '#64748b' },
+  startEndRow: { marginTop: 10, gap: 6 },
+  startEndItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  routeDot: { width: 10, height: 10, borderRadius: 5, borderWidth: 1.5, borderColor: '#ffffff' },
+  routeDotStart: { backgroundColor: '#16a34a' },
+  routeDotEnd: { backgroundColor: '#dc2626' },
+  startEndLabel: { flex: 1, fontSize: 11, color: '#475569', fontWeight: '600' },
   banner: {
     marginHorizontal: 16,
     marginTop: 10,

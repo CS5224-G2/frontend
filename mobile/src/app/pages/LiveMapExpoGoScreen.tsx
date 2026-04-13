@@ -76,7 +76,8 @@ export default function LiveMapExpoGoScreen() {
         </Text>
         <Text style={styles.fallbackMeta}>Polyline points computed: {polylineCount}</Text>
         <Text style={styles.fallbackLegend}>
-          With Mapbox: blue rings = checkpoints, amber = POIs, magenta = hawker centres (name match).
+          With Mapbox: green = start, red = end, blue rings = checkpoints, yellow pins = food spots and restaurants along
+          the route.
         </Text>
       </View>
 
@@ -96,6 +97,20 @@ export default function LiveMapExpoGoScreen() {
               {checkpointsVisitedCount}/{route.checkpoints.length} checkpoints
             </Text>
             <Text style={styles.statsMeta}>{distanceTraveled} km traveled</Text>
+          </View>
+          <View style={styles.startEndRow} testID="live-map-start-end-legend">
+            <View style={styles.startEndItem}>
+              <View style={[styles.routeDot, styles.routeDotStart]} accessibilityLabel="Route start" />
+              <Text style={styles.startEndLabel} numberOfLines={1}>
+                Start · {route.startPoint.name}
+              </Text>
+            </View>
+            <View style={styles.startEndItem}>
+              <View style={[styles.routeDot, styles.routeDotEnd]} accessibilityLabel="Route end" />
+              <Text style={styles.startEndLabel} numberOfLines={1}>
+                End · {route.endPoint.name}
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -226,6 +241,12 @@ const styles = StyleSheet.create({
   progressFill: { height: '100%', backgroundColor: '#2563eb', borderRadius: 3 },
   statsFooter: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
   statsMeta: { fontSize: 12, color: '#64748b' },
+  startEndRow: { marginTop: 10, gap: 6 },
+  startEndItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  routeDot: { width: 10, height: 10, borderRadius: 5, borderWidth: 1.5, borderColor: '#ffffff' },
+  routeDotStart: { backgroundColor: '#16a34a' },
+  routeDotEnd: { backgroundColor: '#dc2626' },
+  startEndLabel: { flex: 1, fontSize: 11, color: '#475569', fontWeight: '600' },
   banner: {
     marginHorizontal: 16,
     marginTop: 10,
