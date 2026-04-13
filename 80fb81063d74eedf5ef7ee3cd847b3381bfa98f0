@@ -1,0 +1,33 @@
+mobile/src/utils/liveMapGeojson.ts
+  1f8ae092ff60b666 56-65,73-106
+mobile/src/app/pages/LiveMapPage.test.tsx
+  1f8ae092ff60b666 32,55
+mobile/src/app/pages/LiveMapMapbox.tsx
+  1f8ae092ff60b666 6,11,25-26,28,31,92-94,142,154-155,157,159-160,165,167-168,170,175-176,178,180-189,217-220,222-226,292-305,438-443
+mobile/src/app/pages/LiveMapExpoGoScreen.tsx
+  1f8ae092ff60b666 79-80,101-114,244-249
+mobile/__mocks__/rnmapbox-maps.js
+  1f8ae092ff60b666 17-18
+mobile/jest.setup.js
+  1f8ae092ff60b666 14-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "80fb81063d74eedf5ef7ee3cd847b3381bfa98f0",
+  "prompts": {
+    "1f8ae092ff60b666": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "23db95e2-881d-45c0-b427-62e86c92d968",
+        "model": "default"
+      },
+      "human_author": "Lichen(Jeffrey) Yang",
+      "messages": [],
+      "total_additions": 482,
+      "total_deletions": 216,
+      "accepted_lines": 220,
+      "overriden_lines": 3
+    }
+  }
+}
