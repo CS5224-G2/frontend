@@ -8,6 +8,8 @@ import { FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useColorScheme } from 'nativewind';
 import { type RideHistory } from '../../../../shared/types/index';
 import { getRideById } from '../../services/rideService';
+import { mapPinMarkerProps } from '../utils/mapMarkers';
+import { isLikelyHawkerCentre } from '../utils/poiLabels';
 
 type Props = NativeStackScreenProps<any, 'HistoryDetails'>;
 
@@ -109,7 +111,9 @@ export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
       <Card>
         <CardHeader>
           <CardTitle>Route Map</CardTitle>
-          <CardDescription>Blue pins are checkpoints, amber pins are points of interest.</CardDescription>
+          <CardDescription>
+            Blue pins are checkpoints; amber pins are POIs; magenta food icons are hawker centres (name match).
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <View className="rounded-[12px] overflow-hidden border border-[#e2e8f0] dark:border-[#2d2d2d]">
@@ -136,21 +140,30 @@ export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
                   coordinate={{ latitude: checkpoint.lat, longitude: checkpoint.lng }}
                   title={checkpoint.name}
                   description={checkpoint.description}
+                  {...mapPinMarkerProps()}
                 >
                   <MaterialCommunityIcons name="map-marker" size={30} color="#2563eb" />
                 </Marker>
               ))}
 
-              {visitedPoisWithCoords.map((poi, index) => (
-                <Marker
-                  key={`poi-${poi.name}-${index}`}
-                  coordinate={{ latitude: poi.lat, longitude: poi.lng }}
-                  title={poi.name}
-                  description={poi.description}
-                >
-                  <MaterialCommunityIcons name="map-marker" size={30} color="#f59e0b" />
-                </Marker>
-              ))}
+              {visitedPoisWithCoords.map((poi, index) => {
+                const hawker = isLikelyHawkerCentre(poi.name);
+                return (
+                  <Marker
+                    key={`poi-${poi.name}-${index}`}
+                    coordinate={{ latitude: poi.lat, longitude: poi.lng }}
+                    title={poi.name}
+                    description={poi.description}
+                    {...mapPinMarkerProps()}
+                  >
+                    <MaterialCommunityIcons
+                      name={hawker ? 'food' : 'map-marker'}
+                      size={30}
+                      color={hawker ? '#be185d' : '#f59e0b'}
+                    />
+                  </Marker>
+                );
+              })}
             </MapView>
           </View>
         </CardContent>

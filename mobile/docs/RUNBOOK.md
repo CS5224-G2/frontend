@@ -69,32 +69,105 @@ Use these steps to run and verify the **CycleLink mobile** package. Paths assume
    ```
 2. In the terminal UI, press **`i`** (iOS simulator), **`a`** (Android), or scan the QR code with a dev client.
 
-### 5. Run on iOS (simulator or device)
+---
 
-1. **Expo Go (quick UI, no Mapbox native map):**
+### 5. Simulate on **iOS** (Xcode) and **Android** (not Xcode)
+
+**Important:** **Xcode only builds and runs the iOS app.** Android simulators are driven by **Android Studio** (or the `emulator` CLI) plus **`npx expo run:android`** / Gradle. To confirm the project works on **both** platforms, run through **both** subsections below with the same `.env` and branch.
+
+#### 5.0 When you need a native dev build
+
+Standard **Expo Go** is enough for much of the UI, but **Mapbox** (`@rnmapbox/maps`) and some native modules require a **development build**. That means generated **`ios/`** and **`android/`** folders (from **`npx expo prebuild`**) and installing pods / Gradle deps once.
+
+- Set **`EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN`** in `.env` **before** prebuild/build if you want the live Mapbox map.
+- If Mapbox SDK download fails on iOS, see **`docs/TESTING.md`** (`RNMAPBOX_MAPS_DOWNLOAD_TOKEN`).
+
+#### 5.1 One-time native project generation (do this from `mobile/`)
+
+1. Install JS dependencies (if you have not already):
    ```bash
-   npm run ios
+   cd mobile
+   npm ci
    ```
-   Or open the project in Xcode only after a native prebuild (step 6).
-
-2. **Development build (Mapbox live map):** `@rnmapbox/maps` is not available inside standard Expo Go. Use a **dev client**:
+2. Ensure **`.env`** exists (see §3).
+3. Generate native projects (creates or refreshes `ios/` and `android/`):
    ```bash
    npx expo prebuild
-   npx expo run:ios
    ```
-   - Ensure **`EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN`** is set in `.env` before building.
-   - If Mapbox SDK download fails, see **`docs/TESTING.md`** for `RNMAPBOX_MAPS_DOWNLOAD_TOKEN` and Mapbox install notes.
-
-### 6. Run on Android
-
-1. Start an emulator or connect a device with USB debugging.
-2. From `mobile/`:
+   Use **`npx expo prebuild --clean`** if you changed plugins, Mapbox config, or hit stale native state (you will lose manual edits inside `ios/` / `android/`).
+4. **iOS pods:**
    ```bash
-   npm run android
+   cd ios
+   pod install
+   cd ..
    ```
-3. For Mapbox, use **`npx expo prebuild`** then **`npx expo run:android`** with the same token guidance as iOS.
 
-### 7. Run on web (optional)
+After this, you can use **Xcode** for iOS and **Android Studio** or **CLI** for Android.
+
+#### 5.2 iOS — build and run in **Xcode** (Simulator)
+
+1. Open the **workspace** (not the `.xcodeproj`). The name matches **`expo.name`** in `app.json` (this project: **CycleLink**):
+   ```bash
+   open ios/CycleLink.xcworkspace
+   ```
+   If the path differs, run `ls ios/*.xcworkspace` and open the file shown.
+2. In the Xcode toolbar, open the **scheme** menu (next to the Stop/Run buttons) and select the **app target** (e.g. **CycleLink**), not a pod target.
+3. Open the **destination** menu (device list) and choose an **iPhone Simulator** (e.g. **iPhone 16**). If the list is empty, install simulator runtimes via **Xcode → Settings → Platforms**.
+4. **Product → Clean Build Folder** (hold **Option** if you do not see it under **Product**) when switching branches or after `pod install`.
+5. **Product → Run** (⌘R). Xcode builds, launches the Simulator, and installs the app.
+6. **JavaScript bundle:** Prefer having Metro running so reloads are fast:
+   ```bash
+   # From mobile/, in a separate terminal
+   npm start
+   ```
+   If the app shows a connection error, confirm Metro is up and the simulator can reach your machine (same Wi‑Fi / localhost; for physical devices you may need LAN or tunnel—see Expo docs).
+7. Repeat a short **smoke test** (login, open a route, open Live Map if you use Mapbox) on the simulator.
+
+#### 5.3 iOS — same build without opening Xcode (optional)
+
+From `mobile/`:
+
+```bash
+npx expo run:ios
+```
+
+This builds the native app and starts a simulator; it can start Metro for you. Use this for a quick loop; use **Xcode** when you need breakpoints, build logs, or signing issues.
+
+#### 5.4 Android — emulator + run (**Android Studio**, not Xcode)
+
+1. Install **Android Studio** and open **SDK Manager**; install a recent **Android SDK** and **Platform Tools**.
+2. Open **Device Manager** (phone icon) → **Create Device** → pick a phone profile → choose a **system image** (e.g. latest API) → finish → **Play** to start the emulator. Leave it running.
+3. From **`mobile/`**, install the app on the emulator:
+   ```bash
+   npx expo run:android
+   ```
+   First run may take several minutes (Gradle). Ensure **`JAVA_HOME`** points to a JDK Android Studio can use (often the embedded JBR).
+4. **Metro:** Keep **`npm start`** in another terminal if you want fast refresh; otherwise `expo run:android` may start the bundler for you.
+5. Run the **same smoke test** as on iOS (maps, navigation, API or mocks).
+
+#### 5.5 Android — open in Android Studio (optional)
+
+1. Open Android Studio → **Open** → select the **`mobile/android`** folder (the Gradle project Expo generated).
+2. Wait for Gradle sync, pick the **app** configuration, choose your **AVD**, then **Run**. This is optional; **`npx expo run:android`** is usually enough.
+
+#### 5.6 Expo Go (quick check, limited native features)
+
+- **iOS:** `npm run ios` may target Expo Go depending on your setup; Live Map Mapbox will **not** load there.
+- **Android:** `npm run android` similarly.
+
+Use **§5.1–5.5** when validating **Mapbox** and full native parity.
+
+#### 5.7 Checklist — “works on both platforms”
+
+| Step | iOS (Simulator) | Android (Emulator) |
+|------|-----------------|---------------------|
+| App launches | ✓ (Xcode Run or `expo run:ios`) | ✓ (`expo run:android`) |
+| Metro / JS loads | ✓ | ✓ |
+| Core navigation (tabs, stacks) | ✓ | ✓ |
+| Route flow through Live Map | ✓ with dev build + Mapbox token | ✓ with dev build + Mapbox token |
+| External maps button (if used) | Opens Apple Maps | Opens Google Maps |
+
+### 6. Run on web (optional)
 
 ```bash
 npm run web
@@ -102,7 +175,7 @@ npm run web
 
 Note: Live Map and some native modules are limited or stubbed on web; use iOS/Android for full journey testing.
 
-### 8. Automated tests
+### 7. Automated tests
 
 From `mobile/`:
 
@@ -112,19 +185,21 @@ npm run test:ci
 
 See **`docs/TESTING.md`** for Jest details, Mapbox mocks, and **Maestro** E2E flows under `.maestro/`.
 
-### 9. Common verification path (happy path)
+### 8. Common verification path (happy path)
 
 1. Log in (or register and complete onboarding if enabled).
 2. **Home** → open a route or **Customize Route** → **Recommendations** → **Route Details** → **Confirm** → **Start Cycling** (Live Map).
 3. In **Expo Go**, expect the **fallback** live-ride HUD (no Mapbox map). In a **dev build** with a token, expect the **Mapbox** map and `live-map-mapview` (see `TESTING.md`).
 4. Use **Stop Cycling** / exit flows and **Feedback** as needed.
 
-### 10. Troubleshooting quick reference
+### 9. Troubleshooting quick reference
 
 | Symptom | Check |
 |--------|--------|
 | Metro connection refused from Xcode | Start **`npm start`** (Metro) before running the native app, or use `npx expo run:ios` which coordinates the bundler. |
 | Live map is blank / no map | Use a **dev build**, set **`EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN`**, run **prebuild** after plugin/env changes. |
+| `PrivacyInfo.xcprivacy` missing under `expo-auth-session/...` | Run commands from **`mobile/`** (not `ios/`). Hoisted **`node_modules/expo-application/ios/PrivacyInfo.xcprivacy`** should exist; then **`rm -rf ios/Pods ios/Podfile.lock`** and **`pod install`**. See prior runbook notes on nested `expo-application`. |
+| Android build fails (SDK / JAVA_HOME) | Open **Android Studio → SDK Manager**; set **`JAVA_HOME`** to Android Studio’s bundled JDK if needed. |
 | API errors / 502 | Confirm **`EXPO_PUBLIC_API_BASE_URL`** and backend health; temporarily set **`EXPO_PUBLIC_USE_MOCKS=true`**. |
 | Tab bar covers bottom buttons | Scrolling padding is handled via **`floatingTabBarInset`**; if a new screen adds bottom CTAs, reuse **`useFloatingTabBarScrollPadding`**. |
 | Back from Route Details does nothing | Cross-tab opens should build a stack with **Home** under **Route Details**; in-app **safe back** resets to **Home** when `canGoBack` is false. |

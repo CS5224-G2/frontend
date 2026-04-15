@@ -29,7 +29,7 @@ jest.mock('../../services/routeLookup', () => {
 });
 
 const mockNavigate = jest.fn();
-const mockRouteParams = { routeId: '1' };
+const mockRouteParams = { routeId: '1', route: mockRoutes[0] };
 
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({
@@ -52,6 +52,7 @@ describe('LiveMapPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockRouteParams.routeId = '1';
+    mockRouteParams.route = mockRoutes[0];
   });
 
   it('renders map view when token is set (native module mocked)', async () => {
