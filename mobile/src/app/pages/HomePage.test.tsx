@@ -11,6 +11,7 @@ const mockGetItem = jest.fn();
 const mockSetItem = jest.fn();
 const mockGetRoutes = jest.fn();
 const mockGetPopularRoutes = jest.fn();
+const mockGetSavedRoutes = jest.fn();
 const mockGetUserProfile = jest.fn();
 const mockGetRideHistory = jest.fn();
 const mockLoadActiveRideSession = jest.fn();
@@ -59,6 +60,7 @@ jest.mock('../../services/activeRideSession', () => ({
 jest.mock('../../services/routeService', () => ({
   getRoutes: (...args: unknown[]) => mockGetRoutes(...args),
   getPopularRoutes: (...args: unknown[]) => mockGetPopularRoutes(...args),
+  getSavedRoutes: (...args: unknown[]) => mockGetSavedRoutes(...args),
 }));
 
 describe('HomePage', () => {
@@ -101,6 +103,28 @@ describe('HomePage', () => {
     mockGetPopularRoutes.mockResolvedValue([
       { id: 'p1', name: 'Popular Downtown Circuit', description: 'Popular list route from GET /routes/popular', distance: 8.3, elevation: 25, estimatedTime: 25, rating: 4.5, reviewCount: 567, startPoint: { lat: 0, lng: 0, name: 'Start' }, endPoint: { lat: 0, lng: 0, name: 'End' }, checkpoints: [], cyclistType: 'commuter', shade: 40, airQuality: 70 },
       { id: 'p2', name: 'Popular Harbor Trail', description: 'Popular list route from GET /routes/popular', distance: 12.5, elevation: 45, estimatedTime: 45, rating: 4.8, reviewCount: 234, startPoint: { lat: 0, lng: 0, name: 'Start' }, endPoint: { lat: 0, lng: 0, name: 'End' }, checkpoints: [], cyclistType: 'recreational', shade: 80, airQuality: 85 },
+    ]);
+    mockGetSavedRoutes.mockResolvedValue([
+      {
+        savedRouteId: 'saved-p1',
+        savedAt: '2026-04-08T09:00:00.000Z',
+        route: {
+          id: 'p1',
+          name: 'Popular Downtown Circuit',
+          description: 'Popular list route from GET /routes/popular',
+          distance: 8.3,
+          elevation: 25,
+          estimatedTime: 25,
+          rating: 4.5,
+          reviewCount: 567,
+          startPoint: { lat: 0, lng: 0, name: 'Start' },
+          endPoint: { lat: 0, lng: 0, name: 'End' },
+          checkpoints: [],
+          cyclistType: 'commuter',
+          shade: 40,
+          airQuality: 70,
+        },
+      },
     ]);
     mockGetRideHistory.mockResolvedValue([]);
     mockLoadActiveRideSession.mockResolvedValue(null);
@@ -247,6 +271,28 @@ describe('HomePage', () => {
   });
 
   it('renders starred routes saved from ride history even when they are not in discovery lists', async () => {
+    mockGetSavedRoutes.mockResolvedValue([
+      {
+        savedRouteId: 'saved-history-only',
+        savedAt: '2026-04-08T19:30:00.000Z',
+        route: {
+          id: 'history-only',
+          name: 'Night Loop Replay',
+          description: 'Recovered from ride history',
+          distance: 14.2,
+          elevation: 38,
+          estimatedTime: 42,
+          rating: 4.9,
+          reviewCount: 12,
+          startPoint: { lat: 0, lng: 0, name: 'Start' },
+          endPoint: { lat: 0, lng: 0, name: 'End' },
+          checkpoints: [],
+          cyclistType: 'fitness',
+          shade: 50,
+          airQuality: 70,
+        },
+      },
+    ]);
     mockGetRideHistory.mockResolvedValue([
       {
         id: 'ride-1',

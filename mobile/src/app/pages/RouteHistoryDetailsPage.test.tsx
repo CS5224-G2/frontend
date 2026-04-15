@@ -7,6 +7,7 @@ const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
 const mockGetRideById = jest.fn();
 const mockResolveRouteById = jest.fn();
+const mockCanUseAndroidMapbox = jest.fn(() => false);
 
 jest.mock('@expo/vector-icons', () => {
   const React = require('react');
@@ -44,10 +45,16 @@ jest.mock('../../services/routeLookup', () => ({
   resolveRouteById: (...args: unknown[]) => mockResolveRouteById(...args),
 }));
 
+jest.mock('../utils/mapboxSupport', () => ({
+  canUseAndroidMapbox: () => mockCanUseAndroidMapbox(),
+  getMapboxAccessToken: () => 'pk.test-token',
+}));
+
 describe('RouteHistoryDetailsPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockResolveRouteById.mockResolvedValue(null);
+    mockCanUseAndroidMapbox.mockReturnValue(false);
   });
 
   const renderPage = () =>
@@ -214,12 +221,13 @@ describe('RouteHistoryDetailsPage', () => {
     expect(mockResolveRouteById).toHaveBeenCalledWith('route-1');
   });
 
-  it('shows the Android fallback instead of the embedded map', async () => {
+  it('renders the Mapbox history preview on Android when native Mapbox is enabled', async () => {
     const osDescriptor = Object.getOwnPropertyDescriptor(Platform, 'OS');
     Object.defineProperty(Platform, 'OS', {
       configurable: true,
       get: () => 'android',
     });
+    mockCanUseAndroidMapbox.mockReturnValue(true);
 
     mockGetRideById.mockResolvedValue({
       id: 'ride-1',
@@ -255,7 +263,7 @@ describe('RouteHistoryDetailsPage', () => {
 
     renderPage();
 
-    expect(await screen.findByText('Map preview unavailable on Android')).toBeTruthy();
+    expect(await screen.findByTestId('route-history-details-map')).toBeTruthy();
 
     if (osDescriptor) {
       Object.defineProperty(Platform, 'OS', osDescriptor);

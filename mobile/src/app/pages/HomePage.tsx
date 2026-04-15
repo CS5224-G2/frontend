@@ -10,6 +10,11 @@ import { getPopularRoutes, getRoutes } from '../../services/routeService';
 import { getRideHistory } from '../../services/rideService';
 import { getUserProfile } from '../../services/userService';
 import { loadActiveRideSession, type ActiveRideSession } from '../../services/activeRideSession';
+import {
+  getLocalFavoriteRouteIds,
+  loadFavoriteRoutesFromLocalCache,
+  syncFavoriteRoutesFromBackend,
+} from '../../services/favoriteRoutesService';
 import { FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useColorScheme } from 'nativewind';
@@ -22,19 +27,6 @@ function mapProfileCyclingPreferenceToCyclistType(
   if (preference === 'Leisure') return 'recreational';
   if (preference === 'Commuter') return 'commuter';
   return 'fitness';
-}
-
-function parseFavoriteRouteIds(value: string | null): string[] {
-  if (!value) {
-    return [];
-  }
-
-  try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? [...new Set(parsed.filter((id): id is string => typeof id === 'string'))] : [];
-  } catch {
-    return [];
-  }
 }
 
 function buildFavoriteRouteFromHistory(
@@ -91,11 +83,21 @@ export default function HomeScreen({ navigation }: Props) {
     }
 
     try {
-      const [savedPrefs, savedFavorites, activeSession] = await Promise.all([
+      const [savedPrefs, activeSession] = await Promise.all([
         AsyncStorage.getItem('userPreferences'),
-        AsyncStorage.getItem('favoriteRoutes'),
         loadActiveRideSession().catch(() => null),
       ]);
+
+      let storedFavoriteIds = await getLocalFavoriteRouteIds();
+      let cachedFavoriteRoutes = await loadFavoriteRoutesFromLocalCache();
+
+      try {
+        const syncedSavedRoutes = await syncFavoriteRoutesFromBackend();
+        storedFavoriteIds = syncedSavedRoutes.map((savedRoute) => savedRoute.route.id);
+        cachedFavoriteRoutes = syncedSavedRoutes.map((savedRoute) => savedRoute.route);
+      } catch (error) {
+        console.warn('[HomePage] Failed to sync saved routes', error);
+      }
 
       const storedPreferences = savedPrefs ? normalizeUserPreferences(JSON.parse(savedPrefs)) : null;
       const basePreferences = storedPreferences ?? preferencesRef.current;
@@ -120,7 +122,6 @@ export default function HomeScreen({ navigation }: Props) {
       setPreferences(prefs);
       setActiveRideSession(activeSession);
 
-      const storedFavoriteIds = parseFavoriteRouteIds(savedFavorites);
       const [routes, popular, history] = await Promise.all([
         getRoutes(undefined, undefined, 3),
         getPopularRoutes(3),
@@ -129,12 +130,12 @@ export default function HomeScreen({ navigation }: Props) {
 
       const historyRoutes = history.map((ride) => buildFavoriteRouteFromHistory(ride, prefs?.cyclistType));
       const knownRoutesById = new Map<string, Route>(
-        [...historyRoutes, ...routes, ...popular].map((route) => [route.id, route]),
+        [...cachedFavoriteRoutes, ...historyRoutes, ...routes, ...popular].map((route) => [route.id, route]),
       );
       const sanitizedFavoriteIds = storedFavoriteIds.filter((routeId) => knownRoutesById.has(routeId));
 
       setFavorites(sanitizedFavoriteIds);
-      if (savedFavorites && JSON.stringify(sanitizedFavoriteIds) !== savedFavorites) {
+      if (JSON.stringify(sanitizedFavoriteIds) !== JSON.stringify(storedFavoriteIds)) {
         await AsyncStorage.setItem('favoriteRoutes', JSON.stringify(sanitizedFavoriteIds));
       }
 
