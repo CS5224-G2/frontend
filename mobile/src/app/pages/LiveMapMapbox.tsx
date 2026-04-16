@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import {
   Camera,
@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { type Route } from '../../../../shared/types/index';
+import { getUserProfile, type UserProfile } from '../../services/userService';
 import { useRideCompletionFeedback } from '../hooks/useRideCompletionFeedback';
 import { useFloatingTabBarExtraLift } from '../utils/floatingTabBarInset';
 import { useLiveMapRideState } from './useLiveMapRideState';
@@ -75,6 +76,25 @@ export default function LiveMapMapboxScreen() {
       setAccessToken(mapboxToken);
     }
   }, [mapboxToken]);
+
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+
+  useEffect(() => {
+    getUserProfile()
+      .then(setProfile)
+      .catch(() => {
+        // Non-fatal — marker falls back to plain blue circle
+      });
+  }, []);
+
+  const initials = profile?.fullName
+    ? profile.fullName
+        .split(' ')
+        .map((part) => part[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase()
+    : '';
 
   const hasMap = Boolean(mapboxToken);
 

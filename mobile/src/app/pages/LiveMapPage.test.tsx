@@ -1,5 +1,6 @@
 ﻿import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react-native';
+import * as userService from '../../services/userService';
 
 /** Use dev-client path so tests exercise Mapbox screen (not Expo Go-only UI). */
 jest.mock('expo-constants', () => {
@@ -120,5 +121,17 @@ describe('LiveMapPage', () => {
     const coords = routeToLineCoordinates(route);
     expect(coords.length).toBeGreaterThan(2);
     expect(coords[0][0]).toBe(route.startPoint.lng);
+  });
+
+  it('fetches user profile on mount', async () => {
+    process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN = 'pk.test_jest_token';
+
+    render(<LiveMapScreen />);
+
+    await waitFor(() => {
+      expect(userService.getUserProfile).toHaveBeenCalledTimes(1);
+    });
+
+    delete process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN;
   });
 });
