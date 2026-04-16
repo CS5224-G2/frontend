@@ -8,6 +8,7 @@ import ProtectedRoute from './ProtectedRoute'
 function makeCtx(user: AuthUser | null) {
   return {
     user,
+    accessToken: null,
     login: async () => { throw new Error('login not implemented in test stub') },
     logout: () => {},
   }

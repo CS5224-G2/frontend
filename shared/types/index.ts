@@ -220,6 +220,25 @@ export type AdminUser = {
   joinedFormatted: string;
 };
 
+export type RouteEntry = {
+  routeId: string;
+  name: string;
+  rating: number;
+  reviewCount: number;
+};
+
+export type RoutingQualityMetrics = {
+  totalReviews: number;
+  overallAvgRating: number | null;
+  totalRidesLogged: number;
+  topRatedRoutes: RouteEntry[];
+  mostReviewedRoutes: RouteEntry[];
+  totalGeneratedRoutes: number;
+  avgRouteComputationMs: number | null;
+  minRouteComputationMs: number | null;
+  maxRouteComputationMs: number | null;
+};
+
 // ---------------------------------------------------------------------------
 // Business Dashboard (Web)
 // ---------------------------------------------------------------------------

@@ -5,6 +5,7 @@ import type {
   AuthUser,
   BusinessLandingStats,
   BusinessStats,
+  RoutingQualityMetrics,
   SponsoredLocation,
 } from '@shared/types/index'
 import {
@@ -15,6 +16,7 @@ import {
   mockBusinessLandingStats,
   mockBusinessStats,
   mockBusinessUser,
+  mockRoutingQualityMetrics,
   mockSponsoredLocations,
 } from '@shared/mocks/index'
 import { hashPassword } from '../utils/passwordHash'
@@ -139,6 +141,10 @@ export async function getStoredAdminStats(): Promise<AdminStats> {
 export async function getStoredAdminUsers(): Promise<AdminUser[]> {
   const state = await getWebLocalDb()
   return [...state.adminUsers]
+}
+
+export async function getStoredRoutingQualityMetrics(): Promise<RoutingQualityMetrics> {
+  return { ...mockRoutingQualityMetrics }
 }
 
 export async function getStoredBusinessStats(): Promise<BusinessStats> {

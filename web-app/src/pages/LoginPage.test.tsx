@@ -9,6 +9,7 @@ function renderLoginPage() {
     <AuthContext.Provider
       value={{
         user: null,
+        accessToken: null,
         login: async () => {
           throw new Error('login not implemented in test stub')
         },
