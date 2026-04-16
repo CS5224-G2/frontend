@@ -414,9 +414,20 @@ export default function EvaluationDashboard() {
           )}
 
           {/* Route tables */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
             <RouteQualityTable title="Top Rated Routes" routes={rqm?.topRatedRoutes} loading={rqmLoading} />
             <RouteQualityTable title="Most Reviewed Routes" routes={rqm?.mostReviewedRoutes} loading={rqmLoading} />
+          </div>
+
+          {/* Weight config charts (existing) */}
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-5">
+            <MetricCard title="Active Weight Config" value="Config A" subtitle="Since Mar 2026" icon={<Settings2 size={14} />} />
+            <MetricCard title="Avg Alignment Score" value="71%" subtitle="Placeholder" icon={<Crosshair size={14} />} />
+            <MetricCard title="Next Validation Review" value={`${daysUntilReview()} days`} icon={<ClipboardList size={14} />} />
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
+            <div className={chartPanel}><Radar data={radarData} options={radarOptions(isDark)} /></div>
+            <div className={chartPanel}><Bar data={alignmentData} options={alignmentOptions(isDark)} /></div>
           </div>
 
         </>)}
