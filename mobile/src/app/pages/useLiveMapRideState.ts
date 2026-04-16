@@ -32,7 +32,7 @@ import {
   boundsFromCoordinates,
   haversineDistanceKm,
   interpolateAlongRoute,
-  projectPointOntoPolyline,
+  projectPointOntoRoute,
   routeToLineCoordinates,
   type LngLat,
 } from '@/utils/routeGeometry';
@@ -427,12 +427,8 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
       return;
     }
 
-    const { distToRouteM } = projectPointOntoPolyline(
-      tracking.position[1],
-      tracking.position[0],
-      lineCoords,
-    );
-    setMetersFromRoute(Number.isFinite(distToRouteM) ? distToRouteM : null);
+    const { distanceKmFromRoute } = projectPointOntoRoute(lineCoords, tracking.position);
+    setMetersFromRoute(Number.isFinite(distanceKmFromRoute) ? distanceKmFromRoute * 1000 : null);
   }, [lineCoords, tracking.position]);
 
   const lineFeature = useMemo(
