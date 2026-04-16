@@ -13,6 +13,7 @@ import {
 
 import { useAdminStats } from './hooks/useAdminStats';
 import { useInfrastructure } from './hooks/useInfrastructure';
+import { useRoutingQualityMetrics } from './hooks/useRoutingQualityMetrics';
 import { isAuthenticated, clearTokens } from './hooks/fetchWithAuth';
 import { computePercentile } from './utils/percentile';
 
@@ -151,10 +152,45 @@ function latencyClass(ms, p) {
   return '';
 }
 
+// --- Route quality table ---
+function RouteQualityTable({ title, routes, loading }) {
+  const panel = 'bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 p-5';
+  return (
+    <div className={panel}>
+      <p className="text-xs font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-3">{title}</p>
+      {loading ? (
+        <p className="text-sm text-slate-400 dark:text-zinc-500">Loading…</p>
+      ) : !routes || routes.length === 0 ? (
+        <p className="text-sm text-slate-400 dark:text-zinc-500 text-center py-4">No data yet</p>
+      ) : (
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-slate-400 dark:text-zinc-500 border-b border-slate-100 dark:border-zinc-800">
+              <th className="pb-2 pr-4 font-medium text-xs">Route</th>
+              <th className="pb-2 pr-4 font-medium text-xs text-right">Rating</th>
+              <th className="pb-2 font-medium text-xs text-right">Reviews</th>
+            </tr>
+          </thead>
+          <tbody>
+            {routes.map(r => (
+              <tr key={r.routeId} className="border-b border-slate-50 dark:border-zinc-800/50 last:border-0">
+                <td className="py-2.5 pr-4 text-slate-700 dark:text-zinc-300">{r.name}</td>
+                <td className="py-2.5 pr-4 text-green-600 dark:text-green-400 font-semibold text-right">{r.rating.toFixed(1)} ★</td>
+                <td className="py-2.5 text-slate-400 dark:text-zinc-500 text-right">{r.reviewCount}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
 // --- Main component ---
 export default function EvaluationDashboard() {
   const { data, loading, error, refetch } = useAdminStats();
   const { health, metrics, logs, loading: infraLoading } = useInfrastructure();
+  const { data: rqm, loading: rqmLoading } = useRoutingQualityMetrics();
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [activeTab, setActiveTab] = useState('overview');
 
@@ -317,15 +353,70 @@ export default function EvaluationDashboard() {
           <hr className="border-slate-200 dark:border-zinc-800 my-8" />
 
           {/* === Section 3 === */}
-          <SectionLabel number={3} title="Routing Quality" description="Weight configs, preference alignment, and validation schedule" />
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-5">
-            <MetricCard title="Active Weight Config" value="Config A" subtitle="Since Mar 2026" icon={<Settings2 size={14} />} />
-            <MetricCard title="Avg Alignment Score" value="71%" subtitle="Placeholder" icon={<Crosshair size={14} />} />
-            <MetricCard title="Next Validation Review" value={`${daysUntilReview()} days`} icon={<ClipboardList size={14} />} />
+          <SectionLabel number={3} title="Routing Quality" description="Scoring engine alignment with user satisfaction · live data" />
+
+          {/* Live metrics row */}
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-5">
+            <MetricCard
+              title="Total Reviews"
+              value={rqm ? rqm.totalReviews.toLocaleString() : '—'}
+              icon={<ClipboardList size={14} />}
+              loading={rqmLoading}
+            />
+            <MetricCard
+              title="Avg Rating"
+              value={rqm ? (rqm.overallAvgRating != null ? `${rqm.overallAvgRating.toFixed(2)} ★` : '—') : '—'}
+              icon={<Crosshair size={14} />}
+              loading={rqmLoading}
+            />
+            <MetricCard
+              title="Rides Logged"
+              value={rqm ? rqm.totalRidesLogged.toLocaleString() : '—'}
+              icon={<TrendingUp size={14} />}
+              loading={rqmLoading}
+            />
+            <MetricCard
+              title="Acceptance Rate"
+              value={rqm && rqm.totalRidesLogged > 0
+                ? `${((rqm.totalReviews / rqm.totalRidesLogged) * 100).toFixed(1)}%`
+                : '—'}
+              subtitle="Reviews ÷ rides"
+              icon={<Activity size={14} />}
+              loading={rqmLoading}
+            />
+            <MetricCard
+              title="Generated Routes"
+              value={rqm ? rqm.totalGeneratedRoutes.toLocaleString() : '—'}
+              icon={<Settings2 size={14} />}
+              loading={rqmLoading}
+            />
           </div>
+
+          {/* Computation time */}
+          {rqm && rqm.avgRouteComputationMs != null && (
+            <div className="bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 p-5 mb-5">
+              <p className="text-xs font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-3">Route Computation Time (ms)</p>
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div>
+                  <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{Math.round(rqm.avgRouteComputationMs).toLocaleString()}</p>
+                  <p className="text-xs text-slate-400 dark:text-zinc-500 mt-1">Average</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">{Math.round(rqm.minRouteComputationMs).toLocaleString()}</p>
+                  <p className="text-xs text-slate-400 dark:text-zinc-500 mt-1">Min</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-amber-500">{Math.round(rqm.maxRouteComputationMs).toLocaleString()}</p>
+                  <p className="text-xs text-slate-400 dark:text-zinc-500 mt-1">Max</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Route tables */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
-            <div className={chartPanel}><Radar data={radarData} options={radarOptions(isDark)} /></div>
-            <div className={chartPanel}><Bar data={alignmentData} options={alignmentOptions(isDark)} /></div>
+            <RouteQualityTable title="Top Rated Routes" routes={rqm?.topRatedRoutes} loading={rqmLoading} />
+            <RouteQualityTable title="Most Reviewed Routes" routes={rqm?.mostReviewedRoutes} loading={rqmLoading} />
           </div>
 
         </>)}
