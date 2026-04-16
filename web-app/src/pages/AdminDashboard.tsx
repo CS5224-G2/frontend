@@ -14,20 +14,25 @@ const NAV_ITEMS: NavItem[] = [
 ]
 
 export default function AdminDashboard() {
-  const { logout } = useAuth()
+  const { logout, accessToken } = useAuth()
   const [activeNav, setActiveNav] = useState('Overview')
   const [stats, setStats] = useState<AdminStats | null>(null)
   const [users, setUsers] = useState<AdminUser[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    Promise.all([getAdminStats(), getAdminUsers()])
+    const token = accessToken ?? undefined
+    Promise.all([getAdminStats(token), getAdminUsers(token)])
       .then(([s, u]) => {
         setStats(s)
         setUsers(u)
       })
+      .catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : 'Failed to load statistics.')
+      })
       .finally(() => setIsLoading(false))
-  }, [])
+  }, [accessToken])
 
   const statCards = stats
     ? [
@@ -73,6 +78,12 @@ export default function AdminDashboard() {
       <main className="flex-1 bg-slate-50 p-6 overflow-auto">
         <h1 className="text-xl font-extrabold text-primary-900 mb-1">System Overview</h1>
         <p className="text-slate-500 text-sm mb-6">Admin Panel — CycleLink</p>
+
+        {error && (
+          <div className="mb-6 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
 
         {isLoading ? (
           <div className="flex justify-center items-center h-40">
