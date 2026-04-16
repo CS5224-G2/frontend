@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react-nativ
 import RouteConfigPage from './RouteConfigPage';
 
 const mockNavigate = jest.fn();
+const mockCanUseAndroidMapbox = jest.fn(() => false);
 
 jest.mock('@react-navigation/native', () => ({
   ...jest.requireActual('@react-navigation/native'),
@@ -57,6 +58,11 @@ jest.mock('../../services/locationSearchService', () => ({
   searchLocations: jest.fn().mockResolvedValue([]),
 }));
 
+jest.mock('../utils/mapboxSupport', () => ({
+  canUseAndroidMapbox: () => mockCanUseAndroidMapbox(),
+  getMapboxAccessToken: () => 'pk.test-token',
+}));
+
 describe('RouteConfigPage', () => {
   const renderPage = () =>
     render(
@@ -65,6 +71,7 @@ describe('RouteConfigPage', () => {
 
   beforeEach(() => {
     mockNavigate.mockClear();
+    mockCanUseAndroidMapbox.mockReturnValue(false);
   });
 
   it('renders the configure route heading', () => {
@@ -138,6 +145,18 @@ describe('RouteConfigPage', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Select End Point')).toBeTruthy();
+    });
+  });
+
+  it('uses the Mapbox picker on Android when native Mapbox is enabled', async () => {
+    mockCanUseAndroidMapbox.mockReturnValue(true);
+
+    renderPage();
+    const searchButtons = screen.getAllByText('Search on Map');
+    fireEvent.press(searchButtons[0]);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('route-config-mapbox-picker')).toBeTruthy();
     });
   });
 

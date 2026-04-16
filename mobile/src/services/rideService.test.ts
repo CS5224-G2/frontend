@@ -56,6 +56,43 @@ const backendRide = {
   checkpoints_visited: 3,
   rating: 4,
   review: 'Great ride!',
+  route_details: {
+    route_id: 'rt1',
+    name: 'Park Connector',
+    description: 'Scenic route',
+    distance: 12.5,
+    estimated_time: 48,
+    elevation: 20,
+    shade: 60,
+    air_quality: 40,
+    cyclist_type: 'commuter' as const,
+    review_count: 12,
+    rating: 4.7,
+    start_point: { lat: 1.28, lng: 103.85, name: 'Start' },
+    end_point: { lat: 1.29, lng: 103.86, name: 'End' },
+    route_path: [
+      { lat: 1.28, lng: 103.85 },
+      { lat: 1.285, lng: 103.855 },
+      { lat: 1.29, lng: 103.86 },
+    ],
+    checkpoints: [
+      {
+        checkpoint_id: 'cp1',
+        checkpoint_name: 'Pier 1',
+        description: 'Checkpoint 1',
+        lat: 1.281,
+        lng: 103.851,
+      },
+    ],
+    points_of_interest_visited: [
+      {
+        name: 'Pier',
+        description: 'Nice spot',
+        lat: 1.281,
+        lng: 103.851,
+      },
+    ],
+  },
 };
 
 beforeEach(() => jest.clearAllMocks());
@@ -82,6 +119,16 @@ describe('getRideById()', () => {
     const ride = await getRideById('r1');
     expect(ride).not.toBeNull();
     expect(ride?.id).toBe('r1');
+    expect(ride?.routeDetails?.routePath).toEqual([
+      { lat: 1.28, lng: 103.85 },
+      { lat: 1.285, lng: 103.855 },
+      { lat: 1.29, lng: 103.86 },
+    ]);
+    expect(ride?.routeDetails?.startPoint).toEqual({
+      lat: 1.28,
+      lng: 103.85,
+      name: 'Start',
+    });
   });
 
   it('returns null when the API throws (e.g. 404)', async () => {

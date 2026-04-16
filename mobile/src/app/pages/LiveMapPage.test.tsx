@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react-native';
 
 /** Use dev-client path so tests exercise Mapbox screen (not Expo Go-only UI). */
@@ -29,7 +29,10 @@ jest.mock('../../services/routeLookup', () => {
 });
 
 const mockNavigate = jest.fn();
-const mockRouteParams = { routeId: '1', route: mockRoutes[0] };
+const mockRouteParams: { routeId?: string; route?: (typeof mockRoutes)[number] } = {
+  routeId: '1',
+  route: mockRoutes[0],
+};
 
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({

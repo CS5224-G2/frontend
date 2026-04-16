@@ -95,6 +95,30 @@ describe('RouteFeedbackPage', () => {
     expect(screen.getByText('45 minutes')).toBeTruthy();
   }, 10000);
 
+  it('prefers actual ride summary values when provided in route params', async () => {
+    render(
+      <RouteFeedbackPage
+        navigation={{ navigate: mockNavigate } as any}
+        route={{
+          params: {
+            routeId: '1',
+            route: mockRoute,
+            rideSummary: {
+              distanceKm: 0.68,
+              elapsedMinutes: 9,
+              checkpointsVisited: 2,
+            },
+          },
+        } as any}
+      />,
+    );
+
+    expect(await screen.findByText('Route Summary')).toBeTruthy();
+    expect(screen.getByText('0.68 km')).toBeTruthy();
+    expect(screen.getByText('9 minutes')).toBeTruthy();
+    expect(screen.getByText('2')).toBeTruthy();
+  }, 10000);
+
   it('shows the written feedback text input', async () => {
     renderPage();
     expect(

@@ -16,7 +16,6 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   GlassView,
@@ -27,6 +26,12 @@ import { useColorScheme } from 'nativewind';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/native/Common';
 import { type RideHistory, type GraphDataPoint, type GraphPeriod } from '../../../../shared/types/index';
 import { getRideHistory, getDistanceStats } from '../../services/rideService';
+import {
+  MAX_FAVORITE_ROUTES,
+  addFavoriteRouteByRouteId,
+  getLocalFavoriteRouteIds,
+  removeFavoriteRouteByRouteId,
+} from '../../services/favoriteRoutesService';
 
 type Props = NativeStackScreenProps<any, 'RideHistory'>;
 type DistanceStatsByPeriod = Record<GraphPeriod, GraphDataPoint[]>;
@@ -40,6 +45,26 @@ const emptyDistanceStats: DistanceStatsByPeriod = {
 };
 const supportsNativeGlass =
   Platform.OS === 'ios' && isLiquidGlassAvailable() && isGlassEffectAPIAvailable();
+
+function dedupeFavoriteRouteIds(routeIds: string[]): string[] {
+  const uniqueIds: string[] = [];
+  const seenRouteIds = new Set<string>();
+
+  for (const routeId of routeIds) {
+    if (typeof routeId !== 'string' || seenRouteIds.has(routeId)) {
+      continue;
+    }
+
+    seenRouteIds.add(routeId);
+    uniqueIds.push(routeId);
+
+    if (uniqueIds.length >= MAX_FAVORITE_ROUTES) {
+      break;
+    }
+  }
+
+  return uniqueIds;
+}
 
 function getGraphLabel(item: GraphDataPoint) {
   return 'day' in item ? item.day : item.week;
@@ -186,7 +211,12 @@ export default function RideHistoryPage({ navigation }: Props) {
   const [periodToggleWidth, setPeriodToggleWidth] = useState(0);
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const favoritesRef = useRef<string[]>([]);
   const periodIndicator = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    favoritesRef.current = favorites;
+  }, [favorites]);
 
   useEffect(() => {
     const isFabric = Boolean((globalThis as any).nativeFabricUIManager);
@@ -203,18 +233,22 @@ export default function RideHistoryPage({ navigation }: Props) {
     }
 
     try {
-      const [history, weeklyStats, monthlyStats, saved] = await Promise.all([
+      const [history, weeklyStats, monthlyStats, localFavoriteIds] = await Promise.all([
         getRideHistory(),
         getDistanceStats('week'),
         getDistanceStats('month'),
-        AsyncStorage.getItem('favoriteRoutes'),
+        getLocalFavoriteRouteIds(),
       ]);
       setRideHistory(history);
       setDistanceStats({
         week: weeklyStats,
         month: monthlyStats,
       });
-      setFavorites(saved ? JSON.parse(saved) : []);
+
+      const sanitizedFavorites = dedupeFavoriteRouteIds(localFavoriteIds);
+
+      favoritesRef.current = sanitizedFavorites;
+      setFavorites(sanitizedFavorites);
     } catch (error) {
       console.warn('Error loading ride data', error);
     } finally {
@@ -246,6 +280,7 @@ export default function RideHistoryPage({ navigation }: Props) {
       })),
     [graphData]
   );
+  const uniqueFavoriteRouteIds = useMemo(() => dedupeFavoriteRouteIds(favorites), [favorites]);
 
   const handlePeriodChange = (nextPeriod: GraphPeriod) => {
     if (nextPeriod === period) {
@@ -292,19 +327,51 @@ export default function RideHistoryPage({ navigation }: Props) {
   }, [period, periodIndicator]);
 
   const toggleFavorite = async (routeId: string, routeName: string) => {
-    const isFav = favorites.includes(routeId);
-    const updatedFavorites = isFav ? favorites.filter((id) => id !== routeId) : [...favorites, routeId];
-    setFavorites(updatedFavorites);
+    const previousFavorites = dedupeFavoriteRouteIds(await getLocalFavoriteRouteIds());
+    const isFav = previousFavorites.includes(routeId);
+
+    if (!isFav && previousFavorites.length >= MAX_FAVORITE_ROUTES) {
+      Alert.alert(
+        'Favorites limit reached',
+        `You can only save up to ${MAX_FAVORITE_ROUTES} routes. Remove one before adding ${routeName}.`
+      );
+      return;
+    }
 
     try {
-      await AsyncStorage.setItem('favoriteRoutes', JSON.stringify(updatedFavorites));
+      if (isFav) {
+        await removeFavoriteRouteByRouteId(routeId);
+      } else {
+        await addFavoriteRouteByRouteId(routeId);
+      }
+
+      const syncedFavorites = dedupeFavoriteRouteIds(await getLocalFavoriteRouteIds());
+      favoritesRef.current = syncedFavorites;
+      setFavorites(syncedFavorites);
+
       Alert.alert(
         isFav ? 'Removed from favorites' : 'Added to favorites',
         `${routeName} has been ${isFav ? 'removed from' : 'added to'} favorites.`
       );
     } catch (error) {
       console.warn('Error saving favorites', error);
+
+      const statusCode =
+        typeof error === 'object' && error && 'status' in error
+          ? Number((error as { status?: unknown }).status)
+          : undefined;
+
+      if (!isFav && statusCode === 409) {
+        Alert.alert(
+          'Favorites limit reached',
+          `You can only save up to ${MAX_FAVORITE_ROUTES} routes. Remove one before adding ${routeName}.`
+        );
+        await loadData('refresh');
+        return;
+      }
+
       Alert.alert('Error', 'Unable to update favorites right now.');
+      await loadData('refresh');
     }
   };
 
@@ -315,7 +382,7 @@ export default function RideHistoryPage({ navigation }: Props) {
   };
 
   const renderRide = ({ item }: { item: RideHistory }) => {
-    const isFav = favorites.includes(item.routeId);
+    const isFav = uniqueFavoriteRouteIds.includes(item.routeId);
     const displayName = item.routeName;
 
     return (

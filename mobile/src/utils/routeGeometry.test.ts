@@ -1,8 +1,10 @@
+﻿import type { Route } from '../../../shared/types/index';
 import { mockRoutes } from '../app/types';
 import {
   boundsFromCoordinates,
+  haversineDistanceKm,
   interpolateAlongRoute,
-  projectPointOntoPolyline,
+  projectPointOntoRoute,
   routeToLineCoordinates,
 } from './routeGeometry';
 
@@ -15,33 +17,23 @@ describe('routeGeometry', () => {
     expect(coords.length).toBe(1 + route.checkpoints.length + 1);
   });
 
-  it('routeToLineCoordinates prefers routePath when present', () => {
-    const path = [
-      { lat: 1.0, lng: 2.0 },
-      { lat: 1.1, lng: 2.1 },
-      { lat: 1.2, lng: 2.2 },
-    ];
-    const route = {
+  it('routeToLineCoordinates prefers routePath when provided', () => {
+    const route: Route = {
       ...mockRoutes[0],
-      routePath: path,
+      routePath: [
+        { lat: 1.3001, lng: 103.7701 },
+        { lat: 1.3008, lng: 103.7714 },
+        { lat: 1.3015, lng: 103.7722 },
+      ],
     };
-    const coords = routeToLineCoordinates(route);
-    expect(coords).toEqual([
-      [2.0, 1.0],
-      [2.1, 1.1],
-      [2.2, 1.2],
-    ]);
-  });
 
-  it('projectPointOntoPolyline finds nearest segment', () => {
-    const line: [number, number][] = [
-      [0, 0],
-      [0.001, 0],
-    ];
-    const { distToRouteM, progress01 } = projectPointOntoPolyline(0, 0.0005, line);
-    expect(distToRouteM).toBeLessThan(200);
-    expect(progress01).toBeGreaterThan(0.2);
-    expect(progress01).toBeLessThan(0.8);
+    const coords = routeToLineCoordinates(route);
+
+    expect(coords).toEqual([
+      [103.7701, 1.3001],
+      [103.7714, 1.3008],
+      [103.7722, 1.3015],
+    ]);
   });
 
   it('interpolateAlongRoute returns start at 0 and end at 1', () => {
@@ -65,5 +57,27 @@ describe('routeGeometry', () => {
     expect(ne[1]).toBeGreaterThan(1);
     expect(sw[0]).toBeLessThan(0);
     expect(sw[1]).toBeLessThan(0);
+  });
+
+  it('projects a point onto the nearest segment of the route', () => {
+    const coords: [number, number][] = [
+      [103.77, 1.3],
+      [103.771, 1.3],
+      [103.772, 1.301],
+    ];
+
+    const projected = projectPointOntoRoute(coords, [103.7705, 1.3002]);
+
+    expect(projected.progress).toBeGreaterThan(0);
+    expect(projected.progress).toBeLessThan(1);
+    expect(projected.snappedPoint[0]).toBeCloseTo(103.7705, 4);
+    expect(projected.distanceKmFromRoute).toBeGreaterThan(0);
+  });
+
+  it('computes haversine distance in kilometers', () => {
+    const distanceKm = haversineDistanceKm([103.77, 1.3], [103.771, 1.3]);
+
+    expect(distanceKm).toBeGreaterThan(0.05);
+    expect(distanceKm).toBeLessThan(0.2);
   });
 });

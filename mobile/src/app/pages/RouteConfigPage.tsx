@@ -1,11 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useColorScheme } from 'nativewind';
 import * as Location from 'expo-location';
 import MapView, { Marker, type LongPressEvent, type MapPressEvent, type Region } from 'react-native-maps';
-import { mapPinMarkerProps } from '../utils/mapMarkers';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button } from '../components/native/Common';
@@ -32,15 +31,19 @@ import {
   hasSelectedPointsOfInterest,
   normalizeUserPreferences,
 } from '../utils/routePreferences';
+import {
+  LEGACY_ROUTE_END_STORAGE_KEY,
+  LEGACY_ROUTE_START_STORAGE_KEY,
+  ROUTE_REQUEST_STORAGE_KEY,
+} from '../../services/routeDraftStorage';
+import { canUseAndroidMapbox } from '../utils/mapboxSupport';
+import { mapPinMarkerProps } from '../utils/mapMarkers';
 
 type Props = NativeStackScreenProps<any, 'RouteConfig'>;
 type PickerTarget = { kind: 'start' | 'end' | 'checkpoint'; checkpointId?: string };
 type RouteCheckpointInput = RouteRecommendationRequest['checkpoints'][number];
 
-const ROUTE_REQUEST_STORAGE_KEY = 'routeRecommendationRequest';
 const USER_PREFERENCES_STORAGE_KEY = 'userPreferences';
-const LEGACY_ROUTE_START_STORAGE_KEY = 'routeStartPoint';
-const LEGACY_ROUTE_END_STORAGE_KEY = 'routeEndPoint';
 
 const cyclistTypes: { type: CyclistType; label: string }[] = [
   { type: 'recreational', label: 'Recreational' },
@@ -337,6 +340,8 @@ export default function RouteConfigPage({ navigation }: Props) {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
   const mapRef = useRef<MapView | null>(null);
+  const androidMapboxEnabled = canUseAndroidMapbox();
+  const RoutePickerMapbox = androidMapboxEnabled ? require('./RoutePickerMapbox').default : null;
 
   const [preferences, setPreferences] = useState<UserPreferences>(DEFAULT_USER_PREFERENCES);
   const [maxDistanceInput, setMaxDistanceInput] = useState(formatDistanceInputValue(DEFAULT_USER_PREFERENCES.maxDistanceKm));
@@ -456,7 +461,9 @@ export default function RouteConfigPage({ navigation }: Props) {
 
   const focusMapRegion = (nextRegion: Region) => {
     setMapRegion(nextRegion);
-    mapRef.current?.animateToRegion(nextRegion, 250);
+    if (!androidMapboxEnabled) {
+      mapRef.current?.animateToRegion(nextRegion, 250);
+    }
   };
 
   const openPicker = (target: PickerTarget, existingLocation?: RouteRequestLocation | null) => {
@@ -885,27 +892,35 @@ export default function RouteConfigPage({ navigation }: Props) {
 
           <View className="mt-cy-sm flex-1">
             <View className="overflow-hidden rounded-[16px] border border-slate-200 dark:border-[#2d2d2d] flex-1 min-h-[420px] bg-white dark:bg-[#0f0f0f]">
-              <MapView
-                ref={mapRef}
-                style={{ flex: 1 }}
-                initialRegion={mapRegion}
-                zoomEnabled
-                zoomTapEnabled
-                scrollEnabled
-                rotateEnabled={false}
-                pitchEnabled={false}
-                onPress={handleMapPress}
-                onLongPress={handleMapLongPress}
-              >
-                {draftLocation ? (
-                  <Marker
-                    coordinate={{ latitude: draftLocation.lat, longitude: draftLocation.lng }}
-                    title={searchQuery.trim() || draftLocation.name}
-                    description="Tap elsewhere on the map to move this pin."
-                    {...mapPinMarkerProps()}
-                  />
-                ) : null}
-              </MapView>
+              {androidMapboxEnabled && RoutePickerMapbox ? (
+                <RoutePickerMapbox
+                  region={mapRegion}
+                  draftLocation={draftLocation}
+                  onSelectCoordinate={updateDraftLocation}
+                />
+              ) : (
+                <MapView
+                  ref={mapRef}
+                  style={{ flex: 1 }}
+                  initialRegion={mapRegion}
+                  zoomEnabled
+                  zoomTapEnabled
+                  scrollEnabled
+                  rotateEnabled={false}
+                  pitchEnabled={false}
+                  onPress={handleMapPress}
+                  onLongPress={handleMapLongPress}
+                >
+                  {draftLocation ? (
+                    <Marker
+                      coordinate={{ latitude: draftLocation.lat, longitude: draftLocation.lng }}
+                      title={searchQuery.trim() || draftLocation.name}
+                      description="Tap elsewhere on the map to move this pin."
+                      {...mapPinMarkerProps()}
+                    />
+                  ) : null}
+                </MapView>
+              )}
 
               <View className="absolute left-3 right-3 top-3" pointerEvents="box-none">
                 <TextInput
@@ -952,7 +967,7 @@ export default function RouteConfigPage({ navigation }: Props) {
                     ) : (
                       <View className="px-cy-md py-3">
                         <Text className="text-[13px] text-slate-500 dark:text-slate-400">
-                          No Google place match. Tap the map to drop a pin at a custom coordinate.
+                          No place match. Tap the map to drop a pin at a custom coordinate.
                         </Text>
                       </View>
                     )}

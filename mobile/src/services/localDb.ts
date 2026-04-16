@@ -23,6 +23,8 @@ const IS_TEST_ENV = Boolean(process.env.JEST_WORKER_ID);
 // v2: migration now drops ALL seeded tables (not just users) to avoid
 //     UNIQUE constraint failures on user_profiles when reseeding.
 // v3: add route_points_of_interest table for ride details POI rendering.
+// Additive tables below intentionally avoid a version bump because the current
+// migration path drops local ride history when the schema version changes.
 const SCHEMA_VERSION = 3;
 
 type DatabaseLike = Pick<
@@ -110,6 +112,14 @@ type RoutePointOfInterestRow = {
   sort_order: number;
   name: string;
   description: string;
+  lat: number;
+  lng: number;
+};
+
+type RoutePathPointRow = {
+  id: string;
+  route_id: string;
+  sort_order: number;
   lat: number;
   lng: number;
 };
@@ -243,6 +253,7 @@ async function upsertRouteSnapshot(
 
   await db.runAsync('DELETE FROM route_checkpoints WHERE route_id = ?', route.id);
   await db.runAsync('DELETE FROM route_points_of_interest WHERE route_id = ?', route.id);
+  await db.runAsync('DELETE FROM route_path_points WHERE route_id = ?', route.id);
 
   for (const [index, checkpoint] of route.checkpoints.entries()) {
     await db.runAsync(
@@ -283,6 +294,23 @@ async function upsertRouteSnapshot(
       point.description ?? point.name,
       point.lat ?? route.startPoint.lat,
       point.lng ?? route.startPoint.lng,
+    );
+  }
+
+  for (const [index, point] of (route.routePath ?? []).entries()) {
+    await db.runAsync(
+      `INSERT INTO route_path_points (
+        id,
+        route_id,
+        sort_order,
+        lat,
+        lng
+      ) VALUES (?, ?, ?, ?, ?)`,
+      `path-${route.id}-${index + 1}`,
+      route.id,
+      index,
+      point.lat,
+      point.lng,
     );
   }
 }
@@ -336,6 +364,14 @@ async function getRouteSnapshotById(
     routeId,
   );
 
+  const routePathPoints = await db.getAllAsync<RoutePathPointRow>(
+    `SELECT id, route_id, sort_order, lat, lng
+     FROM route_path_points
+     WHERE route_id = ?
+     ORDER BY sort_order ASC`,
+    routeId,
+  );
+
   return {
     id: routeRow.id,
     name: routeRow.name,
@@ -365,6 +401,13 @@ async function getRouteSnapshotById(
     cyclistType: routeRow.cyclist_type,
     shade: routeRow.shade_pct,
     airQuality: routeRow.air_quality_index,
+    routePath:
+      routePathPoints.length >= 2
+        ? routePathPoints.map((point) => ({
+            lat: point.lat,
+            lng: point.lng,
+          }))
+        : undefined,
     pointsOfInterestVisited: pois.map((point) => ({
       name: point.name,
       description: point.description,
@@ -420,6 +463,7 @@ type TestState = {
   routes: RouteRow[];
   routeCheckpoints: RouteCheckpointRow[];
   routePointsOfInterest: RoutePointOfInterestRow[];
+  routePathPoints: RoutePathPointRow[];
   rideHistory: RideHistoryRow[];
   distanceStats: DistanceStatRow[];
   rideFeedback: RideFeedbackRow[];
@@ -534,8 +578,18 @@ function createSeedState(): TestState {
       sort_order: index,
       name: point.name,
       description: point.description ?? point.name,
-      lat: route.startPoint.lat,
-      lng: route.startPoint.lng,
+      lat: point.lat ?? route.startPoint.lat,
+      lng: point.lng ?? route.startPoint.lng,
+    })),
+  );
+
+  const routePathPoints = mockRoutes.flatMap<RoutePathPointRow>((route) =>
+    (route.routePath ?? []).map((point, index) => ({
+      id: `path-${route.id}-${index + 1}`,
+      route_id: route.id,
+      sort_order: index,
+      lat: point.lat,
+      lng: point.lng,
     })),
   );
 
@@ -586,6 +640,7 @@ function createSeedState(): TestState {
     routes,
     routeCheckpoints,
     routePointsOfInterest,
+    routePathPoints,
     rideHistory,
     distanceStats,
     rideFeedback: [],
@@ -672,6 +727,17 @@ function createTestDatabase(): DatabaseLike {
         return { lastInsertRowId: 1, changes: 1 } as any;
       }
 
+      if (sql.startsWith('INSERT INTO ROUTE_PATH_POINTS')) {
+        state.routePathPoints.push({
+          id: params[0],
+          route_id: params[1],
+          sort_order: params[2],
+          lat: params[3],
+          lng: params[4],
+        });
+        return { lastInsertRowId: 1, changes: 1 } as any;
+      }
+
       if (sql.startsWith('UPDATE USERS SET PASSWORD_HASH')) {
         const user = state.users.find((item) => item.id === params[2]);
         if (user) {
@@ -750,6 +816,18 @@ function createTestDatabase(): DatabaseLike {
         return { lastInsertRowId: 0, changes: before - state.distanceStats.length } as any;
       }
 
+      if (sql.startsWith('DELETE FROM ROUTE_PATH_POINTS WHERE ROUTE_ID = ?')) {
+        const before = state.routePathPoints.length;
+        state.routePathPoints = state.routePathPoints.filter((item) => item.route_id !== params[0]);
+        return { lastInsertRowId: 0, changes: before - state.routePathPoints.length } as any;
+      }
+
+      if (sql.startsWith('DELETE FROM ROUTE_PATH_POINTS')) {
+        const before = state.routePathPoints.length;
+        state.routePathPoints = [];
+        return { lastInsertRowId: 0, changes: before } as any;
+      }
+
       if (sql.startsWith('DELETE FROM RIDE_HISTORY WHERE ACCOUNT_ID = ?')) {
         const before = state.rideHistory.length;
         state.rideHistory = state.rideHistory.filter((r) => r.account_id !== params[0]);
@@ -820,6 +898,12 @@ function createTestDatabase(): DatabaseLike {
 
       if (sql.includes('FROM ROUTE_POINTS_OF_INTEREST')) {
         return state.routePointsOfInterest
+          .filter((item) => item.route_id === params[0])
+          .sort((a, b) => a.sort_order - b.sort_order) as T[];
+      }
+
+      if (sql.includes('FROM ROUTE_PATH_POINTS')) {
+        return state.routePathPoints
           .filter((item) => item.route_id === params[0])
           .sort((a, b) => a.sort_order - b.sort_order) as T[];
       }
@@ -920,6 +1004,7 @@ async function openDatabase(): Promise<DatabaseLike> {
       DROP TABLE IF EXISTS ride_feedback;
       DROP TABLE IF EXISTS distance_stats;
       DROP TABLE IF EXISTS ride_history;
+      DROP TABLE IF EXISTS route_path_points;
       DROP TABLE IF EXISTS route_points_of_interest;
       DROP TABLE IF EXISTS route_checkpoints;
       DROP TABLE IF EXISTS routes;
@@ -1019,6 +1104,14 @@ async function openDatabase(): Promise<DatabaseLike> {
       lng REAL NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS route_path_points (
+      id TEXT PRIMARY KEY NOT NULL,
+      route_id TEXT NOT NULL,
+      sort_order INTEGER NOT NULL,
+      lat REAL NOT NULL,
+      lng REAL NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS ride_history (
       id TEXT PRIMARY KEY NOT NULL,
       account_id TEXT NOT NULL,
@@ -1059,6 +1152,9 @@ async function openDatabase(): Promise<DatabaseLike> {
 
     CREATE INDEX IF NOT EXISTS idx_route_poi_route_order
       ON route_points_of_interest (route_id, sort_order);
+
+    CREATE INDEX IF NOT EXISTS idx_route_path_route_order
+      ON route_path_points (route_id, sort_order);
 
     CREATE INDEX IF NOT EXISTS idx_ride_history_account
       ON ride_history (account_id, completion_date);
@@ -1247,8 +1343,25 @@ async function seedDatabaseIfEmpty(db: DatabaseLike): Promise<void> {
           index,
           point.name,
           point.description ?? point.name,
-          route.startPoint.lat,
-          route.startPoint.lng,
+          point.lat ?? route.startPoint.lat,
+          point.lng ?? route.startPoint.lng,
+        );
+      }
+
+      for (const [index, point] of (route.routePath ?? []).entries()) {
+        await db.runAsync(
+          `INSERT OR IGNORE INTO route_path_points (
+            id,
+            route_id,
+            sort_order,
+            lat,
+            lng
+          ) VALUES (?, ?, ?, ?, ?)`,
+          `path-${route.id}-${index + 1}`,
+          route.id,
+          index,
+          point.lat,
+          point.lng,
         );
       }
     }
@@ -1358,6 +1471,7 @@ export async function synchronizeLocalDbFromMocks(): Promise<void> {
     const db = await getLocalDb();
 
     await db.withTransactionAsync(async () => {
+      await db.runAsync('DELETE FROM route_path_points');
       await db.runAsync('DELETE FROM route_points_of_interest');
       await db.runAsync('DELETE FROM route_checkpoints');
       await db.runAsync('DELETE FROM routes');
@@ -1443,8 +1557,25 @@ export async function synchronizeLocalDbFromMocks(): Promise<void> {
           index,
           point.name,
           point.description ?? point.name,
-          route.startPoint.lat,
-          route.startPoint.lng,
+          point.lat ?? route.startPoint.lat,
+          point.lng ?? route.startPoint.lng,
+        );
+        }
+
+        for (const [index, point] of (route.routePath ?? []).entries()) {
+          await db.runAsync(
+          `INSERT OR IGNORE INTO route_path_points (
+            id,
+            route_id,
+            sort_order,
+            lat,
+            lng
+          ) VALUES (?, ?, ?, ?, ?)`,
+          `path-${route.id}-${index + 1}`,
+          route.id,
+          index,
+          point.lat,
+          point.lng,
         );
         }
       }

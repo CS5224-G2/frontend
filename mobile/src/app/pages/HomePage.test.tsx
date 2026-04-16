@@ -11,7 +11,10 @@ const mockGetItem = jest.fn();
 const mockSetItem = jest.fn();
 const mockGetRoutes = jest.fn();
 const mockGetPopularRoutes = jest.fn();
+const mockGetSavedRoutes = jest.fn();
 const mockGetUserProfile = jest.fn();
+const mockGetRideHistory = jest.fn();
+const mockLoadActiveRideSession = jest.fn();
 
 jest.mock('@react-navigation/native', () => ({
   ...jest.requireActual('@react-navigation/native'),
@@ -44,11 +47,20 @@ jest.mock('../../services/userService', () => ({
   getUserProfile: (...args: unknown[]) => mockGetUserProfile(...args),
 }));
 
+jest.mock('../../services/rideService', () => ({
+  getRideHistory: (...args: unknown[]) => mockGetRideHistory(...args),
+}));
+
+jest.mock('../../services/activeRideSession', () => ({
+  loadActiveRideSession: (...args: unknown[]) => mockLoadActiveRideSession(...args),
+}));
+
 // All mock data defined INSIDE the factory to avoid jest.mock hoisting issues
 // Using plain arrow functions instead of jest.fn() for maximum CI stability
 jest.mock('../../services/routeService', () => ({
   getRoutes: (...args: unknown[]) => mockGetRoutes(...args),
   getPopularRoutes: (...args: unknown[]) => mockGetPopularRoutes(...args),
+  getSavedRoutes: (...args: unknown[]) => mockGetSavedRoutes(...args),
 }));
 
 describe('HomePage', () => {
@@ -92,6 +104,30 @@ describe('HomePage', () => {
       { id: 'p1', name: 'Popular Downtown Circuit', description: 'Popular list route from GET /routes/popular', distance: 8.3, elevation: 25, estimatedTime: 25, rating: 4.5, reviewCount: 567, startPoint: { lat: 0, lng: 0, name: 'Start' }, endPoint: { lat: 0, lng: 0, name: 'End' }, checkpoints: [], cyclistType: 'commuter', shade: 40, airQuality: 70 },
       { id: 'p2', name: 'Popular Harbor Trail', description: 'Popular list route from GET /routes/popular', distance: 12.5, elevation: 45, estimatedTime: 45, rating: 4.8, reviewCount: 234, startPoint: { lat: 0, lng: 0, name: 'Start' }, endPoint: { lat: 0, lng: 0, name: 'End' }, checkpoints: [], cyclistType: 'recreational', shade: 80, airQuality: 85 },
     ]);
+    mockGetSavedRoutes.mockResolvedValue([
+      {
+        savedRouteId: 'saved-p1',
+        savedAt: '2026-04-08T09:00:00.000Z',
+        route: {
+          id: 'p1',
+          name: 'Popular Downtown Circuit',
+          description: 'Popular list route from GET /routes/popular',
+          distance: 8.3,
+          elevation: 25,
+          estimatedTime: 25,
+          rating: 4.5,
+          reviewCount: 567,
+          startPoint: { lat: 0, lng: 0, name: 'Start' },
+          endPoint: { lat: 0, lng: 0, name: 'End' },
+          checkpoints: [],
+          cyclistType: 'commuter',
+          shade: 40,
+          airQuality: 70,
+        },
+      },
+    ]);
+    mockGetRideHistory.mockResolvedValue([]);
+    mockLoadActiveRideSession.mockResolvedValue(null);
   });
 
   const renderWithAuth = (component: React.ReactElement) => {
@@ -147,6 +183,16 @@ describe('HomePage', () => {
     expect(screen.getByText('Starred Routes')).toBeTruthy();
     expect(screen.getByText('Your favorite routes ready to ride again')).toBeTruthy();
     expect(screen.getAllByText('Popular Downtown Circuit').length).toBeGreaterThan(0);
+  });
+
+  it('clears unknown favorite route ids from storage on load', async () => {
+    await renderHomePage({
+      favoriteRoutes: JSON.stringify(['p1', 'unknown-route']),
+    });
+
+    await waitFor(() => {
+      expect(mockSetItem).toHaveBeenCalledWith('favoriteRoutes', JSON.stringify(['p1']));
+    });
   });
 
   it('navigates to RouteConfig when create button is pressed', async () => {
@@ -224,6 +270,67 @@ describe('HomePage', () => {
     });
   });
 
+  it('renders starred routes saved from ride history even when they are not in discovery lists', async () => {
+    mockGetSavedRoutes.mockResolvedValue([
+      {
+        savedRouteId: 'saved-history-only',
+        savedAt: '2026-04-08T19:30:00.000Z',
+        route: {
+          id: 'history-only',
+          name: 'Night Loop Replay',
+          description: 'Recovered from ride history',
+          distance: 14.2,
+          elevation: 38,
+          estimatedTime: 42,
+          rating: 4.9,
+          reviewCount: 12,
+          startPoint: { lat: 0, lng: 0, name: 'Start' },
+          endPoint: { lat: 0, lng: 0, name: 'End' },
+          checkpoints: [],
+          cyclistType: 'fitness',
+          shade: 50,
+          airQuality: 70,
+        },
+      },
+    ]);
+    mockGetRideHistory.mockResolvedValue([
+      {
+        id: 'ride-1',
+        routeId: 'history-only',
+        routeName: 'Night Loop Replay',
+        completionDate: '2026-04-08',
+        completionTime: '7:30 PM',
+        totalTime: 42,
+        distance: 14.2,
+        avgSpeed: 20.3,
+        checkpoints: 4,
+        routeDetails: {
+          id: 'history-only',
+          name: 'Night Loop Replay',
+          description: 'Recovered from ride history',
+          distance: 14.2,
+          elevation: 38,
+          estimatedTime: 42,
+          rating: 4.9,
+          reviewCount: 12,
+          startPoint: { lat: 0, lng: 0, name: 'Start' },
+          endPoint: { lat: 0, lng: 0, name: 'End' },
+          checkpoints: [],
+          cyclistType: 'fitness',
+          shade: 50,
+          airQuality: 70,
+        },
+      },
+    ]);
+
+    await renderHomePage({
+      favoriteRoutes: JSON.stringify(['history-only']),
+    });
+
+    expect(screen.getByText('Night Loop Replay')).toBeTruthy();
+    expect(screen.getByText('Recovered from ride history')).toBeTruthy();
+  });
+
   it('does not refetch the profile on focus refresh when stored preferences already exist', async () => {
     await renderHomePage({
       userPreferences: JSON.stringify({
@@ -238,6 +345,41 @@ describe('HomePage', () => {
 
     await waitFor(() => {
       expect(mockGetUserProfile).toHaveBeenCalledTimes(0);
+    });
+  });
+
+  it('shows a resume card when an active ride session exists', async () => {
+    mockLoadActiveRideSession.mockResolvedValue({
+      version: 1,
+      routeId: 'active-1',
+      startedAt: '2026-04-08T00:00:00.000Z',
+      route: {
+        id: 'active-1',
+        name: 'Active Commute',
+        description: 'Resume this ride',
+        distance: 8,
+        elevation: 20,
+        estimatedTime: 30,
+        rating: 4.5,
+        reviewCount: 10,
+        startPoint: { lat: 1, lng: 1, name: 'Start' },
+        endPoint: { lat: 2, lng: 2, name: 'End' },
+        checkpoints: [],
+        cyclistType: 'commuter',
+        shade: 40,
+        airQuality: 70,
+      },
+    });
+
+    await renderHomePage();
+
+    expect(screen.getByText('Resume active ride')).toBeTruthy();
+
+    fireEvent.press(screen.getByTestId('resume-active-ride-card'));
+
+    expect(mockNavigate).toHaveBeenCalledWith('LiveMap', {
+      routeId: 'active-1',
+      route: expect.objectContaining({ id: 'active-1', name: 'Active Commute' }),
     });
   });
 });
