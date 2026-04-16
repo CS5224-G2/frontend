@@ -51,6 +51,37 @@ jest.mock('react-native-safe-area-context', () => {
   };
 });
 
+jest.mock('nativewind', () => ({
+  useColorScheme: () => ({ colorScheme: 'light' }),
+}));
+
+jest.mock('expo-glass-effect', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    GlassView: ({ children, ...props }: any) =>
+      React.createElement(View, { ...props, testID: props.testID ?? 'glass-view' }, children),
+    isLiquidGlassAvailable: () => false,
+    isGlassEffectAPIAvailable: () => false,
+  };
+});
+
+jest.mock('../../services/userService', () => ({
+  getUserProfile: jest.fn().mockResolvedValue({
+    userId: 'rider_1024',
+    fullName: 'Alex Johnson',
+    email: 'alex@example.com',
+    location: 'Singapore',
+    memberSince: 'January 2025',
+    cyclingPreference: 'Leisure',
+    weeklyGoalKm: 80,
+    bio: 'Weekend rider.',
+    avatarUrl: null,
+    avatarColor: '#7c3aed',
+    stats: { totalRides: 5, totalDistanceKm: 42.0, favoriteTrails: 2 },
+  }),
+}));
+
 describe('LiveMapPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
