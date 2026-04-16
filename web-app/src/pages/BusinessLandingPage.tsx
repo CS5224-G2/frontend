@@ -1,11 +1,6 @@
-import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import BusinessNavbar from '../components/BusinessNavbar'
 import Footer from '../components/Footer'
-import {
-  getBusinessLandingStats,
-  type BusinessLandingStats,
-} from '../services/businessService'
 import ltaLogo from '../assets/LTA-logo.jpg'
 import nparksLogo from '../assets/nparks.png'
 import stbLogo from '../assets/stb-logo.png'
@@ -58,28 +53,6 @@ const agencies = [
 ]
 
 export default function BusinessLandingPage() {
-  const [stats, setStats] = useState<BusinessLandingStats | null>(null)
-
-  useEffect(() => {
-    getBusinessLandingStats()
-      .then(setStats)
-      .catch((error) => {
-        console.error('Failed to load business landing stats', error)
-      })
-  }, [])
-
-  const statItems = stats
-    ? [
-        { value: `${stats.monthlyUsers.toLocaleString()}+`, label: 'Monthly Active Cyclists' },
-        { value: stats.monthlyRouteRequests.toLocaleString(), label: 'Route Requests / month' },
-        { value: stats.activePartners.toLocaleString(), label: 'Active Partners' },
-      ]
-    : [
-        { value: '—', label: 'Monthly Active Cyclists' },
-        { value: '—', label: 'Route Requests / month' },
-        { value: '—', label: 'Active Partners' },
-      ]
-
   return (
     <div className="min-h-screen flex flex-col">
       <BusinessNavbar />
@@ -148,26 +121,6 @@ export default function BusinessLandingPage() {
                   </div>
                   <p className="text-slate-600 text-sm leading-relaxed">{o.desc}</p>
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Platform stats */}
-      <section className="bg-primary-900 px-6 py-16">
-        <div className="max-w-5xl mx-auto">
-          <p className="text-primary-400 text-xs font-bold uppercase tracking-widest text-center mb-3">
-            Platform at a glance
-          </p>
-          <h2 className="text-2xl font-extrabold text-white mb-10 text-center">
-            The audience you're reaching
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
-            {statItems.map((s) => (
-              <div key={s.label}>
-                <p className="text-5xl font-black text-primary-400 mb-2">{s.value}</p>
-                <p className="text-primary-200 text-sm font-medium">{s.label}</p>
               </div>
             ))}
           </div>
