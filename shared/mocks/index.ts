@@ -15,6 +15,7 @@ import type {
   GraphDataPoint,
   AdminStats,
   AdminUser,
+  RoutingQualityMetrics,
   BusinessLandingStats,
   BusinessStats,
   SponsoredLocation,
@@ -398,6 +399,24 @@ export const mockAdminUsers: AdminUser[] = [
   { id: 'u4', email: 'admin@cyclink.com', role: 'admin', status: 'Active', joinedFormatted: 'Jan 2025' },
   { id: 'u5', email: 'business@cyclink.com', role: 'business', status: 'Active', joinedFormatted: 'Jan 2025' },
 ];
+
+export const mockRoutingQualityMetrics: RoutingQualityMetrics = {
+  totalReviews: 184,
+  overallAvgRating: 3.87,
+  totalRidesLogged: 412,
+  topRatedRoutes: [
+    { routeId: '6627c3f2a4e1b23d0f9e1001', name: 'East Coast Park Loop', rating: 4.8, reviewCount: 31 },
+    { routeId: '6627c3f2a4e1b23d0f9e1002', name: 'Bedok Reservoir Circuit', rating: 4.6, reviewCount: 24 },
+  ],
+  mostReviewedRoutes: [
+    { routeId: '6627c3f2a4e1b23d0f9e1003', name: 'Southern Ridges Connector', rating: 4.1, reviewCount: 57 },
+    { routeId: '6627c3f2a4e1b23d0f9e1004', name: 'Punggol Waterway Loop', rating: 4.3, reviewCount: 43 },
+  ],
+  totalGeneratedRoutes: 89,
+  avgRouteComputationMs: 2156.3,
+  minRouteComputationMs: 1412.0,
+  maxRouteComputationMs: 3201.7,
+};
 
 // ---------------------------------------------------------------------------
 // Business Dashboard Mocks
