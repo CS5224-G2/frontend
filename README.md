@@ -1,12 +1,13 @@
 # CycleLink Frontend
 
-Frontend repository for **CycleLink** — intelligent cycling route recommendations (CS5224 Group Project). This is a minimal, abstract framework so frontend contributors can add implementation without large structural changes.
+Frontend repository for **CycleLink** — intelligent cycling route recommendations (CS5224 Group Project). This monorepo contains the Amplify-hosted web app and the Expo mobile app.
 
 ## Design summary (from Prelim Report)
 
 - **Mobile app:** Expo (React Native). User flow: onboarding (cyclist type + preferences) → home (discover/customise routes) → export route to **Google Maps / Apple Maps** via deep link → post-ride return to app for checkpoint feedback and **route rating**.
 - **Navigation:** We recommend the route; turn-by-turn navigation runs in the external map app (Approach B).
-- **Admin dashboard:** Web app for usage stats, sponsor admin, developer monitoring; to be hosted on S3 + CloudFront.
+- **Web app:** Vite frontend for the public landing page and admin/business dashboards; hosted on AWS Amplify from `web-app/`.
+- **Android distribution:** Expo EAS builds an Android APK, and GitHub Actions uploads it to S3 for direct download.
 
 
 ## Repo structure
@@ -14,7 +15,8 @@ Frontend repository for **CycleLink** — intelligent cycling route recommendati
 ```
 frontend/
 ├── mobile/              # Expo (React Native) — main user-facing app
-├── admin-dashboard/     # Web app — S3/CloudFront (placeholder)
+├── web-app/             # Vite SPA — landing page + admin/business dashboards
+├── admin-dashboard/     # Legacy placeholder app (not used for deployment)
 └── docs/                # Design notes and contracts
 ```
 
@@ -34,9 +36,9 @@ Then scan the QR code with your iPhone camera and open in **Expo Go**, or press 
 
 Implement screens and services under `mobile/src/` as needed. Backend base URL and env are configured via `.env` (see `mobile/README.md`).
 
-### Admin dashboard
+### Web app
 
-See `admin-dashboard/README.md`. Static site intended for S3 + CloudFront; add your stack (e.g. React/Vite) when ready.
+The live website is `web-app/`, a React + Vite + TypeScript SPA deployed with AWS Amplify. The `admin-dashboard/` folder is a legacy placeholder and is not part of the current hosting flow.
 
 ## Where to implement what
 
@@ -47,7 +49,7 @@ See `admin-dashboard/README.md`. Static site intended for S3 + CloudFront; add y
 | Route config & export | `mobile/src/screens/route/` or `services/maps.ts` | Build Google/Apple Maps URL; open via `Linking.openURL()` |
 | Post-ride feedback & rating | `mobile/src/screens/feedback/` | Checkpoint summary + rating submission |
 | API client | `mobile/src/services/api.ts` | Point at ALB; auth (e.g. Cognito) when backend is ready |
-| Admin stats & dashboards | `admin-dashboard/` | Usage, sponsor customisation, health/monitoring |
+| Admin stats & dashboards | `web-app/` | Usage, sponsor customisation, health/monitoring |
 
 ## Backend contract (placeholder)
 
@@ -60,7 +62,7 @@ Exact endpoints and payloads to be aligned with backend team; keep API client in
 
 ## Web App (`web-app/`)
 
-A React + Vite + TypeScript SPA intended for S3 + CloudFront. Contains:
+A React + Vite + TypeScript SPA deployed on AWS Amplify. Contains:
 
 - `/` — B2C landing page (cyclists)
 - `/business` — B2B landing page (sponsors, government agencies)
@@ -75,6 +77,8 @@ cd web-app
 npm install
 npm run dev        # http://localhost:5173
 ```
+
+Environment variables live in `web-app/.env.example`. Set `VITE_ANDROID_APK_URL` when you want the landing page to expose the direct APK download.
 
 Demo credentials (mock auth, no backend needed):
 
@@ -104,23 +108,49 @@ npm run preview    # serve dist/ locally to verify
 
 The `web-ci.yml` workflow runs automatically on every push or PR that touches `web-app/`. It runs the full test suite and production build to catch regressions before merge.
 
-### Deployment (not yet active — pending backend team AWS setup)
+### Deployment
 
-Once AWS is ready, add the following to the GitHub repo (Settings → Secrets and variables):
+#### Web app hosting on Amplify
+
+AWS Amplify should point at the repository root and use `amplify.yml`, which already scopes the build to `web-app/` with `appRoot: web-app`. Amplify hosts the website only; Android binaries are stored separately in S3.
+
+Required Amplify environment variable:
+
+| Name | Value |
+|------|-------|
+| `VITE_ANDROID_APK_URL` | Public download URL for the latest APK, for example `https://<bucket>.s3.<region>.amazonaws.com/android/latest.apk` |
+
+If `VITE_ANDROID_APK_URL` is unset, the landing page shows a disabled fallback instead of a broken download link.
+
+#### Android APK upload workflow
+
+`.github/workflows/eas-build.yml` now:
+1. Runs only for `mobile/**` changes or changes to the workflow file itself
+2. Reuses the existing mobile install + Jest test steps
+3. Builds an Android APK with Expo EAS using the `preview` build profile
+4. Waits for the EAS build to finish, downloads the APK to the GitHub runner, and uploads:
+   - `s3://$AWS_S3_BUCKET/android/latest.apk`
+   - `s3://$AWS_S3_BUCKET/android/${GITHUB_SHA}.apk`
+
+Configure these GitHub Actions settings in **Settings → Secrets and variables → Actions**:
 
 | Name | Type | Description |
 |------|------|-------------|
-| `AWS_ACCESS_KEY_ID` | Secret | IAM key with S3 + CloudFront write access |
-| `AWS_SECRET_ACCESS_KEY` | Secret | IAM secret |
-| `AWS_REGION` | Variable | e.g. `ap-southeast-1` |
-| `AWS_S3_BUCKET` | Variable | S3 bucket name for the web app |
-| `AWS_CLOUDFRONT_DISTRIBUTION_ID` | Variable | CloudFront distribution to invalidate after deploy |
+| `EXPO_TOKEN` | Secret | Expo/EAS access token already required for `expo/expo-github-action` |
+| `AWS_ROLE_TO_ASSUME` | Variable | IAM role ARN that GitHub Actions should assume via OIDC |
+| `AWS_REGION` | Variable | AWS region for the S3 bucket, for example `ap-southeast-1` |
+| `AWS_S3_BUCKET` | Variable | S3 bucket that stores the Android APK objects |
 
-Then uncomment the `deploy` job in `.github/workflows/web-ci.yml`. The deploy step:
-1. Syncs `dist/` to S3 (long-lived cache headers for assets, `no-cache` for `index.html`)
-2. Invalidates `/*` on CloudFront so the new build is served immediately
+The workflow uses `aws-actions/configure-aws-credentials@v4` with GitHub OIDC. Do not configure long-lived AWS access keys for this flow.
 
-The S3 bucket needs a **static website** configuration with the error document set to `index.html` so React Router client-side routes work on direct load/refresh.
+#### AWS assumptions for public APK downloads
+
+The workflow only uploads the APK objects. For the link in the web app to work, the URL you set in `VITE_ANDROID_APK_URL` must be publicly reachable. Typical options are:
+
+- Public S3 objects or a public S3 prefix for `android/*`
+- CloudFront in front of S3 with a public download URL
+
+If you use direct S3 URLs, make sure the bucket policy or access point policy allows `GetObject` for the APK path you expose. The workflow does not set object ACLs.
 
 ---
 

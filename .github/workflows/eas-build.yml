@@ -1,19 +1,34 @@
-name: EAS Build CI
+name: EAS Android APK CD
 
 on:
   push:
     branches:
       - main
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/eas-build.yml'
   pull_request:
     branches:
       - main
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/eas-build.yml'
   workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
   build:
-    name: Install, Test and Build
+    name: Install, Test, Build APK and Upload
     runs-on: ubuntu-latest
-    
+    timeout-minutes: 90
+    env:
+      EAS_BUILD_PROFILE: preview
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_S3_BUCKET: ${{ vars.AWS_S3_BUCKET }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -33,6 +48,21 @@ jobs:
         working-directory: mobile
         run: npm test -- --watchman=false
 
+      - name: Validate release configuration
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          AWS_ROLE_TO_ASSUME: ${{ vars.AWS_ROLE_TO_ASSUME }}
+        run: |
+          set -euo pipefail
+
+          for required_var in EXPO_TOKEN AWS_ROLE_TO_ASSUME AWS_REGION AWS_S3_BUCKET; do
+            if [ -z "${!required_var:-}" ]; then
+              echo "Missing required GitHub Actions configuration: ${required_var}" >&2
+              exit 1
+            fi
+          done
+
       - name: Setup EAS
         if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
         uses: expo/expo-github-action@v8
@@ -40,7 +70,109 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Trigger EAS Build
+      - name: Trigger EAS Android APK build
         if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
+        id: eas_build
         working-directory: mobile
-        run: npx eas-cli build --platform android --non-interactive --no-wait
+        run: |
+          set -euo pipefail
+
+          BUILD_JSON="$RUNNER_TEMP/eas-build.json"
+          npx eas-cli build \
+            --platform android \
+            --profile "$EAS_BUILD_PROFILE" \
+            --non-interactive \
+            --wait \
+            --json > "$BUILD_JSON"
+
+          node - "$BUILD_JSON" <<'NODE' >> "$GITHUB_OUTPUT"
+          const fs = require('node:fs');
+
+          const raw = fs.readFileSync(process.argv[2], 'utf8').trim();
+          if (!raw) {
+            throw new Error('EAS build did not produce JSON output.');
+          }
+
+          const parsed = JSON.parse(raw);
+          const build = Array.isArray(parsed) ? parsed[0] : parsed;
+          const buildId = build?.id;
+          const status = build?.status;
+          const apkUrl =
+            build?.artifacts?.applicationArchiveUrl ??
+            build?.applicationArchiveUrl ??
+            build?.artifacts?.url ??
+            build?.url;
+          const buildPageUrl =
+            build?.artifacts?.buildUrl ??
+            build?.buildDetailsPageUrl ??
+            '';
+
+          if (!buildId) {
+            throw new Error('Missing build id in EAS build output.');
+          }
+
+          if (status && status !== 'finished') {
+            throw new Error(`EAS build finished with unexpected status: ${status}`);
+          }
+
+          if (!apkUrl) {
+            throw new Error('Missing APK download URL in EAS build output.');
+          }
+
+          console.log(`build_id=${buildId}`);
+          console.log(`apk_url=${apkUrl}`);
+          if (buildPageUrl) {
+            console.log(`build_page_url=${buildPageUrl}`);
+          }
+          NODE
+
+      - name: Download APK from EAS
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
+        id: download_apk
+        env:
+          APK_URL: ${{ steps.eas_build.outputs.apk_url }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${APK_URL:-}" ]; then
+            echo "APK download URL was not produced by the EAS build step." >&2
+            exit 1
+          fi
+
+          APK_PATH="$RUNNER_TEMP/android-${GITHUB_SHA}.apk"
+          curl --fail --location --silent --show-error "$APK_URL" --output "$APK_PATH"
+
+          if [ ! -s "$APK_PATH" ]; then
+            echo "Downloaded APK is missing or empty." >&2
+            exit 1
+          fi
+
+          echo "apk_path=$APK_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ vars.AWS_ROLE_TO_ASSUME }}
+          role-session-name: github-actions-android-apk-${{ github.run_id }}
+
+      - name: Upload APK to S3
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
+        env:
+          APK_PATH: ${{ steps.download_apk.outputs.apk_path }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${APK_PATH:-}" ] || [ ! -f "$APK_PATH" ]; then
+            echo "APK file was not downloaded successfully before S3 upload." >&2
+            exit 1
+          fi
+
+          aws s3 cp "$APK_PATH" "s3://${AWS_S3_BUCKET}/android/latest.apk" \
+            --cache-control "no-cache, no-store, must-revalidate" \
+            --content-type "application/vnd.android.package-archive"
+
+          aws s3 cp "$APK_PATH" "s3://${AWS_S3_BUCKET}/android/${GITHUB_SHA}.apk" \
+            --cache-control "public, max-age=31536000, immutable" \
+            --content-type "application/vnd.android.package-archive"
