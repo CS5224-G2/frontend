@@ -10,6 +10,10 @@ jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({ navigate: mockNavigate }),
 }));
 
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
+}));
+
 jest.mock('@react-native-async-storage/async-storage', () => ({
   getItem: jest.fn().mockResolvedValue(null),
   setItem: jest.fn().mockResolvedValue(null),
@@ -91,10 +95,10 @@ describe('RouteConfigPage', () => {
     expect(screen.getByText('Configure Custom Route')).toBeTruthy();
   });
 
-  it('shows "No location selected" for both start and end initially', () => {
+  it('shows route planner placeholders for start and end initially', () => {
     renderPage();
-    const placeholders = screen.getAllByText('No location selected');
-    expect(placeholders.length).toBe(2);
+    expect(screen.getByText('Use current location')).toBeTruthy();
+    expect(screen.getByText('Choose destination')).toBeTruthy();
   });
 
   it('renders action pills for start and end points', () => {
