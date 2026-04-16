@@ -97,6 +97,7 @@ jobs:
           const build = Array.isArray(parsed) ? parsed[0] : parsed;
           const buildId = build?.id;
           const status = build?.status;
+          const normalizedStatus = typeof status === 'string' ? status.toUpperCase() : '';
           const apkUrl =
             build?.artifacts?.applicationArchiveUrl ??
             build?.applicationArchiveUrl ??
@@ -111,7 +112,7 @@ jobs:
             throw new Error('Missing build id in EAS build output.');
           }
 
-          if (status && status !== 'finished') {
+          if (normalizedStatus && normalizedStatus !== 'FINISHED') {
             throw new Error(`EAS build finished with unexpected status: ${status}`);
           }
 
