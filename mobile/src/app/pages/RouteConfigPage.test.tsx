@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import RouteConfigPage from './RouteConfigPage';
 
 const mockNavigate = jest.fn();
@@ -228,7 +228,9 @@ describe('RouteConfigPage', () => {
       expect(screen.getAllByText('Use Current Location')).toHaveLength(1);
     });
 
-    resolvePosition?.({ coords: { latitude: 1.3521, longitude: 103.8198 } });
+    await act(async () => {
+      resolvePosition?.({ coords: { latitude: 1.3521, longitude: 103.8198 } });
+    });
 
     await waitFor(() => {
       expect(screen.queryByText('Locating...')).toBeNull();
