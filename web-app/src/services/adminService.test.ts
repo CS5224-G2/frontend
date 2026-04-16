@@ -1,4 +1,4 @@
-import { vi, describe, it, expect, beforeEach } from 'vitest'
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 
 // Enable mock mode before importing the service
 import.meta.env.VITE_USE_MOCKS = 'true'
@@ -64,6 +64,7 @@ describe('adminService (mock mode)', () => {
 
   describe('getRoutingQualityMetrics()', () => {
     beforeEach(() => {
+      import.meta.env.VITE_USE_MOCKS = 'false'
       mockApiFetch.mockResolvedValue(new Response(JSON.stringify({
         total_reviews: 184,
         overall_avg_rating: 3.87,
@@ -81,6 +82,10 @@ describe('adminService (mock mode)', () => {
       }), { status: 200 }))
     })
 
+    afterEach(() => {
+      import.meta.env.VITE_USE_MOCKS = 'true'
+    })
+
     it('returns a RoutingQualityMetrics object with all required fields', async () => {
       const metrics = await getRoutingQualityMetrics()
       expect(metrics).toHaveProperty('totalReviews')
@@ -92,6 +97,15 @@ describe('adminService (mock mode)', () => {
       expect(metrics).toHaveProperty('avgRouteComputationMs')
       expect(metrics).toHaveProperty('minRouteComputationMs')
       expect(metrics).toHaveProperty('maxRouteComputationMs')
+    })
+
+    it('maps snake_case backend fields to camelCase frontend fields', async () => {
+      const metrics = await getRoutingQualityMetrics()
+      expect(metrics.totalReviews).toBe(184)
+      expect(metrics.overallAvgRating).toBe(3.87)
+      expect(metrics.totalRidesLogged).toBe(412)
+      expect(metrics.topRatedRoutes[0].routeId).toBe('6627c3f2a4e1b23d0f9e1001')
+      expect(metrics.topRatedRoutes[0].reviewCount).toBe(31)
     })
 
     it('totalReviews is a non-negative number', async () => {
@@ -135,6 +149,11 @@ describe('adminService (mock mode)', () => {
       if (metrics.avgRouteComputationMs !== null) {
         expect(metrics.avgRouteComputationMs).toBeGreaterThan(0)
       }
+    })
+
+    it('throws on non-ok response', async () => {
+      mockApiFetch.mockResolvedValueOnce(new Response(null, { status: 403 }))
+      await expect(getRoutingQualityMetrics()).rejects.toThrow('Failed to fetch routing quality metrics.')
     })
   })
 })
