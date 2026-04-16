@@ -134,4 +134,34 @@ describe('LiveMapPage', () => {
 
     delete process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN;
   });
+
+  it('renders rider marker when token is set', async () => {
+    process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN = 'pk.test_jest_token';
+
+    // Use coordinates near the mock route start point (Central Park, NYC)
+    // so advanceActiveRideSession accepts the position and sets tracking.position
+    const Location = jest.requireMock('expo-location');
+    Location.getCurrentPositionAsync.mockResolvedValue({
+      coords: { latitude: 40.7829, longitude: -73.9654, accuracy: 10 },
+    });
+    Location.watchPositionAsync.mockImplementation((_options: unknown, callback: (pos: object) => void) => {
+      const subscription = { remove: jest.fn() };
+      return new Promise((resolve) => {
+        setImmediate(() => {
+          if (typeof callback === 'function') {
+            callback({ coords: { latitude: 40.7829, longitude: -73.9654, accuracy: 10 }, timestamp: Date.now() });
+          }
+          resolve(subscription);
+        });
+      });
+    });
+
+    render(<LiveMapScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('rider-marker-container')).toBeTruthy();
+    }, { timeout: 5000 });
+
+    delete process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN;
+  });
 });

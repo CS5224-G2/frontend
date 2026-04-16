@@ -6,6 +6,7 @@ import {
   Images,
   LineLayer,
   MapView,
+  MarkerView,
   ShapeSource,
   StyleURL,
   SymbolLayer,
@@ -25,9 +26,9 @@ import {
   liveMapCheckpointCollection,
   liveMapEndPointCollection,
   liveMapFoodPoisAlongRoute,
-  liveMapRiderHaloFeature,
   liveMapStartPointCollection,
 } from '@/utils/liveMapGeojson';
+import RiderMarker from '../components/native/RiderMarker';
 
 const LIVE_MAP_RESTAURANT_PIN = require('../../../assets/live-map-restaurant-pin.png');
 
@@ -51,7 +52,6 @@ export default function LiveMapMapboxScreen() {
     showCompletionModal,
     lineFeature,
     bounds,
-    riderPoint,
     riderLngLat,
     riderHasFix,
     offRouteWarning,
@@ -118,11 +118,6 @@ export default function LiveMapMapboxScreen() {
   const startPointGeo = useMemo(() => liveMapStartPointCollection(route), [route]);
   const endPointGeo = useMemo(() => liveMapEndPointCollection(route), [route]);
   const foodPoiGeo = useMemo(() => liveMapFoodPoisAlongRoute(route), [route]);
-  const riderHalo = useMemo(
-    () => (riderHasFix && riderLngLat ? liveMapRiderHaloFeature(riderLngLat) : null),
-    [riderLngLat, riderHasFix],
-  );
-
   if (routeLoading) {
     return (
       <View style={styles.loading} testID="live-map-loading">
@@ -218,19 +213,16 @@ export default function LiveMapMapboxScreen() {
               />
             </ShapeSource>
           ) : null}
-          {riderHalo ? (
-            <>
-              <ShapeSource id="riderHalo" shape={riderHalo}>
-                <CircleLayer id="riderHaloLayer" style={{ circleRadius: 22, circleColor: '#2563eb', circleOpacity: 0.22 }} />
-              </ShapeSource>
-              <ShapeSource id="riderPoint" shape={riderPoint}>
-                <CircleLayer id="riderCircleOuter" style={{ circleRadius: 14, circleColor: '#93c5fd', circleOpacity: 0.9 }} />
-                <CircleLayer
-                  id="riderCircle"
-                  style={{ circleRadius: 9, circleColor: '#1d4ed8', circleStrokeWidth: 3, circleStrokeColor: '#ffffff' }}
+          {riderHasFix && riderLngLat ? (
+            <MarkerView coordinate={riderLngLat} anchor={{ x: 0.5, y: 0.5 }}>
+              <View testID="rider-marker-container">
+                <RiderMarker
+                  avatarUrl={profile?.avatarUrl}
+                  avatarColor={profile?.avatarColor ?? '#2563eb'}
+                  initials={initials}
                 />
-              </ShapeSource>
-            </>
+              </View>
+            </MarkerView>
           ) : null}
         </MapView>
       ) : (
