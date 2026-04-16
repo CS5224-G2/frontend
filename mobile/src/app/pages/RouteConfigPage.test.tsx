@@ -70,8 +70,20 @@ describe('RouteConfigPage', () => {
     );
 
   beforeEach(() => {
+    jest.clearAllMocks();
     mockNavigate.mockClear();
     mockCanUseAndroidMapbox.mockReturnValue(false);
+    const AsyncStorage = require('@react-native-async-storage/async-storage');
+    const Location = require('expo-location');
+    AsyncStorage.getItem.mockResolvedValue(null);
+    AsyncStorage.setItem.mockResolvedValue(null);
+    Location.requestForegroundPermissionsAsync.mockResolvedValue({ granted: true });
+    Location.getCurrentPositionAsync.mockResolvedValue({
+      coords: { latitude: 1.3521, longitude: 103.8198 },
+    });
+    Location.reverseGeocodeAsync.mockResolvedValue([
+      { name: 'Raffles Place', street: null, district: null, city: null },
+    ]);
   });
 
   it('renders the configure route heading', () => {
@@ -188,6 +200,34 @@ describe('RouteConfigPage', () => {
     fireEvent.press(locateButtons[0]);
 
     await waitFor(() => {
+      expect(screen.getByText('Raffles Place')).toBeTruthy();
+    });
+  });
+
+  it('shows locating state only for the selected point while current location is resolving', async () => {
+    const Location = require('expo-location');
+    let resolvePosition: ((value: { coords: { latitude: number; longitude: number } }) => void) | undefined;
+
+    Location.getCurrentPositionAsync.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolvePosition = resolve;
+        }),
+    );
+
+    renderPage();
+    const locateButtons = screen.getAllByText('Use Current Location');
+    fireEvent.press(locateButtons[0]);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Locating...')).toHaveLength(1);
+      expect(screen.getAllByText('Use Current Location')).toHaveLength(1);
+    });
+
+    resolvePosition?.({ coords: { latitude: 1.3521, longitude: 103.8198 } });
+
+    await waitFor(() => {
+      expect(screen.queryByText('Locating...')).toBeNull();
       expect(screen.getByText('Raffles Place')).toBeTruthy();
     });
   });

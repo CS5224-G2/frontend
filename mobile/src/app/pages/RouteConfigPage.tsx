@@ -355,7 +355,7 @@ export default function RouteConfigPage({ navigation }: Props) {
   const [searchResults, setSearchResults] = useState<RouteRequestLocation[]>([]);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [isSearchingLocations, setIsSearchingLocations] = useState(false);
-  const [isLocating, setIsLocating] = useState(false);
+  const [locatingTargetKind, setLocatingTargetKind] = useState<'start' | 'end' | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -559,8 +559,12 @@ export default function RouteConfigPage({ navigation }: Props) {
   };
 
   const handleUseCurrentLocation = async (target: PickerTarget) => {
+    if (target.kind !== 'start' && target.kind !== 'end') {
+      return;
+    }
+
     try {
-      setIsLocating(true);
+      setLocatingTargetKind(target.kind);
       const permission = await Location.requestForegroundPermissionsAsync();
 
       if (!permission.granted) {
@@ -584,7 +588,7 @@ export default function RouteConfigPage({ navigation }: Props) {
       console.warn('Unable to resolve current location', error);
       Alert.alert('Location unavailable', 'The app could not read your current location right now.');
     } finally {
-      setIsLocating(false);
+      setLocatingTargetKind(null);
     }
   };
 
@@ -654,7 +658,11 @@ export default function RouteConfigPage({ navigation }: Props) {
             <View className="gap-cy-sm">
               <LocationValueCard title="Start Point" location={startPoint} />
               <View className="gap-cy-sm">
-                <ActionPill label={isLocating ? 'Locating...' : 'Use Current Location'} icon="crosshairs-gps" onPress={() => handleUseCurrentLocation({ kind: 'start' })} />
+                <ActionPill
+                  label={locatingTargetKind === 'start' ? 'Locating...' : 'Use Current Location'}
+                  icon="crosshairs-gps"
+                  onPress={() => handleUseCurrentLocation({ kind: 'start' })}
+                />
                 <ActionPill label="Search on Map" icon="map-search-outline" onPress={() => openPicker({ kind: 'start' }, startPoint)} />
               </View>
             </View>
@@ -662,7 +670,11 @@ export default function RouteConfigPage({ navigation }: Props) {
             <View className="gap-cy-sm">
               <LocationValueCard title="End Point" location={endPoint} />
               <View className="gap-cy-sm">
-                <ActionPill label={isLocating ? 'Locating...' : 'Use Current Location'} icon="crosshairs-gps" onPress={() => handleUseCurrentLocation({ kind: 'end' })} />
+                <ActionPill
+                  label={locatingTargetKind === 'end' ? 'Locating...' : 'Use Current Location'}
+                  icon="crosshairs-gps"
+                  onPress={() => handleUseCurrentLocation({ kind: 'end' })}
+                />
                 <ActionPill label="Search on Map" icon="map-search-outline" onPress={() => openPicker({ kind: 'end' }, endPoint)} />
               </View>
             </View>
