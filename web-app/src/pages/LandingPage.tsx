@@ -59,6 +59,37 @@ const problems = [
   { stat: '0', label: 'apps account for', sub: 'shade, haze, or Singapore heritage' },
 ]
 
+const androidApkUrl = import.meta.env.VITE_ANDROID_APK_URL?.trim()
+const downloadButtonClasses =
+  'bg-white text-primary-900 font-bold px-6 py-3 rounded-lg transition-colors inline-flex items-center gap-2 shadow-md'
+const disabledDownloadButtonClasses =
+  'bg-primary-100 text-primary-600 font-bold px-6 py-3 rounded-lg inline-flex items-center gap-2 shadow-sm cursor-not-allowed'
+
+function AndroidDownloadButton() {
+  if (!androidApkUrl) {
+    return (
+      <span
+        className={disabledDownloadButtonClasses}
+        aria-disabled="true"
+        title="Android APK link will appear after VITE_ANDROID_APK_URL is configured."
+      >
+        Android APK coming soon
+      </span>
+    )
+  }
+
+  return (
+    <a
+      href={androidApkUrl}
+      target="_blank"
+      rel="noreferrer"
+      className={`${downloadButtonClasses} hover:bg-primary-50`}
+    >
+      Download Android APK
+    </a>
+  )
+}
+
 export default function LandingPage() {
   return (
     <div className="min-h-screen flex flex-col">
@@ -78,18 +109,7 @@ export default function LandingPage() {
               Personalised route recommendations scored by shade coverage, live weather, terrain difficulty, and local heritage — tailored to <em>you</em>.
             </p>
             <div id="download" className="flex gap-3 flex-wrap justify-center sm:justify-start">
-              <a
-                href="#"
-                className="bg-white text-primary-900 font-bold px-6 py-3 rounded-xl hover:bg-primary-50 transition-colors flex items-center gap-2 shadow-md"
-              >
-                🍎 App Store
-              </a>
-              <a
-                href="#"
-                className="bg-white text-primary-900 font-bold px-6 py-3 rounded-xl hover:bg-primary-50 transition-colors flex items-center gap-2 shadow-md"
-              >
-                ▶ Google Play
-              </a>
+              <AndroidDownloadButton />
             </div>
           </div>
           <div className="w-44 h-64 bg-primary-600 bg-opacity-40 border-2 border-primary-400 border-opacity-30 rounded-3xl flex items-center justify-center text-7xl flex-shrink-0 shadow-2xl">
@@ -174,18 +194,7 @@ export default function LandingPage() {
           Download CycleLink and get your first personalised route in under a minute.
         </p>
         <div className="flex gap-3 flex-wrap justify-center">
-          <a
-            href="#"
-            className="bg-white text-primary-900 font-bold px-6 py-3 rounded-xl hover:bg-primary-50 transition-colors flex items-center gap-2 shadow-md"
-          >
-            🍎 App Store
-          </a>
-          <a
-            href="#"
-            className="bg-white text-primary-900 font-bold px-6 py-3 rounded-xl hover:bg-primary-50 transition-colors flex items-center gap-2 shadow-md"
-          >
-            ▶ Google Play
-          </a>
+          <AndroidDownloadButton />
         </div>
         <p className="text-primary-400 text-sm mt-6">
           Are you a business or public agency?{' '}
