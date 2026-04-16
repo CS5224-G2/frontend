@@ -6,12 +6,14 @@ on:
       - main
     paths:
       - 'web-app/**'
+      - 'amplify.yml'
       - '.github/workflows/web-ci.yml'
   pull_request:
     branches:
       - main
     paths:
       - 'web-app/**'
+      - 'amplify.yml'
       - '.github/workflows/web-ci.yml'
   workflow_dispatch:
 
@@ -27,14 +29,13 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web-app/package-lock.json
 
       - name: Install dependencies
         working-directory: web-app
-        # Delete the lockfile first so npm resolves platform-specific optional
-        # deps (rollup, rolldown) for the Linux runner rather than using the
-        # macOS-generated lockfile which only contains darwin bindings.
-        run: rm -f package-lock.json && npm install
+        run: npm ci
 
       - name: Run Vitest unit tests
         working-directory: web-app
