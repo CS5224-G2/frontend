@@ -20,8 +20,9 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Settings', icon: '⚙️' },
 ]
 
-function RoutingQualityPanel({ metrics }: { metrics: RoutingQualityMetrics | null }) {
+function RoutingQualityPanel({ metrics, hasError }: { metrics: RoutingQualityMetrics | null; hasError: boolean }) {
   if (!metrics) {
+    if (hasError) return null
     return (
       <div className="flex justify-center items-center h-40">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
@@ -37,10 +38,9 @@ function RoutingQualityPanel({ metrics }: { metrics: RoutingQualityMetrics | nul
   const avgRating =
     metrics.overallAvgRating !== null ? `${metrics.overallAvgRating.toFixed(2)} ★` : '—'
 
-  const showComputationTime =
-    metrics.avgRouteComputationMs !== null &&
-    metrics.minRouteComputationMs !== null &&
-    metrics.maxRouteComputationMs !== null
+  const avgMs = metrics.avgRouteComputationMs
+  const minMs = metrics.minRouteComputationMs
+  const maxMs = metrics.maxRouteComputationMs
 
   return (
     <>
@@ -57,25 +57,25 @@ function RoutingQualityPanel({ metrics }: { metrics: RoutingQualityMetrics | nul
       </div>
 
       {/* Computation time */}
-      {showComputationTime && (
+      {avgMs !== null && minMs !== null && maxMs !== null && (
         <div className="bg-white rounded-xl shadow-sm p-5 mb-6">
           <h2 className="font-bold text-primary-900 mb-4">Route Computation Time (ms)</h2>
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
               <p className="text-2xl font-extrabold text-primary-600">
-                {metrics.avgRouteComputationMs!.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                {avgMs.toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </p>
               <p className="text-sm text-slate-500 mt-1">Average</p>
             </div>
             <div>
               <p className="text-2xl font-extrabold text-green-600">
-                {metrics.minRouteComputationMs!.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                {minMs.toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </p>
               <p className="text-sm text-slate-500 mt-1">Min</p>
             </div>
             <div>
               <p className="text-2xl font-extrabold text-amber-500">
-                {metrics.maxRouteComputationMs!.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                {maxMs.toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </p>
               <p className="text-sm text-slate-500 mt-1">Max</p>
             </div>
@@ -197,8 +197,12 @@ export default function AdminDashboard() {
 
       {/* Main */}
       <main className="flex-1 bg-slate-50 p-6 overflow-auto">
-        <h1 className="text-xl font-extrabold text-primary-900 mb-1">System Overview</h1>
-        <p className="text-slate-500 text-sm mb-6">Admin Panel — CycleLink</p>
+        {activeNav === 'Overview' && (
+          <>
+            <h1 className="text-xl font-extrabold text-primary-900 mb-1">System Overview</h1>
+            <p className="text-slate-500 text-sm mb-6">Admin Panel — CycleLink</p>
+          </>
+        )}
 
         {error && (
           <div className="mb-6 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
@@ -255,7 +259,7 @@ export default function AdminDashboard() {
             </div>
           </>
         ) : activeNav === 'Routes' ? (
-          <RoutingQualityPanel metrics={routingMetrics} />
+          <RoutingQualityPanel metrics={routingMetrics} hasError={error !== null} />
         ) : (
           <div className="bg-white rounded-xl shadow-sm p-10 text-center text-slate-400">
             <p className="text-3xl mb-3">🚧</p>
