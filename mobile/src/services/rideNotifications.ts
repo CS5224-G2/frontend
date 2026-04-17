@@ -100,28 +100,24 @@ async function ensureRideNotificationPermission(): Promise<boolean> {
 
   try {
     const existing = await Notifications.getPermissionsAsync();
-    if (existing.granted || existing.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL) {
+    if (existing.granted) {
       await ensureRideNotificationChannel().catch(() => {});
       return true;
     }
 
+    // Don't use allowProvisional — it causes iOS to deliver notifications
+    // "quietly" (no banner, no sound, no lock screen), which makes them
+    // invisible to the user. Standard request triggers the system prompt
+    // and grants full banner + sound delivery.
     const requested = await Notifications.requestPermissionsAsync({
       ios: {
         allowAlert: true,
         allowBadge: true,
         allowSound: true,
-        // NOTE: allowCriticalAlerts requires a special Apple entitlement.
-        // Requesting it without the entitlement causes iOS to silently
-        // deny the entire permission — removing it fixes notification delivery.
-        allowProvisional: true,
-        allowAnnouncements: false,
       },
     });
     await ensureRideNotificationChannel().catch(() => {});
-    return (
-      requested.granted ||
-      requested.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL
-    );
+    return requested.granted;
   } catch {
     return false;
   }
