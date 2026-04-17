@@ -10,8 +10,9 @@ const KEY_ACCESS_TOKEN = 'cl_access_token';
 const KEY_REFRESH_TOKEN = 'cl_refresh_token';
 const KEY_EXPIRES_IN = 'cl_expires_in';
 const KEY_USER_JSON = 'cl_user_json';
+const KEY_ISSUED_AT = 'cl_issued_at';
 
-const ALL_KEYS = [KEY_ACCESS_TOKEN, KEY_REFRESH_TOKEN, KEY_EXPIRES_IN, KEY_USER_JSON];
+const ALL_KEYS = [KEY_ACCESS_TOKEN, KEY_REFRESH_TOKEN, KEY_EXPIRES_IN, KEY_USER_JSON, KEY_ISSUED_AT];
 
 async function getSecureStore() {
   const SecureStore = await import('expo-secure-store');
@@ -27,6 +28,7 @@ export async function saveSession(result: AuthResult): Promise<void> {
   await SecureStore.setItemAsync(KEY_REFRESH_TOKEN, result.refreshToken);
   await SecureStore.setItemAsync(KEY_EXPIRES_IN, String(result.expiresIn));
   await SecureStore.setItemAsync(KEY_USER_JSON, JSON.stringify(result.user));
+  await SecureStore.setItemAsync(KEY_ISSUED_AT, String(Date.now()));
 }
 
 /**
@@ -66,4 +68,28 @@ export async function clearSession(): Promise<void> {
 export async function getAccessToken(): Promise<string | null> {
   const SecureStore = await getSecureStore();
   return SecureStore.getItemAsync(KEY_ACCESS_TOKEN);
+}
+
+/**
+ * Returns the UTC timestamp (ms) at which the current token expires,
+ * or null if no token is stored.
+ */
+export async function getTokenExpiryMs(): Promise<number | null> {
+  const SecureStore = await getSecureStore();
+  const issuedAt = await SecureStore.getItemAsync(KEY_ISSUED_AT);
+  const expiresIn = await SecureStore.getItemAsync(KEY_EXPIRES_IN);
+  if (!issuedAt || !expiresIn) return null;
+  return Number(issuedAt) + Number(expiresIn) * 1000;
+}
+
+/**
+ * Returns true if the stored access token has expired (or if no timing
+ * information is available, conservatively returns false so callers don't
+ * blindly log the user out on a missing key).
+ */
+export async function isTokenExpired(): Promise<boolean> {
+  const expiryMs = await getTokenExpiryMs();
+  if (expiryMs === null) return false;
+  // Treat as expired 60 s before the actual deadline so we have a window.
+  return Date.now() >= expiryMs - 60_000;
 }
