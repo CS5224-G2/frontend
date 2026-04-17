@@ -44,7 +44,11 @@ import OnboardingScreen from './pages/OnboardingPage';
 import UserJourneyScreen from './pages/UserJourneyPage';
 import ForgotPasswordScreen from './pages/ForgotPasswordPage';
 import { FLOATING_TAB_BAR_DOCK_HEIGHT } from './utils/floatingTabBarInset';
-import { extractRideCompletionNotificationData } from '../services/rideNotifications';
+import { extractRideCompletionNotificationData, initializeRideNotifications } from '../services/rideNotifications';
+
+// Warm up the expo-notifications module and create the Android channel early,
+// so the first notification isn't delayed or dropped.
+initializeRideNotifications();
 
 const Stack = createNativeStackNavigator<any>();
 const Tab = createBottomTabNavigator<any>();
