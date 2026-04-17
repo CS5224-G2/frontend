@@ -152,7 +152,7 @@ export default function LoginPage() {
                       rememberMe ? 'bg-primary dark:bg-blue-500 border-primary dark:border-blue-500' : 'bg-bg-base dark:bg-[#111111] border-[#cbd5e1] dark:border-[#2d2d2d]'
                     }`}
                   >
-                    {rememberMe ? <Text className="text-white text-[11px] font-extrabold">x</Text> : null}
+                    {rememberMe ? <Text className="text-white text-[13px] font-extrabold">✓</Text> : null}
                   </View>
                   <Text className="text-[#475569] dark:text-slate-400 text-[13px]">Remember me</Text>
                 </Pressable>
