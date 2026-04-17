@@ -8,13 +8,11 @@ import {
 import {
   Camera,
   CircleLayer,
-  Images,
   LineLayer,
   MapView,
   MarkerView,
   ShapeSource,
   StyleURL,
-  SymbolLayer,
   setAccessToken,
 } from '@rnmapbox/maps';
 import { useRoute } from '@react-navigation/native';
@@ -29,14 +27,12 @@ import { useFloatingTabBarExtraLift } from '../utils/floatingTabBarInset';
 import { useLiveMapRideState } from './useLiveMapRideState';
 import { boundsFromCoordinates } from '@/utils/routeGeometry';
 import {
-  liveMapCheckpointCollection,
   liveMapEndPointCollection,
-  liveMapFoodPoisAlongRoute,
   liveMapStartPointCollection,
 } from '@/utils/liveMapGeojson';
 import RiderMarker from '../components/native/RiderMarker';
-
-const LIVE_MAP_RESTAURANT_PIN = require('../../../assets/live-map-restaurant-pin.png');
+import CheckpointMarker from '../components/native/CheckpointMarker';
+import PoiMarker from '../components/native/PoiMarker';
 
 const supportsNativeGlass =
   Platform.OS === 'ios' && isLiquidGlassAvailable() && isGlassEffectAPIAvailable();
@@ -118,6 +114,8 @@ export default function LiveMapMapboxScreen() {
     goFeedback,
     stopCycling,
     confirmEndRide,
+    currentCheckpoint,
+    visitedPoiIndices,
   } = useLiveMapRideState(routeId, routeParam);
 
   useRideCompletionFeedback(routeCompleted);
@@ -165,10 +163,8 @@ export default function LiveMapMapboxScreen() {
     return boundsFromCoordinates(coords);
   }, [lineCoords, riderLngLat, riderHasFix, bounds]);
 
-  const checkpointGeo = useMemo(() => liveMapCheckpointCollection(route), [route]);
   const startPointGeo = useMemo(() => liveMapStartPointCollection(route), [route]);
   const endPointGeo = useMemo(() => liveMapEndPointCollection(route), [route]);
-  const foodPoiGeo = useMemo(() => liveMapFoodPoisAlongRoute(route), [route]);
   if (routeLoading) {
     return (
       <View style={styles.loading} testID="live-map-loading">
@@ -211,7 +207,6 @@ export default function LiveMapMapboxScreen() {
             animationMode="easeTo"
             animationDuration={350}
           />
-          <Images images={{ liveMapRestaurantPin: LIVE_MAP_RESTAURANT_PIN }} />
           <ShapeSource id="routeLine" shape={lineFeature}>
             <LineLayer
               id="routeLineLayer"
@@ -232,29 +227,25 @@ export default function LiveMapMapboxScreen() {
               />
             </ShapeSource>
           ) : null}
-          {checkpointGeo.features.length > 0 ? (
-            <ShapeSource id="liveMapCheckpoints" shape={checkpointGeo}>
-              <CircleLayer id="checkpointOuter" style={{ circleRadius: 11, circleColor: '#2563eb', circleOpacity: 0.35 }} />
-              <CircleLayer
-                id="checkpointInner"
-                style={{ circleRadius: 5, circleColor: '#ffffff', circleStrokeWidth: 2, circleStrokeColor: '#1d4ed8' }}
-              />
-            </ShapeSource>
-          ) : null}
-          {foodPoiGeo.features.length > 0 ? (
-            <ShapeSource id="liveMapFoodPois" shape={foodPoiGeo}>
-              <SymbolLayer
-                id="foodPoiRestaurantIcon"
-                style={{
-                  iconImage: 'liveMapRestaurantPin',
-                  iconSize: 0.95,
-                  iconAllowOverlap: true,
-                  iconIgnorePlacement: true,
-                  iconAnchor: 'bottom',
-                }}
-              />
-            </ShapeSource>
-          ) : null}
+          {(route.checkpoints ?? []).map((cp, i) =>
+            cp.lat === 0 && cp.lng === 0 ? null : (
+              <MarkerView key={cp.id} coordinate={[cp.lng, cp.lat]} anchor={{ x: 0.5, y: 0.5 }}>
+                <CheckpointMarker visited={i < currentCheckpoint} />
+              </MarkerView>
+            )
+          )}
+
+          {(route.pointsOfInterestVisited ?? []).map((poi, i) =>
+            visitedPoiIndices.has(i) ||
+            typeof poi.lat !== 'number' ||
+            typeof poi.lng !== 'number' ||
+            !poi.category ? null : (
+              <MarkerView key={`poi-${i}`} coordinate={[poi.lng, poi.lat]} anchor={{ x: 0.5, y: 1.0 }}>
+                <PoiMarker category={poi.category} />
+              </MarkerView>
+            )
+          )}
+
           {riderHasFix && riderLngLat ? (
             <MarkerView coordinate={riderLngLat} anchor={{ x: 0.5, y: 0.5 }}>
               <View testID="rider-marker-container">
