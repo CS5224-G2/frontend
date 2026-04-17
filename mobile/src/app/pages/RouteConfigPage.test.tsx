@@ -30,9 +30,12 @@ jest.mock('@expo/vector-icons', () => {
 jest.mock('react-native-maps', () => {
   const React = require('react');
   const { View } = require('react-native');
-  const MockMapView = React.forwardRef((props: any, ref: any) =>
-    React.createElement(View, { ...props, ref }),
-  );
+  const MockMapView = React.forwardRef((props: any, ref: any) => {
+    React.useImperativeHandle(ref, () => ({
+      animateToRegion: jest.fn(),
+    }));
+    return React.createElement(View, props);
+  });
   const MockMarker = (props: any) => React.createElement(View, props);
   return {
     __esModule: true,
@@ -174,6 +177,46 @@ describe('RouteConfigPage', () => {
     await waitFor(() => {
       expect(screen.getByTestId('route-config-mapbox-picker')).toBeTruthy();
     });
+  });
+
+  it('dismisses the keyboard when a search result is selected in the picker', async () => {
+    jest.useFakeTimers();
+    const { Keyboard } = require('react-native');
+    const { searchLocations } = require('../../services/locationSearchService');
+    const dismissSpy = jest.spyOn(Keyboard, 'dismiss');
+
+    searchLocations.mockResolvedValueOnce([
+      { name: 'Singapore Expo', lat: 1.3343, lng: 103.9611, source: 'search' },
+    ]);
+
+    renderPage();
+    const searchButtons = screen.getAllByText('Search on Map');
+    fireEvent.press(searchButtons[1]);
+
+    await waitFor(() => {
+      expect(screen.getByText('Select End Point')).toBeTruthy();
+    });
+
+    fireEvent.changeText(screen.getByPlaceholderText('Search places with OneMap or drop a pin'), 'Singapore Expo');
+
+    await act(async () => {
+      jest.advanceTimersByTime(400);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Singapore Expo')).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByText('Singapore Expo'));
+
+    expect(dismissSpy).toHaveBeenCalled();
+
+    await waitFor(() => {
+      expect(screen.queryByText('Tap the map to drop a pin at a custom coordinate.')).toBeNull();
+    });
+
+    dismissSpy.mockRestore();
+    jest.useRealTimers();
   });
 
   it('closes the map picker modal when Cancel is pressed', async () => {
