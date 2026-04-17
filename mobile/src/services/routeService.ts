@@ -400,10 +400,14 @@ function toFrontendRecommendedRoute(
   route: BackendRecommendationRoute,
   routeRequest: RouteRecommendationRequest | null,
 ): Route {
-  const pointsOfInterestVisited =
+  const rawPois =
     normalizeVisitedPoiNames(route.points_of_interest_visited) ??
     normalizeVisitedPoiNames(route.visited_points_of_interest) ??
     normalizeVisitedPoiNames(route.points_of_interest);
+  const pointsOfInterestVisited = rawPois?.map((poi) => ({
+    ...poi,
+    category: inferPoiCategory(poi.name),
+  }));
 
   // Handle reviewCount from either 'review_count' or 'star' field
   const reviewCount = route.review_count ?? route.star ?? 0;
