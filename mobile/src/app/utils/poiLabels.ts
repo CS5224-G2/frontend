@@ -60,3 +60,14 @@ export function inferPoiCategory(name: string): PointOfInterestCategory | undefi
 
   return undefined;
 }
+
+const VALID_POI_CATEGORIES = new Set<string>(['hawkerCenter', 'historicSite', 'park', 'touristAttraction']);
+
+/**
+ * Safely converts a raw backend string to PointOfInterestCategory.
+ * Returns undefined if the string is not a recognised category.
+ */
+export function toPoiCategory(raw: string | undefined): PointOfInterestCategory | undefined {
+  if (raw && VALID_POI_CATEGORIES.has(raw)) return raw as PointOfInterestCategory;
+  return undefined;
+}

@@ -1,4 +1,4 @@
-import { inferPoiCategory, isLikelyHawkerCentre } from './poiLabels';
+import { inferPoiCategory, isLikelyHawkerCentre, toPoiCategory } from './poiLabels';
 
 describe('isLikelyHawkerCentre', () => {
   it('matches hawker keywords', () => {
@@ -35,5 +35,20 @@ describe('inferPoiCategory', () => {
 
   it('returns undefined for unrecognised names', () => {
     expect(inferPoiCategory('Some Random Place')).toBeUndefined();
+  });
+});
+
+describe('toPoiCategory', () => {
+  it('returns valid categories as-is', () => {
+    expect(toPoiCategory('hawkerCenter')).toBe('hawkerCenter');
+    expect(toPoiCategory('historicSite')).toBe('historicSite');
+    expect(toPoiCategory('park')).toBe('park');
+    expect(toPoiCategory('touristAttraction')).toBe('touristAttraction');
+  });
+
+  it('returns undefined for unrecognised strings', () => {
+    expect(toPoiCategory('restaurant')).toBeUndefined();
+    expect(toPoiCategory('')).toBeUndefined();
+    expect(toPoiCategory(undefined)).toBeUndefined();
   });
 });

@@ -9,10 +9,9 @@ import type {
   RouteRecommendationRequest,
   RouteRequestLocation,
   UserPreferences,
-  PointOfInterestCategory,
 } from '../../../shared/types/index';
 import { normalizeUserPreferences } from '../app/utils/routePreferences';
-import { inferPoiCategory } from '../app/utils/poiLabels';
+import { inferPoiCategory, toPoiCategory } from '../app/utils/poiLabels';
 import { httpClient } from './httpClient';
 
 export type { Route };
@@ -284,7 +283,7 @@ const toFrontendRoute = (r: BackendRoute): Route => {
       description: poi.description,
       lat: poi.lat,
       lng: poi.lng,
-      category: (poi.category as PointOfInterestCategory | undefined) ?? inferPoiCategory(poi.name),
+      category: toPoiCategory(poi.category) ?? inferPoiCategory(poi.name),
     })),
   };
 
