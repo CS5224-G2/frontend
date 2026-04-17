@@ -3,12 +3,94 @@ import * as TaskManager from 'expo-task-manager';
 
 import {
   advanceActiveRideSession,
+  type ActiveRideSession,
   clearActiveRideSession,
   loadActiveRideSession,
   saveActiveRideSession,
 } from './activeRideSession';
+import { saveRide } from './rideService';
+import {
+  notifyCheckpointReachedInBackground,
+  notifyPoiReachedInBackground,
+  notifyRideCompletedInBackground,
+  type RideFeedbackSummary,
+} from './rideNotifications';
+import { haversineDistanceKm } from '@/utils/routeGeometry';
 
 export const BACKGROUND_RIDE_TRACKING_TASK = 'cyclelink-background-ride-tracking';
+
+/** Radius within which a POI triggers a notification (80 m, same as foreground). */
+const POI_PROXIMITY_KM = 0.08;
+
+function getNewlyEnteredPoiIndices(
+  session: ActiveRideSession,
+): number[] {
+  const pois = session.route.pointsOfInterestVisited ?? [];
+  if (!pois.length || !session.lastKnownPosition) {
+    return [];
+  }
+
+  const alreadyNotified = new Set(session.lastPoiIndicesNotified ?? []);
+  const newIndices: number[] = [];
+
+  pois.forEach((poi, index) => {
+    if (alreadyNotified.has(index)) return;
+    if (typeof poi.lat !== 'number' || typeof poi.lng !== 'number') return;
+    const distKm = haversineDistanceKm(
+      [session.lastKnownPosition!.lng, session.lastKnownPosition!.lat],
+      [poi.lng, poi.lat],
+    );
+    if (distKm <= POI_PROXIMITY_KM) {
+      newIndices.push(index);
+    }
+  });
+
+  return newIndices;
+}
+
+function getCheckpointCount(session: ActiveRideSession): number {
+  const checkpoints = session.route.checkpoints ?? [];
+  if (!checkpoints.length) {
+    return 0;
+  }
+
+  const threshold = 100 / (checkpoints.length + 1);
+  return Math.min(checkpoints.length, Math.floor((session.progressPct ?? 0) / threshold));
+}
+
+function isRouteCompleted(session: ActiveRideSession): boolean {
+  const progressPct = session.progressPct ?? 0;
+  if (progressPct >= 98) {
+    return true;
+  }
+
+  if (progressPct < 95 || !session.lastKnownPosition) {
+    return false;
+  }
+
+  const distanceToEndKm = haversineDistanceKm(
+    [session.lastKnownPosition.lng, session.lastKnownPosition.lat],
+    [session.route.endPoint.lng, session.route.endPoint.lat],
+  );
+
+  return distanceToEndKm <= 0.03;
+}
+
+function buildRideSummary(session: ActiveRideSession, completedAt: string): RideFeedbackSummary {
+  const completedAtMs = Date.parse(completedAt);
+  const startedAtMs = Date.parse(session.startedAt);
+  const totalPausedMs = session.totalPausedMs ?? 0;
+  const elapsedSec =
+    Number.isNaN(completedAtMs) || Number.isNaN(startedAtMs)
+      ? 0
+      : Math.max(0, Math.floor((completedAtMs - startedAtMs - totalPausedMs) / 1000));
+
+  return {
+    distanceKm: session.route.distance,
+    elapsedMinutes: Math.max(1, Math.round(elapsedSec / 60)),
+    checkpointsVisited: session.route.checkpoints.length,
+  };
+}
 
 TaskManager.defineTask(BACKGROUND_RIDE_TRACKING_TASK, async ({ data, error }) => {
   if (error) {
@@ -23,6 +105,9 @@ TaskManager.defineTask(BACKGROUND_RIDE_TRACKING_TASK, async ({ data, error }) =>
     return;
   }
 
+  const previousCheckpointCount =
+    session.lastCheckpointIndexNotified ?? getCheckpointCount(session);
+
   let nextSession = session;
   for (const location of locations) {
     const coords = location.coords;
@@ -36,6 +121,77 @@ TaskManager.defineTask(BACKGROUND_RIDE_TRACKING_TASK, async ({ data, error }) =>
     );
   }
 
+  if (isRouteCompleted(nextSession)) {
+    const completedAt = new Date().toISOString();
+    const rideSummary = buildRideSummary(nextSession, completedAt);
+
+    try {
+      const avgSpeed =
+        rideSummary.elapsedMinutes > 0
+          ? Number((rideSummary.distanceKm / (rideSummary.elapsedMinutes / 60)).toFixed(1))
+          : 0;
+
+      await saveRide({
+        route: nextSession.route,
+        startTime: nextSession.startedAt,
+        endTime: completedAt,
+        distance: rideSummary.distanceKm,
+        avgSpeed,
+        checkpointsVisited: rideSummary.checkpointsVisited,
+        pointsOfInterestVisited: nextSession.route.pointsOfInterestVisited,
+      });
+    } catch (persistError) {
+      console.warn('[BackgroundRideTracking] Failed to persist completed ride', persistError);
+    }
+
+    try {
+      await notifyRideCompletedInBackground(nextSession.route, rideSummary);
+    } catch (notifyError) {
+      console.warn('[BackgroundRideTracking] Failed to notify completed ride', notifyError);
+    }
+
+    await stopBackgroundRideTracking().catch((stopError) => {
+      console.warn('[BackgroundRideTracking] Failed to stop background tracking', stopError);
+    });
+    await clearActiveRideSession();
+    return;
+  }
+
+  const currentCheckpointCount = getCheckpointCount(nextSession);
+  if (currentCheckpointCount > previousCheckpointCount) {
+    const latestCheckpoint = nextSession.route.checkpoints[currentCheckpointCount - 1];
+    if (latestCheckpoint) {
+      void notifyCheckpointReachedInBackground(nextSession.route.name, latestCheckpoint.name).catch(
+        (notifyError) => {
+          console.warn('[BackgroundRideTracking] Failed to notify checkpoint', notifyError);
+        },
+      );
+    }
+  }
+
+  // POI proximity detection — fires once per POI, persisted across background wakeups
+  const newPoiIndices = getNewlyEnteredPoiIndices(nextSession);
+  if (newPoiIndices.length > 0) {
+    const pois = nextSession.route.pointsOfInterestVisited ?? [];
+    for (const poiIndex of newPoiIndices) {
+      const poi = pois[poiIndex];
+      if (poi) {
+        void notifyPoiReachedInBackground(poi.name, poi.category ?? '').catch((notifyError) => {
+          console.warn('[BackgroundRideTracking] Failed to notify POI', notifyError);
+        });
+      }
+    }
+  }
+
+  const allNotifiedPoiIndices = Array.from(
+    new Set([...(nextSession.lastPoiIndicesNotified ?? []), ...newPoiIndices]),
+  );
+
+  nextSession = {
+    ...nextSession,
+    lastCheckpointIndexNotified: currentCheckpointCount,
+    lastPoiIndicesNotified: allNotifiedPoiIndices,
+  };
   await saveActiveRideSession(nextSession);
 });
 

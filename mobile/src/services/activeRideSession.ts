@@ -22,6 +22,9 @@ export type ActiveRideSession = {
   lastKnownPosition?: { lat: number; lng: number };
   distanceKm?: number;
   progressPct?: number;
+  lastCheckpointIndexNotified?: number;
+  /** Indices of route.pointsOfInterestVisited that have already triggered a notification. */
+  lastPoiIndicesNotified?: number[];
 };
 
 function normalizeActiveRideSession(session: ActiveRideSession): ActiveRideSession {
@@ -33,6 +36,11 @@ function normalizeActiveRideSession(session: ActiveRideSession): ActiveRideSessi
       typeof session.totalPausedMs === 'number' && Number.isFinite(session.totalPausedMs)
         ? Math.max(0, session.totalPausedMs)
         : 0,
+    lastCheckpointIndexNotified:
+      typeof session.lastCheckpointIndexNotified === 'number' &&
+      Number.isFinite(session.lastCheckpointIndexNotified)
+        ? Math.max(0, Math.floor(session.lastCheckpointIndexNotified))
+        : undefined,
   };
 }
 

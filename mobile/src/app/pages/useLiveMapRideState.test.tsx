@@ -170,6 +170,8 @@ describe('useLiveMapRideState', () => {
     expect(result.current.progress).toBeGreaterThanOrEqual(4);
     expect(result.current.progress).toBeLessThanOrEqual(6);
     expect(result.current.distanceTraveled).not.toBe('0.00');
+    expect(result.current.riderHasFix).toBe(true);
+    expect(result.current.riderLngLat).toEqual(result.current.riderPoint.geometry.coordinates);
   });
 
   it('does not end the ride until end is explicitly confirmed', async () => {
@@ -344,16 +346,21 @@ describe('useLiveMapRideState', () => {
       result.current.goFeedback();
     });
 
-    expect(mockNavigate).toHaveBeenCalledWith(
-      'RouteFeedback',
-      expect.objectContaining({
-        routeId: route.id,
-        route,
-        rideSummary: expect.objectContaining({
-          elapsedMinutes: expect.any(Number),
-        }),
-      }),
-    );
+    expect(mockReset).toHaveBeenCalledWith({
+      index: 0,
+      routes: [
+        {
+          name: 'RouteFeedback',
+          params: expect.objectContaining({
+            routeId: route.id,
+            route,
+            rideSummary: expect.objectContaining({
+              elapsedMinutes: expect.any(Number),
+            }),
+          }),
+        },
+      ],
+    });
   });
 
   it('finalizes the ride immediately once completion is reached', async () => {
@@ -387,5 +394,103 @@ describe('useLiveMapRideState', () => {
     });
 
     expect(result.current.elapsedSec).toBe(completedElapsed);
+  });
+});
+
+describe('POI visited detection', () => {
+  afterEach(() => {
+    mockLiveMapProgressSimulationEnabled = false;
+    jest.useRealTimers();
+  });
+
+  const routeWithPoi = {
+    ...mockRoutes[1],
+    pointsOfInterestVisited: [
+      {
+        name: 'Bryant Park Snack Stop',
+        description: 'Nearby route POI',
+        lat: mockRoutes[1].checkpoints[0].lat,
+        lng: mockRoutes[1].checkpoints[0].lng,
+        category: 'hawkerCenter' as const,
+      },
+      {
+        name: 'Far Away Place',
+        description: 'Not nearby',
+        lat: 1.3,
+        lng: 104.0,
+        category: 'park' as const,
+      },
+    ],
+  };
+
+  it('adds a POI index to visitedPoiIndices when the rider is within 80 m', async () => {
+    // Use simulation mode so riderLngLat is determined by progressPct, not GPS.
+    // At elapsedSec=0, progressPct=0, riderLngLat = startPoint. Placing the POI
+    // at startPoint gives a deterministic distance=0 that always fires on mount.
+    mockLiveMapProgressSimulationEnabled = true;
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-04-18T00:00:00.000Z'));
+
+    const nearbyRoute = {
+      ...mockRoutes[1],
+      pointsOfInterestVisited: [
+        {
+          name: 'Start Line Cafe',
+          lat: mockRoutes[1].startPoint.lat,
+          lng: mockRoutes[1].startPoint.lng,
+          category: 'hawkerCenter' as const,
+        },
+        {
+          name: 'Far Away Place',
+          lat: 1.3,
+          lng: 104.0,
+          category: 'park' as const,
+        },
+      ],
+    };
+
+    const { result } = renderHook(() =>
+      useLiveMapRideState(nearbyRoute.id, nearbyRoute)
+    );
+
+    await waitFor(() => {
+      expect(result.current.routeLoading).toBe(false);
+    });
+
+    // riderLngLat in sim mode at progressPct=0 = startPoint.
+    // POI 0 is also at startPoint → distance 0 ≤ 80 m → detected.
+    await waitFor(() => {
+      expect(result.current.visitedPoiIndices.has(0)).toBe(true);
+    });
+
+    // The far-away POI should remain unvisited
+    expect(result.current.visitedPoiIndices.has(1)).toBe(false);
+  });
+
+  it('does not add a POI when rider is far away', async () => {
+    // Rider is at the route start, far from both POIs
+    (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValueOnce({
+      coords: {
+        latitude: routeWithPoi.startPoint.lat,
+        longitude: routeWithPoi.startPoint.lng,
+        accuracy: 5,
+      },
+    });
+    (Location.watchPositionAsync as jest.Mock).mockImplementationOnce(
+      async (_opts: unknown, cb: (pos: { coords: { latitude: number; longitude: number; accuracy: number } }) => void) => {
+        cb({ coords: { latitude: routeWithPoi.startPoint.lat, longitude: routeWithPoi.startPoint.lng, accuracy: 5 } });
+        return { remove: jest.fn() };
+      }
+    );
+
+    const { result } = renderHook(() =>
+      useLiveMapRideState(routeWithPoi.id, routeWithPoi)
+    );
+
+    await waitFor(() => {
+      expect(result.current.routeLoading).toBe(false);
+    });
+
+    expect(result.current.visitedPoiIndices.size).toBe(0);
   });
 });

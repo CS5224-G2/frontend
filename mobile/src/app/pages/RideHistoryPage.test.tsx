@@ -189,7 +189,45 @@ describe('RideHistoryPage', () => {
     expect(screen.getByText('Waterfront Loop')).toBeTruthy();
     expect(screen.getByText('Mountain Ridge Trail')).toBeTruthy();
     expect(screen.getByText('City Express')).toBeTruthy();
+    expect(screen.getByTestId('ride-preview-1')).toBeTruthy();
     expect(screen.getByText('2h 55m')).toBeTruthy();
+  }, 10000);
+
+  it('replaces coordinate-heavy route titles with a readable pinned-location label', async () => {
+    mockGetRideHistory.mockResolvedValue([
+      {
+        id: '1',
+        routeId: '1',
+        routeName: 'University Town -> 1.30383, 103.77435',
+        completionDate: 'April 17, 2026',
+        completionTime: '5:25 PM',
+        totalTime: 18,
+        distance: 0.68,
+        avgSpeed: 2.2,
+        checkpoints: 0,
+        routeDetails: {
+          id: 'route-1',
+          name: 'University Town -> 1.30383, 103.77435',
+          description: 'Pinned destination test',
+          distance: 0.68,
+          elevation: 10,
+          estimatedTime: 18,
+          rating: 4.2,
+          reviewCount: 3,
+          startPoint: { lat: 1.2966, lng: 103.7764, name: 'University Town' },
+          endPoint: { lat: 1.30383, lng: 103.77435, name: '1.30383, 103.77435' },
+          checkpoints: [],
+          cyclistType: 'general',
+          shade: 50,
+          airQuality: 70,
+        },
+      },
+    ]);
+
+    await renderRideHistoryPage();
+
+    expect(screen.getByText('University Town to Pinned location')).toBeTruthy();
+    expect(screen.queryByText('University Town -> 1.30383, 103.77435')).toBeNull();
   }, 10000);
 
   it('shows the empty state when no rides are returned', async () => {

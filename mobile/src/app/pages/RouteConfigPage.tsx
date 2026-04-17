@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, Keyboard, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useColorScheme } from 'nativewind';
@@ -410,6 +410,7 @@ export default function RouteConfigPage({ navigation }: Props) {
   const isDark = colorScheme === 'dark';
   const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView | null>(null);
+  const searchInputRef = useRef<TextInput | null>(null);
   const androidMapboxEnabled = canUseAndroidMapbox();
   const RoutePickerMapbox = androidMapboxEnabled ? require('./RoutePickerMapbox').default : null;
 
@@ -520,7 +521,13 @@ export default function RouteConfigPage({ navigation }: Props) {
     };
   }, [draftLocation?.name, draftLocation?.source, pickerTarget, searchQuery, shouldSearchLocations]);
 
+  const dismissPickerKeyboard = () => {
+    searchInputRef.current?.blur();
+    Keyboard.dismiss();
+  };
+
   const closePicker = () => {
+    dismissPickerKeyboard();
     setPickerTarget(null);
     setSearchQuery('');
     setDraftLocation(null);
@@ -602,6 +609,7 @@ export default function RouteConfigPage({ navigation }: Props) {
   };
 
   const updateDraftLocation = (latitude: number, longitude: number) => {
+    dismissPickerKeyboard();
     const coordinateLabel = buildCoordinateLabel(latitude, longitude);
     const nextLocation: RouteRequestLocation = {
       name: coordinateLabel,
@@ -1037,13 +1045,17 @@ export default function RouteConfigPage({ navigation }: Props) {
 
               <View className="absolute left-3 right-3 top-3" pointerEvents="box-none">
                 <TextInput
+                  ref={searchInputRef}
                   className="border border-slate-300 dark:border-[#2d2d2d] rounded-[14px] px-cy-md bg-white dark:bg-[#111111] text-slate-900 dark:text-slate-100"
                   style={{ height: 50 }}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
+                  onSubmitEditing={dismissPickerKeyboard}
                   placeholder="Search places with OneMap or drop a pin"
                   placeholderTextColor={isDark ? '#94a3b8' : '#9ca3af'}
                   autoCapitalize="words"
+                  blurOnSubmit
+                  returnKeyType="search"
                 />
 
                 {searchQuery.trim() ? (
@@ -1057,8 +1069,11 @@ export default function RouteConfigPage({ navigation }: Props) {
                         <Pressable
                           key={`${location.name}-${location.lat}-${location.lng}`}
                           onPress={() => {
+                            dismissPickerKeyboard();
                             setDraftLocation(location);
                             setSearchQuery(location.name);
+                            setSearchResults([]);
+                            setSearchError(null);
                             focusMapRegion({
                               latitude: location.lat,
                               longitude: location.lng,

@@ -11,6 +11,7 @@ import type {
   UserPreferences,
 } from '../../../shared/types/index';
 import { normalizeUserPreferences } from '../app/utils/routePreferences';
+import { inferPoiCategory, toPoiCategory } from '../app/utils/poiLabels';
 import { httpClient } from './httpClient';
 
 export type { Route };
@@ -58,7 +59,7 @@ type BackendRoute = {
   shade?: number | 'reduce-shade' | 'dont-care';
   air_quality_index?: number;
   air_quality?: number | 'care' | 'dont-care';
-  points_of_interest_visited?: Array<{ name: string; description?: string; lat?: number; lng?: number }>;
+  points_of_interest_visited?: Array<{ name: string; description?: string; lat?: number; lng?: number; category?: string }>;
 };
 
 type BackendRequestLocationSource = 'search' | 'map' | 'current-location';
@@ -277,7 +278,13 @@ const toFrontendRoute = (r: BackendRoute): Route => {
     cyclistType: r.cyclist_type,
     shade: r.shade ?? r.shade_pct ?? 'dont-care',
     airQuality: r.air_quality ?? r.air_quality_index ?? 'dont-care',
-    pointsOfInterestVisited: r.points_of_interest_visited,
+    pointsOfInterestVisited: r.points_of_interest_visited?.map((poi) => ({
+      name: poi.name,
+      description: poi.description,
+      lat: poi.lat,
+      lng: poi.lng,
+      category: toPoiCategory(poi.category) ?? inferPoiCategory(poi.name),
+    })),
   };
 
   return finalizeRouteEndpoints(base);
@@ -392,10 +399,14 @@ function toFrontendRecommendedRoute(
   route: BackendRecommendationRoute,
   routeRequest: RouteRecommendationRequest | null,
 ): Route {
-  const pointsOfInterestVisited =
+  const rawPois =
     normalizeVisitedPoiNames(route.points_of_interest_visited) ??
     normalizeVisitedPoiNames(route.visited_points_of_interest) ??
     normalizeVisitedPoiNames(route.points_of_interest);
+  const pointsOfInterestVisited = rawPois?.map((poi) => ({
+    ...poi,
+    category: inferPoiCategory(poi.name),
+  }));
 
   // Handle reviewCount from either 'review_count' or 'star' field
   const reviewCount = route.review_count ?? route.star ?? 0;

@@ -8,6 +8,7 @@ import { getApiBaseUrl } from '../config/runtime';
 import { logFailure, logStart, logSuccess } from '../utils/apiLogger';
 import { notifySessionExpired } from './authEvents';
 import { clearSession, getAccessToken } from './secureSession';
+import { loadActiveRideSession } from './activeRideSession';
 
 type RequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -73,8 +74,14 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     const text = await response.text().catch(() => response.statusText);
     logFailure(path, method, duration_ms, { status: response.status, error: text });
     if (response.status === 401) {
-      clearSession().catch(() => {});
-      notifySessionExpired();
+      // Don't log the user out while they have an active ride — ride data is
+      // stored locally and the session can be recovered after the ride ends.
+      // Only clear the session when no ride is in progress.
+      const activeRide = await loadActiveRideSession().catch(() => null);
+      if (!activeRide) {
+        clearSession().catch(() => {});
+        notifySessionExpired();
+      }
     }
     throw new ApiError(response.status, text);
   }

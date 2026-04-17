@@ -206,7 +206,7 @@ export default function RegisterPage() {
                 className={`items-center justify-center mr-[10px] mt-0.5 border rounded-cy-sm ${agreedToTerms ? 'bg-primary dark:bg-blue-500 border-primary dark:border-blue-500' : 'bg-bg-base dark:bg-[#111111] border-[#cbd5e1] dark:border-[#2d2d2d]'}`}
                 style={{ width: 20, height: 20 }}
               >
-                {agreedToTerms ? <Text className="text-white text-[11px] font-extrabold">x</Text> : null}
+                {agreedToTerms ? <Text className="text-white text-[13px] font-extrabold">✓</Text> : null}
               </View>
               <Text className="flex-1 text-[#475569] dark:text-slate-400 text-[13px] leading-5">
                 I agree to the <Text className="text-[#2563eb] dark:text-blue-400 text-[13px] font-bold">Terms of Service</Text> and{' '}

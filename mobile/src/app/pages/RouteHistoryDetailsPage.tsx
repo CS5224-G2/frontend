@@ -5,7 +5,7 @@ import MapView, { Marker, Polyline, type LatLng, type Region } from 'react-nativ
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button } from '../components/native/Common';
 import { FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useColorScheme } from 'nativewind';
-import { type RideHistory } from '../../../../shared/types/index';
+import { type RideHistory, type Route } from '../../../../shared/types/index';
 import { getRideById } from '../../services/rideService';
 import { resolveRouteById } from '../../services/routeLookup';
 import { useFloatingTabBarScrollPadding } from '../utils/floatingTabBarInset';
@@ -13,8 +13,41 @@ import { fitRegionForCoordinates, routeToLineCoordinates, routeToMapCoordinates 
 import { canUseAndroidMapbox } from '../utils/mapboxSupport';
 import { mapPinMarkerProps } from '../utils/mapMarkers';
 import { isLikelyHawkerCentre } from '../utils/poiLabels';
+import { formatRouteElevation } from '../utils/routeDisplay';
 
 type Props = NativeStackScreenProps<any, 'HistoryDetails'>;
+
+function formatCyclistTypeLabel(value: Route['cyclistType'] | undefined): string {
+  if (!value) {
+    return 'General';
+  }
+
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function formatShadeSummary(value: Route['shade'] | undefined): string {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return `Shade ${Math.round(value)}%`;
+  }
+
+  if (value === 'reduce-shade') {
+    return 'Shade preferred';
+  }
+
+  return 'Shade flexible';
+}
+
+function formatAirQualitySummary(value: Route['airQuality'] | undefined): string {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return `Air ${Math.round(value)}/100`;
+  }
+
+  if (value === 'care') {
+    return 'Air monitored';
+  }
+
+  return 'Air flexible';
+}
 
 export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
   const { rideId } = route.params as { rideId: string };
@@ -173,6 +206,24 @@ export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
     );
   }
 
+  const handleRideThisRouteAgain = () => {
+    const params = { routeId: routeInfo.id, route: routeInfo };
+    const parentNavigation = navigation.getParent?.();
+
+    if (parentNavigation) {
+      parentNavigation.navigate('home-tab', {
+        screen: 'RouteDetails',
+        params,
+      });
+      return;
+    }
+
+    navigation.navigate('home-tab', {
+      screen: 'RouteDetails',
+      params,
+    });
+  };
+
   return (
     <ScrollView
       className="flex-1 bg-slate-50 dark:bg-black"
@@ -272,7 +323,7 @@ export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
           <CardTitle>Ride Completed</CardTitle>
         </CardHeader>
         <CardContent>
-          <Text className="text-sm text-[#0369a1] dark:text-slate-400">{ride.completionDate} ΓÇó {ride.completionTime}</Text>
+          <Text className="text-sm text-[#0369a1] dark:text-slate-400">{ride.completionDate} - {ride.completionTime}</Text>
         </CardContent>
       </Card>
 
@@ -311,7 +362,7 @@ export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
             </View>
             <View className="bg-slate-50 dark:bg-[#111111] rounded-[10px] p-[10px] border border-[#e2e8f0] dark:border-[#2d2d2d] items-center" style={{ width: '48%' }}>
               <FontAwesome5 name="mountain" size={16} color="#f97316" />
-              <Text className="text-base font-bold mt-[6px] text-[#1e293b] dark:text-slate-100">{routeInfo.elevation} m</Text>
+              <Text className="text-base font-bold mt-[6px] text-[#1e293b] dark:text-slate-100">{formatRouteElevation(routeInfo.elevation)}</Text>
               <Text className="text-xs text-[#64748b] dark:text-slate-400">Elevation</Text>
             </View>
             <View className="bg-slate-50 dark:bg-[#111111] rounded-[10px] p-[10px] border border-[#e2e8f0] dark:border-[#2d2d2d] items-center" style={{ width: '48%' }}>
@@ -355,15 +406,15 @@ export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
       <Card>
         <CardHeader>
           <CardTitle>Route Info</CardTitle>
-          <CardDescription>{routeInfo.cyclistType} ΓÇó {routeInfo.estimatedTime} min estimate</CardDescription>
+          <CardDescription>{formatCyclistTypeLabel(routeInfo.cyclistType)} - {routeInfo.estimatedTime} min estimate</CardDescription>
         </CardHeader>
         <CardContent>
           <View className="flex-row flex-wrap gap-2 mb-2">
             <View className="bg-[#e0e7ff] dark:bg-[#1a1a1a] py-1 px-[10px] rounded-cy-md">
-              <Text className="text-[#1e3a8a] dark:text-slate-100 text-xs font-semibold">Shade {routeInfo.shade}%</Text>
+              <Text className="text-[#1e3a8a] dark:text-slate-100 text-xs font-semibold">{formatShadeSummary(routeInfo.shade)}</Text>
             </View>
             <View className="bg-[#e0e7ff] dark:bg-[#1a1a1a] py-1 px-[10px] rounded-cy-md">
-              <Text className="text-[#1e3a8a] dark:text-slate-100 text-xs font-semibold">Air {routeInfo.airQuality}/100</Text>
+              <Text className="text-[#1e3a8a] dark:text-slate-100 text-xs font-semibold">{formatAirQualitySummary(routeInfo.airQuality)}</Text>
             </View>
           </View>
           <Text className="mt-2 mb-1 text-[#334155] dark:text-slate-100 font-bold">Checkpoints Visited</Text>
@@ -408,17 +459,7 @@ export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
       </Card>
 
       <Button
-        onPress={() =>
-          navigation.navigate('HomeTab', {
-            state: {
-              routes: [
-                { name: 'HomePage' },
-                { name: 'RouteDetails', params: { routeId: routeInfo.id, route: routeInfo } },
-              ],
-              index: 1,
-            },
-          })
-        }
+        onPress={handleRideThisRouteAgain}
         style={{
           backgroundColor: '#2563eb',
           borderRadius: 10,
