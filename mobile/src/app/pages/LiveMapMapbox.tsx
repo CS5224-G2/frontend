@@ -1,5 +1,5 @@
-﻿import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+﻿import { useContext, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Image, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import {
   GlassView,
   isGlassEffectAPIAvailable,
@@ -21,7 +21,8 @@ import { useColorScheme } from 'nativewind';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { type Route } from '../../../../shared/types/index';
-import { getUserProfile, type UserProfile } from '../../services/userService';
+import { getCachedUserProfile, getUserProfile, type UserProfile } from '../../services/userService';
+import { AuthContext } from '../AuthContext';
 import { useRideCompletionFeedback } from '../hooks/useRideCompletionFeedback';
 import { useFloatingTabBarExtraLift } from '../utils/floatingTabBarInset';
 import { useLiveMapRideState } from './useLiveMapRideState';
@@ -81,6 +82,7 @@ export default function LiveMapMapboxScreen() {
   const { params } = useRoute<any>();
   const routeParam = params?.route as Route | undefined;
   const routeId = (params?.routeId as string | undefined) ?? routeParam?.id;
+  const { user: authUser } = useContext(AuthContext);
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
   const styles = getStyles(isDark);
@@ -104,6 +106,8 @@ export default function LiveMapMapboxScreen() {
     riderHasFix,
     offRouteWarning,
     locationDenied,
+    locationReady,
+    locationIssue,
     lineCoords,
     navigation,
     formatTime,
@@ -126,19 +130,34 @@ export default function LiveMapMapboxScreen() {
     }
   }, [mapboxToken]);
 
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(() => getCachedUserProfile());
 
   useEffect(() => {
+    const cachedProfile = getCachedUserProfile();
+    if (cachedProfile) {
+      setProfile(cachedProfile);
+      if (cachedProfile.avatarUrl && typeof Image.prefetch === 'function') {
+        Promise.resolve(Image.prefetch(cachedProfile.avatarUrl)).catch(() => {});
+      }
+    }
+
     getUserProfile()
-      .then(setProfile)
+      .then((nextProfile) => {
+        if (nextProfile.avatarUrl && typeof Image.prefetch === 'function') {
+          Promise.resolve(Image.prefetch(nextProfile.avatarUrl)).catch(() => {});
+        }
+        setProfile(nextProfile);
+      })
       .catch(() => {
         // Non-fatal — marker falls back to plain blue circle
       });
   }, []);
 
-  const initials = profile?.fullName
-    ? profile.fullName
-        .split(' ')
+  const initials = (profile?.fullName ?? authUser?.fullName ?? authUser?.firstName ?? '')
+    ? (profile?.fullName ?? authUser?.fullName ?? authUser?.firstName ?? '')
+        .trim()
+        .split(/\s+/)
+        .filter((part) => part.length > 0)
         .map((part) => part[0])
         .join('')
         .slice(0, 2)
@@ -162,6 +181,42 @@ export default function LiveMapMapboxScreen() {
     if (!coords.length) return bounds;
     return boundsFromCoordinates(coords);
   }, [lineCoords, riderLngLat, riderHasFix, bounds]);
+
+  const locationBanner = useMemo(() => {
+    if (locationDenied) {
+      return {
+        testID: 'live-map-location-denied',
+        title: 'Location off',
+        body: 'Enable location permission to see your position and progress on the route.',
+      };
+    }
+
+    if (locationIssue === 'services-disabled') {
+      return {
+        testID: 'live-map-location-services-off',
+        title: 'Location services off',
+        body: 'Turn on Location Services on the device or simulator to show the rider tracker.',
+      };
+    }
+
+    if (locationIssue === 'signal-unavailable' && !riderHasFix) {
+      return {
+        testID: 'live-map-location-unavailable',
+        title: 'Waiting for GPS',
+        body: 'No location fix yet. Move to an open area or set a simulator location and try again.',
+      };
+    }
+
+    if (!locationReady && !riderHasFix) {
+      return {
+        testID: 'live-map-location-pending',
+        title: 'Locating rider',
+        body: 'Getting your current position.',
+      };
+    }
+
+    return null;
+  }, [locationDenied, locationIssue, locationReady, riderHasFix]);
 
   const startPointGeo = useMemo(() => liveMapStartPointCollection(route), [route]);
   const endPointGeo = useMemo(() => liveMapEndPointCollection(route), [route]);
@@ -323,7 +378,7 @@ export default function LiveMapMapboxScreen() {
           </GlassSurface>
         ) : null}
 
-        {locationDenied ? (
+        {locationBanner ? (
           <GlassSurface
             isDark={isDark}
             tintLight="rgba(254,243,199,0.82)"
@@ -332,9 +387,9 @@ export default function LiveMapMapboxScreen() {
             fallbackDark="#78350f"
             style={styles.warnBanner}
           >
-            <View style={styles.warnBannerInner} testID="live-map-location-denied">
-              <Text style={styles.warnTitle}>Location off</Text>
-              <Text style={styles.warnBody}>Enable location permission to see your position and progress on the route.</Text>
+            <View style={styles.warnBannerInner} testID={locationBanner.testID}>
+              <Text style={styles.warnTitle}>{locationBanner.title}</Text>
+              <Text style={styles.warnBody}>{locationBanner.body}</Text>
             </View>
           </GlassSurface>
         ) : null}

@@ -21,6 +21,8 @@ export const BACKGROUND_RIDE_TRACKING_TASK = 'cyclelink-background-ride-tracking
 
 /** Radius within which a POI triggers a notification (80 m, same as foreground). */
 const POI_PROXIMITY_KM = 0.08;
+const ENDPOINT_COMPLETION_RADIUS_KM = 0.04;
+const MIN_COMPLETION_MOVEMENT_KM = 0.02;
 
 function getNewlyEnteredPoiIndices(
   session: ActiveRideSession,
@@ -58,22 +60,43 @@ function getCheckpointCount(session: ActiveRideSession): number {
   return Math.min(checkpoints.length, Math.floor((session.progressPct ?? 0) / threshold));
 }
 
-function isRouteCompleted(session: ActiveRideSession): boolean {
+function isRouteCompleted(
+  session: ActiveRideSession,
+  latestRawPosition?: { lat: number; lng: number } | null,
+): boolean {
   const progressPct = session.progressPct ?? 0;
   if (progressPct >= 98) {
     return true;
   }
 
-  if (progressPct < 95 || !session.lastKnownPosition) {
+  const completionReference = latestRawPosition ?? session.lastKnownPosition;
+  if (!completionReference) {
     return false;
   }
 
   const distanceToEndKm = haversineDistanceKm(
-    [session.lastKnownPosition.lng, session.lastKnownPosition.lat],
+    [completionReference.lng, completionReference.lat],
     [session.route.endPoint.lng, session.route.endPoint.lat],
   );
 
-  return distanceToEndKm <= 0.03;
+  if (distanceToEndKm > ENDPOINT_COMPLETION_RADIUS_KM) {
+    return false;
+  }
+
+  const distanceFromStartKm = haversineDistanceKm(
+    [completionReference.lng, completionReference.lat],
+    [session.route.startPoint.lng, session.route.startPoint.lat],
+  );
+
+  const completionMovementThresholdKm = Math.min(
+    0.05,
+    Math.max(session.route.distance * 0.1, MIN_COMPLETION_MOVEMENT_KM),
+  );
+
+  return (
+    distanceFromStartKm >= completionMovementThresholdKm ||
+    (session.distanceKm ?? 0) >= completionMovementThresholdKm
+  );
 }
 
 function buildRideSummary(session: ActiveRideSession, completedAt: string): RideFeedbackSummary {
@@ -109,11 +132,13 @@ TaskManager.defineTask(BACKGROUND_RIDE_TRACKING_TASK, async ({ data, error }) =>
     session.lastCheckpointIndexNotified ?? getCheckpointCount(session);
 
   let nextSession = session;
+  let latestRawPosition: { lat: number; lng: number } | null = null;
   for (const location of locations) {
     const coords = location.coords;
     if (!coords) {
       continue;
     }
+    latestRawPosition = { lat: coords.latitude, lng: coords.longitude };
     nextSession = advanceActiveRideSession(
       nextSession,
       { lat: coords.latitude, lng: coords.longitude },
@@ -121,7 +146,7 @@ TaskManager.defineTask(BACKGROUND_RIDE_TRACKING_TASK, async ({ data, error }) =>
     );
   }
 
-  if (isRouteCompleted(nextSession)) {
+  if (isRouteCompleted(nextSession, latestRawPosition)) {
     const completedAt = new Date().toISOString();
     const rideSummary = buildRideSummary(nextSession, completedAt);
 

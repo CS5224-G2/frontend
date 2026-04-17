@@ -82,6 +82,7 @@ jest.mock('../../services/userService', () => ({
     avatarColor: '#7c3aed',
     stats: { totalRides: 5, totalDistanceKm: 42.0, favoriteTrails: 2 },
   }),
+  getCachedUserProfile: jest.fn(() => null),
 }));
 
 describe('LiveMapPage', () => {
@@ -89,6 +90,9 @@ describe('LiveMapPage', () => {
     jest.clearAllMocks();
     mockRouteParams.routeId = '1';
     mockRouteParams.route = mockRoutes[0];
+    const Location = jest.requireMock('expo-location');
+    Location.hasServicesEnabledAsync.mockResolvedValue(true);
+    Location.getLastKnownPositionAsync.mockResolvedValue(null);
   });
 
   it('renders map view when token is set (native module mocked)', async () => {
@@ -130,6 +134,20 @@ describe('LiveMapPage', () => {
     });
 
     process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN = prev;
+  });
+
+  it('shows a banner when location services are disabled', async () => {
+    process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN = 'pk.test_jest_token';
+    const Location = jest.requireMock('expo-location');
+    Location.hasServicesEnabledAsync.mockResolvedValueOnce(false);
+
+    render(<LiveMapScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('live-map-location-services-off')).toBeTruthy();
+    });
+
+    delete process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN;
   });
 
   it('polyline for mock route 1 matches geometry helper', () => {

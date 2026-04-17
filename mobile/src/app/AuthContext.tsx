@@ -3,6 +3,7 @@ import type { AuthResult, AuthUser } from '../../../shared/types/index';
 import { registerSessionExpiredHandler } from '../services/authEvents';
 import { clearSession, isTokenExpired, loadSession, saveSession } from '../services/secureSession';
 import { loadActiveRideSession } from '../services/activeRideSession';
+import { clearCachedUserProfile } from '../services/userService';
 
 interface AuthContextType {
   /** True once the secure-storage restore check has completed. */
@@ -37,6 +38,7 @@ export function AuthProvider({ children }: Readonly<{ children: React.ReactNode 
       setIsLoggedIn(false);
       setRole(null);
       setUser(null);
+      clearCachedUserProfile();
     });
   }, []);
 
@@ -85,6 +87,7 @@ export function AuthProvider({ children }: Readonly<{ children: React.ReactNode 
     setIsLoggedIn(false);
     setRole(null);
     setUser(null);
+    clearCachedUserProfile();
   }, []);
 
   const value = useMemo(

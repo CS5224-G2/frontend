@@ -132,4 +132,66 @@ describe('backgroundRideTracking', () => {
     );
     expect(await AsyncStorage.getItem(STORAGE_KEYS.activeRideSession)).toBeNull();
   });
+
+  it('completes the ride from the raw endpoint geofence even when snapped progress does not advance', async () => {
+    if (!taskHandler) {
+      throw new Error('Background ride task was not registered');
+    }
+
+    const detachedEndRoute = {
+      ...route,
+      id: 'detached-end-route',
+      distance: 0.3,
+      routePath: [
+        { lat: route.startPoint.lat, lng: route.startPoint.lng },
+        { lat: route.checkpoints[0].lat, lng: route.checkpoints[0].lng },
+      ],
+      endPoint: {
+        ...route.endPoint,
+        lat: route.checkpoints[0].lat + 0.0005,
+        lng: route.checkpoints[0].lng + 0.0005,
+        name: 'Detached endpoint',
+      },
+    };
+
+    (Location.hasStartedLocationUpdatesAsync as jest.Mock).mockResolvedValueOnce(true);
+
+    await saveActiveRideSession({
+      version: 1,
+      routeId: detachedEndRoute.id,
+      route: detachedEndRoute,
+      startedAt: '2026-04-17T00:00:00.000Z',
+      progressPct: 40,
+      lastKnownPosition: {
+        lat: detachedEndRoute.startPoint.lat,
+        lng: detachedEndRoute.startPoint.lng,
+      },
+      distanceKm: 0,
+    });
+
+    await taskHandler({
+      data: {
+        locations: [
+          {
+            coords: {
+              latitude: detachedEndRoute.endPoint.lat,
+              longitude: detachedEndRoute.endPoint.lng,
+              accuracy: 5,
+            },
+          },
+        ],
+      },
+    });
+
+    expect(saveRide).toHaveBeenCalledWith(
+      expect.objectContaining({
+        route: detachedEndRoute,
+      }),
+    );
+    expect(notifyRideCompletedInBackground).toHaveBeenCalledWith(
+      detachedEndRoute,
+      expect.any(Object),
+    );
+    expect(await AsyncStorage.getItem(STORAGE_KEYS.activeRideSession)).toBeNull();
+  });
 });

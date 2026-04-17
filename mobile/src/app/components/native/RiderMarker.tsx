@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Image, StyleSheet, Text, View } from 'react-native';
 import { getProfileAvatarSource } from '../../utils/profileAvatar';
 
@@ -11,13 +11,18 @@ interface RiderMarkerProps {
 export default function RiderMarker({ avatarUrl, avatarColor, initials }: RiderMarkerProps) {
   const source = avatarUrl ? getProfileAvatarSource(avatarUrl) : null;
   const pulse = useRef(new Animated.Value(0)).current;
+  const [imageFailed, setImageFailed] = useState(false);
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [avatarUrl]);
 
   useEffect(() => {
     const animation = Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, {
           toValue: 1,
-          duration: 1500,
+          duration: 1700,
           easing: Easing.out(Easing.ease),
           useNativeDriver: true,
         }),
@@ -35,33 +40,29 @@ export default function RiderMarker({ avatarUrl, avatarColor, initials }: RiderM
 
   const pulseScale = pulse.interpolate({
     inputRange: [0, 1],
-    outputRange: [0.8, 2.2],
+    outputRange: [0.9, 1.65],
   });
 
   const pulseOpacity = pulse.interpolate({
     inputRange: [0, 0.2, 1],
-    outputRange: [0.8, 0.5, 0],
+    outputRange: [0.35, 0.22, 0],
   });
 
   return (
     <View style={styles.container}>
-      {/* Expanding ping ring — the Google Maps "beep" */}
       <Animated.View
         style={[
           styles.ping,
           { transform: [{ scale: pulseScale }], opacity: pulseOpacity },
         ]}
       />
-      {/* Static soft halo */}
       <View style={styles.halo} />
-      {/* Mid accuracy ring */}
-      <View style={styles.midRing} />
-      {/* Avatar core */}
       <View style={styles.avatar}>
-        {source ? (
+        {source && !imageFailed ? (
           <Image
             source={source}
             style={styles.avatarImage}
+            onError={() => setImageFailed(true)}
             testID="rider-marker-image"
           />
         ) : (
@@ -81,37 +82,30 @@ export default function RiderMarker({ avatarUrl, avatarColor, initials }: RiderM
 
 const styles = StyleSheet.create({
   container: {
-    width: 52,
-    height: 52,
+    width: 38,
+    height: 38,
     alignItems: 'center',
     justifyContent: 'center',
   },
   ping: {
     position: 'absolute',
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: 'rgba(37,99,235,0.55)',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(37,99,235,0.24)',
   },
   halo: {
     position: 'absolute',
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: 'rgba(37,99,235,0.18)',
-  },
-  midRing: {
-    position: 'absolute',
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(147,197,253,0.65)',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(147,197,253,0.18)',
   },
   avatar: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    borderWidth: 2.5,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
     borderColor: '#ffffff',
     overflow: 'hidden',
     zIndex: 2,
@@ -128,7 +122,7 @@ const styles = StyleSheet.create({
   },
   initialsText: {
     color: '#ffffff',
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: '800',
     letterSpacing: -0.3,
   },

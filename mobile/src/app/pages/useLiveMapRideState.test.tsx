@@ -44,6 +44,8 @@ describe('useLiveMapRideState', () => {
     jest.useRealTimers();
     mockLiveMapProgressSimulationEnabled = false;
     await AsyncStorage.clear();
+    (Location.hasServicesEnabledAsync as jest.Mock).mockResolvedValue(true);
+    (Location.getLastKnownPositionAsync as jest.Mock).mockResolvedValue(null);
     (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue({
       coords: {
         latitude: route.startPoint.lat,
@@ -145,6 +147,109 @@ describe('useLiveMapRideState', () => {
         movedLng,
         movedLat,
       ]);
+    });
+  });
+
+  it('keeps showing the rider marker when GPS is off-route', async () => {
+    const offRouteLat = route.startPoint.lat + 0.001;
+    const offRouteLng = route.startPoint.lng;
+
+    (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValueOnce({
+      coords: {
+        latitude: offRouteLat,
+        longitude: offRouteLng,
+        accuracy: 8,
+      },
+    });
+    (Location.watchPositionAsync as jest.Mock).mockImplementationOnce(async (_options, callback) => {
+      callback({
+        coords: {
+          latitude: offRouteLat,
+          longitude: offRouteLng,
+          accuracy: 8,
+        },
+      });
+      return { remove: jest.fn() };
+    });
+
+    const { result } = renderHook(() => useLiveMapRideState(route.id, route));
+
+    await waitFor(() => {
+      expect(result.current.routeLoading).toBe(false);
+    });
+
+    await waitFor(() => {
+      expect(result.current.riderHasFix).toBe(true);
+      expect(result.current.riderLngLat).toEqual([offRouteLng, offRouteLat]);
+      expect(result.current.progress).toBe(0);
+      expect(result.current.offRouteWarning).toBe(true);
+    });
+  });
+
+  it('reports when device location services are disabled', async () => {
+    (Location.hasServicesEnabledAsync as jest.Mock).mockResolvedValueOnce(false);
+
+    const { result } = renderHook(() => useLiveMapRideState(route.id, route));
+
+    await waitFor(() => {
+      expect(result.current.routeLoading).toBe(false);
+    });
+
+    await waitFor(() => {
+      expect(result.current.locationReady).toBe(true);
+      expect(result.current.locationDenied).toBe(false);
+      expect(result.current.locationIssue).toBe('services-disabled');
+      expect(result.current.riderHasFix).toBe(false);
+    });
+
+    expect(Location.watchPositionAsync).not.toHaveBeenCalled();
+  });
+
+  it('completes the ride from the raw endpoint geofence even when snapped progress lags', async () => {
+    const detachedEndRoute = {
+      ...route,
+      id: 'detached-end-route',
+      distance: 0.3,
+      routePath: [
+        { lat: route.startPoint.lat, lng: route.startPoint.lng },
+        { lat: route.checkpoints[0].lat, lng: route.checkpoints[0].lng },
+      ],
+      endPoint: {
+        ...route.endPoint,
+        lat: route.checkpoints[0].lat + 0.0005,
+        lng: route.checkpoints[0].lng + 0.0005,
+        name: 'Detached endpoint',
+      },
+    };
+
+    (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValueOnce({
+      coords: {
+        latitude: detachedEndRoute.endPoint.lat,
+        longitude: detachedEndRoute.endPoint.lng,
+        accuracy: 8,
+      },
+    });
+    (Location.watchPositionAsync as jest.Mock).mockImplementationOnce(async (_options, callback) => {
+      callback({
+        coords: {
+          latitude: detachedEndRoute.endPoint.lat,
+          longitude: detachedEndRoute.endPoint.lng,
+          accuracy: 8,
+        },
+      });
+      return { remove: jest.fn() };
+    });
+
+    const { result } = renderHook(() => useLiveMapRideState(detachedEndRoute.id, detachedEndRoute));
+
+    await waitFor(() => {
+      expect(result.current.routeLoading).toBe(false);
+    });
+
+    await waitFor(() => {
+      expect(result.current.routeCompleted).toBe(true);
+      expect(result.current.progress).toBe(100);
+      expect(result.current.showCompletionModal).toBe(true);
     });
   });
 
