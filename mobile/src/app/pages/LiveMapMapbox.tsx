@@ -14,6 +14,7 @@ import {
 } from '@rnmapbox/maps';
 import { useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useColorScheme } from 'nativewind';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { type Route } from '../../../../shared/types/index';
@@ -36,6 +37,8 @@ export default function LiveMapMapboxScreen() {
   const { params } = useRoute<any>();
   const routeParam = params?.route as Route | undefined;
   const routeId = (params?.routeId as string | undefined) ?? routeParam?.id;
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
   const mapboxToken = process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN ?? '';
 
   const {
@@ -142,7 +145,7 @@ export default function LiveMapMapboxScreen() {
       {hasMap && lineCoordsLen > 0 ? (
         <MapView
           style={StyleSheet.absoluteFill}
-          styleURL={StyleURL.Street}
+          styleURL={isDark ? StyleURL.Night : StyleURL.Street}
           scaleBarEnabled={false}
           logoEnabled={false}
           attributionEnabled

@@ -53,7 +53,7 @@ jest.mock('react-native-safe-area-context', () => {
 });
 
 jest.mock('nativewind', () => ({
-  useColorScheme: () => ({ colorScheme: 'light' }),
+  useColorScheme: jest.fn(() => ({ colorScheme: 'light' })),
 }));
 
 jest.mock('expo-glass-effect', () => {
@@ -161,6 +161,22 @@ describe('LiveMapPage', () => {
     await waitFor(() => {
       expect(screen.getByTestId('rider-marker-container')).toBeTruthy();
     }, { timeout: 5000 });
+
+    delete process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN;
+  });
+
+  it('renders map view in dark mode without crashing', async () => {
+    // Override the nativewind mock to return dark mode for this test
+    const nativewindMock = jest.requireMock('nativewind');
+    nativewindMock.useColorScheme.mockReturnValueOnce({ colorScheme: 'dark' });
+
+    process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN = 'pk.test_jest_token';
+
+    render(<LiveMapScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('live-map-mapview')).toBeTruthy();
+    });
 
     delete process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN;
   });
