@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -24,7 +25,8 @@ import { mapDotMarkerProps, mapPinMarkerProps } from '../utils/mapMarkers';
 import { isLikelyHawkerCentre } from '../utils/poiLabels';
 import { useRouteEndpointLabels } from '../utils/placeGeocode';
 import { useFloatingTabBarScrollPadding } from '../utils/floatingTabBarInset';
-import { fitRegionForCoordinates, routeToMapCoordinates } from '@/utils/routeGeometry';
+import { fitRegionForCoordinates, routeToLineCoordinates, routeToMapCoordinates } from '@/utils/routeGeometry';
+import { canUseAndroidMapbox } from '../utils/mapboxSupport';
 
 export default function RouteDetailsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
@@ -82,8 +84,15 @@ export default function RouteDetailsScreen() {
 
   const { startLabel, endLabel } = useRouteEndpointLabels(route);
   const scrollBottomPad = useFloatingTabBarScrollPadding(20);
+  const androidMapboxEnabled = canUseAndroidMapbox();
+  const RouteMapPreviewMapbox =
+    androidMapboxEnabled ? require('./RouteMapPreviewMapbox').default : null;
 
   const polylineCoords = useMemo(() => (route ? routeToMapCoordinates(route) : []), [route]);
+  const lineCoords = useMemo(
+    () => (route ? routeToLineCoordinates(route).filter(([lng, lat]) => hasRouteCoordinates(lat, lng)) : []),
+    [route],
+  );
 
   const mapRegion = useMemo(() => {
     if (!route) {
@@ -114,6 +123,66 @@ export default function RouteDetailsScreen() {
         hasRouteCoordinates(route.endPoint.lat, route.endPoint.lng) ||
         route.checkpoints.some((c) => hasRouteCoordinates(c.lat, c.lng))),
   );
+  const showIosEmbeddedMap = mapUsable && Platform.OS !== 'android';
+  const showAndroidMapboxMap = mapUsable && Platform.OS === 'android' && androidMapboxEnabled && RouteMapPreviewMapbox;
+
+  const mapboxMarkers = useMemo(() => {
+    if (!route) {
+      return [];
+    }
+
+    const markers = [] as Array<{
+      id: string;
+      coordinate: [number, number];
+      color: string;
+      kind?: 'start' | 'end' | 'waypoint' | 'poi';
+      testID?: string;
+    }>;
+
+    if (hasRouteCoordinates(route.startPoint.lat, route.startPoint.lng)) {
+      markers.push({
+        id: 'route-start',
+        coordinate: [route.startPoint.lng, route.startPoint.lat],
+        color: '#22c55e',
+        kind: 'start',
+        testID: 'route-details-marker-start',
+      });
+    }
+
+    route.checkpoints.forEach((checkpoint) => {
+      if (hasRouteCoordinates(checkpoint.lat, checkpoint.lng)) {
+        markers.push({
+          id: checkpoint.id,
+          coordinate: [checkpoint.lng, checkpoint.lat],
+          color: '#2563eb',
+          kind: 'waypoint',
+        });
+      }
+    });
+
+    (route.pointsOfInterestVisited ?? []).forEach((poi, index) => {
+      if (typeof poi.lat === 'number' && typeof poi.lng === 'number') {
+        markers.push({
+          id: `poi-${poi.name}-${index}`,
+          coordinate: [poi.lng, poi.lat],
+          color: '#f59e0b',
+          kind: 'poi',
+        });
+      }
+    });
+
+    if (hasRouteCoordinates(route.endPoint.lat, route.endPoint.lng)) {
+      markers.push({
+        id: 'route-end',
+        coordinate: [route.endPoint.lng, route.endPoint.lat],
+        color: '#ef4444',
+        kind: 'end',
+        testID: 'route-details-marker-end',
+      });
+    }
+
+    return markers;
+  }, [route]);
 
   if (loading) {
     return (
@@ -157,7 +226,7 @@ export default function RouteDetailsScreen() {
         </View>
 
         <View className="mb-cy-md rounded-cy-md overflow-hidden border border-[#bfdbfe] dark:border-[#1e3a5f] min-h-[220px] bg-[#e2e8f0] dark:bg-[#0c1929]">
-          {mapUsable ? (
+          {showIosEmbeddedMap ? (
             <MapView
               style={{ width: '100%', height: 240 }}
               initialRegion={mapRegion}
@@ -234,15 +303,23 @@ export default function RouteDetailsScreen() {
                 </Marker>
               ) : null}
             </MapView>
+          ) : showAndroidMapboxMap ? (
+            <RouteMapPreviewMapbox
+              lineCoordinates={lineCoords}
+              markers={mapboxMarkers}
+              strokeColor="#2563eb"
+              testID="route-details-map"
+            />
           ) : (
             <View className="flex-1 min-h-[220px] items-center justify-center px-cy-md py-cy-lg">
               <MaterialCommunityIcons name="map-search-outline" size={48} color={isDark ? '#64748b' : '#64748b'} />
               <Text className="text-base font-semibold text-[#475569] dark:text-slate-400 mt-2 text-center">
-                Map preview unavailable
+                {Platform.OS === 'android' && !androidMapboxEnabled ? 'Mapbox preview unavailable' : 'Map preview unavailable'}
               </Text>
               <Text className="text-xs text-[#64748b] dark:text-slate-500 text-center mt-1 px-4">
-                This route has no coordinates yet. Once the backend returns start/end points, checkpoints, or a
-                route_path, the map will show here.
+                {Platform.OS === 'android' && !androidMapboxEnabled
+                  ? 'Use a development build with EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN configured to render the Android route preview with Mapbox.'
+                  : 'This route has no coordinates yet. Once the backend returns start/end points, checkpoints, or a route_path, the map will show here.'}
               </Text>
             </View>
           )}

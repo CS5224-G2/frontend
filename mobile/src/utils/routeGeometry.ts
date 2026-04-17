@@ -1,13 +1,14 @@
-import type { Route } from '../../../shared/types/index';
+﻿import type { Route } from '../../../shared/types/index';
 import type { Region } from 'react-native-maps';
 
-/** GeoJSON positions as [lng, lat] for Mapbox. */
+/** GeoJSON positions as [lng, lat] for Mapbox. Prefers backend `routePath` when present. */
 export type LngLat = [number, number];
 
 export function routeToLineCoordinates(route: Route): LngLat[] {
   if (route.routePath && route.routePath.length >= 2) {
     return route.routePath.map((p) => [p.lng, p.lat] as LngLat);
   }
+
   const coords: LngLat[] = [
     [route.startPoint.lng, route.startPoint.lat],
     ...route.checkpoints.map((c) => [c.lng, c.lat] as LngLat),
@@ -16,7 +17,7 @@ export function routeToLineCoordinates(route: Route): LngLat[] {
   return coords;
 }
 
-/** Coordinates for react-native-maps `Polyline` (uses `route_path` when present). */
+/** Coordinates for react-native-maps `Polyline` (uses `routePath` when present). */
 export function routeToMapCoordinates(route: Route): { latitude: number; longitude: number }[] {
   if (route.routePath && route.routePath.length >= 2) {
     return route.routePath.map((p) => ({ latitude: p.lat, longitude: p.lng }));
@@ -52,108 +53,101 @@ export function fitRegionForCoordinates(
   };
 }
 
-const EARTH_RADIUS_M = 6_371_000;
-
-function toRad(deg: number): number {
-  return (deg * Math.PI) / 180;
-}
-
-/** Great-circle distance between two WGS84 points (meters). */
-export function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return EARTH_RADIUS_M * c;
-}
-
 function segmentLength(a: LngLat, b: LngLat): number {
-  return haversineMeters(a[1], a[0], b[1], b[0]);
+  const dx = a[0] - b[0];
+  const dy = a[1] - b[1];
+  return Math.sqrt(dx * dx + dy * dy);
 }
 
-/**
- * Closest point on segment AB to P, with distance in meters (local planar projection — fine for urban segments).
- * Returns t ∈ [0,1] along the segment by chord parameter (approximates arc for short segments).
- */
-export function closestPointOnSegmentMeters(
-  latP: number,
-  lngP: number,
-  latA: number,
-  lngA: number,
-  latB: number,
-  lngB: number,
-): { lat: number; lng: number; distM: number; t: number } {
-  const lat0 = (latA + latB) / 2;
-  const mPerDegLat = 111_320;
-  const cosLat = Math.cos(toRad(lat0));
-  const mPerDegLng = 111_320 * Math.max(0.2, cosLat);
+export function haversineDistanceKm(a: LngLat, b: LngLat): number {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const lat1 = toRad(a[1]);
+  const lat2 = toRad(b[1]);
+  const dLat = toRad(b[1] - a[1]);
+  const dLng = toRad(b[0] - a[0]);
 
-  const px = (lngP - lngA) * mPerDegLng;
-  const py = (latP - latA) * mPerDegLat;
-  const vx = (lngB - lngA) * mPerDegLng;
-  const vy = (latB - latA) * mPerDegLat;
-  const len2 = vx * vx + vy * vy;
-  let t = len2 > 1e-6 ? (px * vx + py * vy) / len2 : 0;
-  t = Math.min(1, Math.max(0, t));
-  const clat = latA + t * (latB - latA);
-  const clng = lngA + t * (lngB - lngA);
-  const distM = haversineMeters(latP, lngP, clat, clng);
-  return { lat: clat, lng: clng, distM, t };
+  const sinLat = Math.sin(dLat / 2);
+  const sinLng = Math.sin(dLng / 2);
+  const h = sinLat * sinLat + Math.cos(lat1) * Math.cos(lat2) * sinLng * sinLng;
+
+  return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
 }
 
-export type PolylineProjection = {
-  nearest: LngLat;
-  distToRouteM: number;
-  cumulativeM: number;
-  /** Progress 0–1 along total polyline length. */
-  progress01: number;
-};
-
-/** Nearest point on polyline, cross-track distance (m), and distance along route from start (m). */
-export function projectPointOntoPolyline(
-  lat: number,
-  lng: number,
-  line: LngLat[],
-): PolylineProjection {
-  if (line.length === 0) {
-    return { nearest: [0, 0], distToRouteM: Number.POSITIVE_INFINITY, cumulativeM: 0, progress01: 0 };
-  }
-  if (line.length === 1) {
-    const d = haversineMeters(lat, lng, line[0][1], line[0][0]);
-    return { nearest: line[0], distToRouteM: d, cumulativeM: 0, progress01: 0 };
+export function projectPointOntoRoute(
+  coordinates: LngLat[],
+  point: LngLat,
+): { snappedPoint: LngLat; progress: number; distanceKmFromRoute: number } {
+  if (coordinates.length === 0) {
+    return { snappedPoint: [0, 0], progress: 0, distanceKmFromRoute: 0 };
   }
 
-  let bestDist = Number.POSITIVE_INFINITY;
-  let bestNearest: LngLat = line[0];
-  let bestCumulative = 0;
-  let cumulativeBeforeSeg = 0;
+  if (coordinates.length === 1) {
+    return {
+      snappedPoint: coordinates[0],
+      progress: 0,
+      distanceKmFromRoute: haversineDistanceKm(point, coordinates[0]),
+    };
+  }
 
-  for (let i = 1; i < line.length; i++) {
-    const a = line[i - 1];
-    const b = line[i];
-    const segLen = haversineMeters(a[1], a[0], b[1], b[0]);
-    const close = closestPointOnSegmentMeters(lat, lng, a[1], a[0], b[1], b[0]);
-    if (close.distM < bestDist) {
-      bestDist = close.distM;
-      bestNearest = [close.lng, close.lat];
-      bestCumulative = cumulativeBeforeSeg + close.t * segLen;
+  const segmentLengths: number[] = [];
+  let totalLength = 0;
+  for (let i = 1; i < coordinates.length; i += 1) {
+    const len = segmentLength(coordinates[i - 1], coordinates[i]);
+    segmentLengths.push(len);
+    totalLength += len;
+  }
+
+  if (totalLength === 0) {
+    return {
+      snappedPoint: coordinates[0],
+      progress: 0,
+      distanceKmFromRoute: haversineDistanceKm(point, coordinates[0]),
+    };
+  }
+
+  let bestDistanceSq = Number.POSITIVE_INFINITY;
+  let bestPoint: LngLat = coordinates[0];
+  let bestLengthAlong = 0;
+  let traversed = 0;
+
+  for (let i = 0; i < coordinates.length - 1; i += 1) {
+    const a = coordinates[i];
+    const b = coordinates[i + 1];
+    const dx = b[0] - a[0];
+    const dy = b[1] - a[1];
+    const segSq = dx * dx + dy * dy;
+    const segLen = segmentLengths[i];
+
+    if (segSq === 0) {
+      traversed += segLen;
+      continue;
     }
-    cumulativeBeforeSeg += segLen;
+
+    const rawT = ((point[0] - a[0]) * dx + (point[1] - a[1]) * dy) / segSq;
+    const t = Math.max(0, Math.min(1, rawT));
+    const snappedPoint: LngLat = [a[0] + t * dx, a[1] + t * dy];
+    const distDx = point[0] - snappedPoint[0];
+    const distDy = point[1] - snappedPoint[1];
+    const distSq = distDx * distDx + distDy * distDy;
+
+    if (distSq < bestDistanceSq) {
+      bestDistanceSq = distSq;
+      bestPoint = snappedPoint;
+      bestLengthAlong = traversed + t * segLen;
+    }
+
+    traversed += segLen;
   }
 
-  const totalLen = cumulativeBeforeSeg || 1;
   return {
-    nearest: bestNearest,
-    distToRouteM: bestDist,
-    cumulativeM: bestCumulative,
-    progress01: Math.min(1, Math.max(0, bestCumulative / totalLen)),
+    snappedPoint: bestPoint,
+    progress: Math.max(0, Math.min(1, bestLengthAlong / totalLength)),
+    distanceKmFromRoute: haversineDistanceKm(point, bestPoint),
   };
 }
 
 /**
- * Position along the polyline at progress t ∈ [0, 1] (planar lng/lat — fine for short urban routes).
+ * Position along the polyline at progress t Γêê [0, 1] (planar lng/lat ΓÇö fine for short urban routes).
  */
 export function interpolateAlongRoute(coordinates: LngLat[], t: number): LngLat {
   if (coordinates.length === 0) return [0, 0];

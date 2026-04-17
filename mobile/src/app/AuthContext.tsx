@@ -1,7 +1,8 @@
 import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
 import type { AuthResult, AuthUser } from '../../../shared/types/index';
 import { registerSessionExpiredHandler } from '../services/authEvents';
-import { clearSession, loadSession, saveSession } from '../services/secureSession';
+import { clearSession, isTokenExpired, loadSession, saveSession } from '../services/secureSession';
+import { loadActiveRideSession } from '../services/activeRideSession';
 
 interface AuthContextType {
   /** True once the secure-storage restore check has completed. */
@@ -46,6 +47,17 @@ export function AuthProvider({ children }: Readonly<{ children: React.ReactNode 
       try {
         const stored = await loadSession();
         if (!cancelled && stored) {
+          // If the token is expired, only keep the session alive when there is
+          // an active ride — so the user isn’t logged out mid-ride. In all
+          // other cases wipe the stale token immediately.
+          const expired = await isTokenExpired();
+          if (expired) {
+            const activeRide = await loadActiveRideSession().catch(() => null);
+            if (!activeRide) {
+              await clearSession().catch(() => {});
+              return; // leaves isLoggedIn = false
+            }
+          }
           setIsLoggedIn(true);
           setRole(stored.user.role);
           setUser(stored.user);

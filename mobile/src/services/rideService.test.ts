@@ -56,9 +56,62 @@ const backendRide = {
   checkpoints_visited: 3,
   rating: 4,
   review: 'Great ride!',
+  route_details: {
+    route_id: 'rt1',
+    name: 'Park Connector',
+    description: 'Scenic route',
+    distance: 12.5,
+    estimated_time: 48,
+    elevation: 20,
+    shade: 60,
+    air_quality: 40,
+    cyclist_type: 'commuter' as const,
+    review_count: 12,
+    rating: 4.7,
+    start_point: { lat: 1.28, lng: 103.85, name: 'Start' },
+    end_point: { lat: 1.29, lng: 103.86, name: 'End' },
+    route_path: [
+      { lat: 1.28, lng: 103.85 },
+      { lat: 1.285, lng: 103.855 },
+      { lat: 1.29, lng: 103.86 },
+    ],
+    checkpoints: [
+      {
+        checkpoint_id: 'cp1',
+        checkpoint_name: 'Pier 1',
+        description: 'Checkpoint 1',
+        lat: 1.281,
+        lng: 103.851,
+      },
+    ],
+    points_of_interest_visited: [
+      {
+        name: 'Pier',
+        description: 'Nice spot',
+        lat: 1.281,
+        lng: 103.851,
+      },
+    ],
+  },
 };
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockGet.mockReset();
+  mockPost.mockReset();
+  mockSaveLocal.mockReset();
+  mockSaveRideLocal.mockReset();
+  mockGetLocalHistory.mockReset();
+  mockGetLocalRideById.mockReset();
+  mockGetPendingLocalDistanceStats.mockReset();
+  mockGetLocalDistanceStats.mockReset();
+
+  mockGetLocalHistory.mockResolvedValue([]);
+  mockGetLocalRideById.mockResolvedValue(null);
+  mockGetPendingLocalDistanceStats.mockResolvedValue([]);
+  mockGetLocalDistanceStats.mockResolvedValue([]);
+  mockSaveLocal.mockResolvedValue(undefined);
+});
 
 describe('getRideHistory()', () => {
   it('maps BackendRide array to RideHistory array', async () => {
@@ -74,6 +127,54 @@ describe('getRideHistory()', () => {
     expect(history[0].userRating).toBe(4);
     expect(mockGet).toHaveBeenCalledWith('/rides/history', undefined);
   });
+
+  it('hydrates missing route details from the route endpoint when history items omit them', async () => {
+    const { route_details: _unusedRouteDetails, ...backendRideWithoutRouteDetails } = backendRide;
+
+    mockGet.mockImplementation(async (url: string) => {
+      if (url === '/rides/history') {
+        return [backendRideWithoutRouteDetails];
+      }
+
+      if (url === '/routes/rt1') {
+        return {
+          route_id: 'rt1',
+          name: 'Park Connector',
+          description: 'Scenic route',
+          distance: 12.5,
+          estimated_time: 48,
+          elevation: 20,
+          shade: 60,
+          air_quality: 40,
+          cyclist_type: 'commuter',
+          review_count: 12,
+          rating: 4.7,
+          start_point: { lat: 1.28, lng: 103.85, name: 'Start' },
+          end_point: { lat: 1.29, lng: 103.86, name: 'End' },
+          route_path: [
+            { lat: 1.28, lng: 103.85 },
+            { lat: 1.285, lng: 103.855 },
+            { lat: 1.29, lng: 103.86 },
+          ],
+          checkpoints: [],
+        };
+      }
+
+      throw new Error(`Unexpected URL ${url}`);
+    });
+
+    mockGetLocalHistory.mockResolvedValueOnce([]);
+
+    const history = await getRideHistory();
+
+    expect(history[0].routeDetails).toEqual(
+      expect.objectContaining({
+        id: 'rt1',
+        name: 'Park Connector',
+      }),
+    );
+    expect(mockGet).toHaveBeenNthCalledWith(2, '/routes/rt1', undefined);
+  });
 });
 
 describe('getRideById()', () => {
@@ -82,6 +183,16 @@ describe('getRideById()', () => {
     const ride = await getRideById('r1');
     expect(ride).not.toBeNull();
     expect(ride?.id).toBe('r1');
+    expect(ride?.routeDetails?.routePath).toEqual([
+      { lat: 1.28, lng: 103.85 },
+      { lat: 1.285, lng: 103.855 },
+      { lat: 1.29, lng: 103.86 },
+    ]);
+    expect(ride?.routeDetails?.startPoint).toEqual({
+      lat: 1.28,
+      lng: 103.85,
+      name: 'Start',
+    });
   });
 
   it('returns null when the API throws (e.g. 404)', async () => {
@@ -132,6 +243,34 @@ describe('submitRideFeedback()', () => {
       rating: 4,
       reviewText: 'Nice',
     });
+  });
+});
+
+describe('getRideHistory() POI category', () => {
+  it('maps category from backend POI data', async () => {
+    const backendRideWithCategory = {
+      ...backendRide,
+      points_of_interest_visited: [
+        { name: 'Maxwell Food Centre', description: 'Hawker', lat: 1.281, lng: 103.851, category: 'hawkerCenter' },
+      ],
+    };
+    mockGet.mockResolvedValueOnce([backendRideWithCategory]);
+    mockGetLocalHistory.mockResolvedValueOnce([]);
+    const history = await getRideHistory();
+    expect(history[0].pointsOfInterestVisited?.[0].category).toBe('hawkerCenter');
+  });
+
+  it('infers category from name when backend omits it', async () => {
+    const backendRideNoCategory = {
+      ...backendRide,
+      points_of_interest_visited: [
+        { name: 'Maxwell Food Centre', description: 'Hawker', lat: 1.281, lng: 103.851 },
+      ],
+    };
+    mockGet.mockResolvedValueOnce([backendRideNoCategory]);
+    mockGetLocalHistory.mockResolvedValueOnce([]);
+    const history = await getRideHistory();
+    expect(history[0].pointsOfInterestVisited?.[0].category).toBe('hawkerCenter');
   });
 });
 

@@ -6,6 +6,8 @@
 import type { RideHistory, GraphDataPoint, GraphPeriod, Route, RouteFeedbackPayload } from '../../../shared/types/index';
 import { USE_MOCKS } from '../config/runtime';
 import { ApiError, httpClient } from './httpClient';
+import { finalizeRouteEndpoints, getRouteById } from './routeService';
+import { inferPoiCategory, toPoiCategory } from '../app/utils/poiLabels';
 import {
   getDistanceStatsLocal,
   getPendingLocalDistanceStats,
@@ -47,6 +49,7 @@ type BackendRide = {
     description: string;
     lat: number;
     lng: number;
+    category?: string;
   }>;
   route_details?: {
     route_id: string;
@@ -67,11 +70,28 @@ type BackendRide = {
       lat: number;
       lng: number;
     }>;
+    start_point?: {
+      lat?: number;
+      lng?: number;
+      name?: string;
+    };
+    end_point?: {
+      lat?: number;
+      lng?: number;
+      name?: string;
+    };
+    route_path?: Array<{
+      lat?: number;
+      lng?: number;
+      latitude?: number;
+      longitude?: number;
+    }>;
     points_of_interest_visited?: Array<{
       name: string;
       description: string;
       lat?: number;
       lng?: number;
+      category?: string;
     }>;
   };
 };
@@ -123,6 +143,27 @@ type BackendSaveRidePayload = {
 // Mappers
 // ---------------------------------------------------------------------------
 
+type BackendLatLng = {
+  lat?: number;
+  lng?: number;
+  latitude?: number;
+  longitude?: number;
+};
+
+function parseBackendRoutePath(raw: BackendLatLng[] | undefined): Route['routePath'] {
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return undefined;
+  }
+
+  const points = raw.flatMap((point) => {
+    const lat = point.lat ?? point.latitude;
+    const lng = point.lng ?? point.longitude;
+    return typeof lat === 'number' && typeof lng === 'number' ? [{ lat, lng }] : [];
+  });
+
+  return points.length >= 2 ? points : undefined;
+}
+
 const toFrontendRide = (r: BackendRide): RideHistory => ({
   id: r.ride_id,
   routeId: r.route_id,
@@ -149,9 +190,10 @@ const toFrontendRide = (r: BackendRide): RideHistory => ({
     description: poi.description,
     lat: poi.lat,
     lng: poi.lng,
+    category: toPoiCategory(poi.category) ?? inferPoiCategory(poi.name),
   })),
   routeDetails: r.route_details
-    ? {
+    ? finalizeRouteEndpoints({
         id: r.route_details.route_id,
         name: r.route_details.name,
         description: r.route_details.description,
@@ -160,8 +202,16 @@ const toFrontendRide = (r: BackendRide): RideHistory => ({
         estimatedTime: r.route_details.estimated_time,
         rating: r.route_details.rating,
         reviewCount: r.route_details.review_count,
-        startPoint: { lat: 0, lng: 0, name: 'Start' },
-        endPoint: { lat: 0, lng: 0, name: 'End' },
+        startPoint: {
+          lat: r.route_details.start_point?.lat ?? 0,
+          lng: r.route_details.start_point?.lng ?? 0,
+          name: r.route_details.start_point?.name ?? '',
+        },
+        endPoint: {
+          lat: r.route_details.end_point?.lat ?? 0,
+          lng: r.route_details.end_point?.lng ?? 0,
+          name: r.route_details.end_point?.name ?? '',
+        },
         checkpoints: r.route_details.checkpoints.map((cp) => ({
           id: cp.checkpoint_id,
           name: cp.checkpoint_name,
@@ -169,14 +219,18 @@ const toFrontendRide = (r: BackendRide): RideHistory => ({
           lng: cp.lng,
           description: cp.description,
         })),
+        routePath: parseBackendRoutePath(r.route_details.route_path),
         cyclistType: r.route_details.cyclist_type,
         shade: r.route_details.shade,
         airQuality: r.route_details.air_quality,
         pointsOfInterestVisited: r.route_details.points_of_interest_visited?.map((poi) => ({
           name: poi.name,
           description: poi.description,
+          lat: poi.lat,
+          lng: poi.lng,
+          category: toPoiCategory(poi.category) ?? inferPoiCategory(poi.name),
         })),
-      }
+      })
     : undefined,
 });
 
@@ -193,8 +247,31 @@ export async function getRideHistory(token?: string): Promise<RideHistory[]> {
 
   try {
     const response = await httpClient.get<BackendRide[]>('/rides/history', token);
-    return [...localPending, ...response.map(toFrontendRide)];
-  } catch {
+    const remoteRides = response.map(toFrontendRide);
+    const missingRouteIds = Array.from(
+      new Set(
+        remoteRides
+          .filter((ride) => !ride.routeDetails)
+          .map((ride) => ride.routeId)
+          .filter((routeId): routeId is string => typeof routeId === 'string' && routeId.length > 0),
+      ),
+    );
+
+    const resolvedRoutes = new Map<string, Route | null>(
+      await Promise.all(
+        missingRouteIds.map(async (routeId) => [routeId, await getRouteById(routeId, token)] as const),
+      ),
+    );
+
+    const hydratedRemoteRides = remoteRides.map((ride) => ({
+      ...ride,
+      routeDetails: ride.routeDetails ?? resolvedRoutes.get(ride.routeId) ?? undefined,
+    }));
+
+    return [...localPending, ...hydratedRemoteRides];
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.log('getRideHistory-debug-error', error);
     return localPending;
   }
 }

@@ -1,12 +1,17 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import RouteConfigPage from './RouteConfigPage';
 
 const mockNavigate = jest.fn();
+const mockCanUseAndroidMapbox = jest.fn(() => false);
 
 jest.mock('@react-navigation/native', () => ({
   ...jest.requireActual('@react-navigation/native'),
   useNavigation: () => ({ navigate: mockNavigate }),
+}));
+
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
 
 jest.mock('@react-native-async-storage/async-storage', () => ({
@@ -25,9 +30,12 @@ jest.mock('@expo/vector-icons', () => {
 jest.mock('react-native-maps', () => {
   const React = require('react');
   const { View } = require('react-native');
-  const MockMapView = React.forwardRef((props: any, ref: any) =>
-    React.createElement(View, { ...props, ref }),
-  );
+  const MockMapView = React.forwardRef((props: any, ref: any) => {
+    React.useImperativeHandle(ref, () => ({
+      animateToRegion: jest.fn(),
+    }));
+    return React.createElement(View, props);
+  });
   const MockMarker = (props: any) => React.createElement(View, props);
   return {
     __esModule: true,
@@ -57,6 +65,11 @@ jest.mock('../../services/locationSearchService', () => ({
   searchLocations: jest.fn().mockResolvedValue([]),
 }));
 
+jest.mock('../utils/mapboxSupport', () => ({
+  canUseAndroidMapbox: () => mockCanUseAndroidMapbox(),
+  getMapboxAccessToken: () => 'pk.test-token',
+}));
+
 describe('RouteConfigPage', () => {
   const renderPage = () =>
     render(
@@ -64,7 +77,20 @@ describe('RouteConfigPage', () => {
     );
 
   beforeEach(() => {
+    jest.clearAllMocks();
     mockNavigate.mockClear();
+    mockCanUseAndroidMapbox.mockReturnValue(false);
+    const AsyncStorage = require('@react-native-async-storage/async-storage');
+    const Location = require('expo-location');
+    AsyncStorage.getItem.mockResolvedValue(null);
+    AsyncStorage.setItem.mockResolvedValue(null);
+    Location.requestForegroundPermissionsAsync.mockResolvedValue({ granted: true });
+    Location.getCurrentPositionAsync.mockResolvedValue({
+      coords: { latitude: 1.3521, longitude: 103.8198 },
+    });
+    Location.reverseGeocodeAsync.mockResolvedValue([
+      { name: 'Raffles Place', street: null, district: null, city: null },
+    ]);
   });
 
   it('renders the configure route heading', () => {
@@ -72,10 +98,10 @@ describe('RouteConfigPage', () => {
     expect(screen.getByText('Configure Custom Route')).toBeTruthy();
   });
 
-  it('shows "No location selected" for both start and end initially', () => {
+  it('shows route planner placeholders for start and end initially', () => {
     renderPage();
-    const placeholders = screen.getAllByText('No location selected');
-    expect(placeholders.length).toBe(2);
+    expect(screen.getByText('Use current location')).toBeTruthy();
+    expect(screen.getByText('Choose destination')).toBeTruthy();
   });
 
   it('renders action pills for start and end points', () => {
@@ -141,6 +167,58 @@ describe('RouteConfigPage', () => {
     });
   });
 
+  it('uses the Mapbox picker on Android when native Mapbox is enabled', async () => {
+    mockCanUseAndroidMapbox.mockReturnValue(true);
+
+    renderPage();
+    const searchButtons = screen.getAllByText('Search on Map');
+    fireEvent.press(searchButtons[0]);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('route-config-mapbox-picker')).toBeTruthy();
+    });
+  });
+
+  it('dismisses the keyboard when a search result is selected in the picker', async () => {
+    jest.useFakeTimers();
+    const { Keyboard } = require('react-native');
+    const { searchLocations } = require('../../services/locationSearchService');
+    const dismissSpy = jest.spyOn(Keyboard, 'dismiss');
+
+    searchLocations.mockResolvedValueOnce([
+      { name: 'Singapore Expo', lat: 1.3343, lng: 103.9611, source: 'search' },
+    ]);
+
+    renderPage();
+    const searchButtons = screen.getAllByText('Search on Map');
+    fireEvent.press(searchButtons[1]);
+
+    await waitFor(() => {
+      expect(screen.getByText('Select End Point')).toBeTruthy();
+    });
+
+    fireEvent.changeText(screen.getByPlaceholderText('Search places with OneMap or drop a pin'), 'Singapore Expo');
+
+    await act(async () => {
+      jest.advanceTimersByTime(400);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Singapore Expo')).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByText('Singapore Expo'));
+
+    expect(dismissSpy).toHaveBeenCalled();
+
+    await waitFor(() => {
+      expect(screen.queryByText('Tap the map to drop a pin at a custom coordinate.')).toBeNull();
+    });
+
+    dismissSpy.mockRestore();
+    jest.useRealTimers();
+  });
+
   it('closes the map picker modal when Cancel is pressed', async () => {
     renderPage();
     const searchButtons = screen.getAllByText('Search on Map');
@@ -169,6 +247,36 @@ describe('RouteConfigPage', () => {
     fireEvent.press(locateButtons[0]);
 
     await waitFor(() => {
+      expect(screen.getByText('Raffles Place')).toBeTruthy();
+    });
+  });
+
+  it('shows locating state only for the selected point while current location is resolving', async () => {
+    const Location = require('expo-location');
+    let resolvePosition: ((value: { coords: { latitude: number; longitude: number } }) => void) | undefined;
+
+    Location.getCurrentPositionAsync.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolvePosition = resolve;
+        }),
+    );
+
+    renderPage();
+    const locateButtons = screen.getAllByText('Use Current Location');
+    fireEvent.press(locateButtons[0]);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Locating...')).toHaveLength(1);
+      expect(screen.getAllByText('Use Current Location')).toHaveLength(1);
+    });
+
+    await act(async () => {
+      resolvePosition?.({ coords: { latitude: 1.3521, longitude: 103.8198 } });
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText('Locating...')).toBeNull();
       expect(screen.getByText('Raffles Place')).toBeTruthy();
     });
   });

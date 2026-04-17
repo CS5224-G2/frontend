@@ -10,6 +10,7 @@ const KEY_ONE_MAP_API_TOKEN = 'cl_onemap_api_token';
 const KEY_ONE_MAP_API_TOKEN_FETCHED_AT = 'cl_onemap_api_token_fetched_at';
 const ONE_MAP_TOKEN_TTL_MS = 3 * 24 * 60 * 60 * 1000;
 const ONE_MAP_TOKEN_REFRESH_BUFFER_MS = 60 * 60 * 1000;
+const ONE_MAP_TOKEN_REFRESH_RETRY_LIMIT = 3;
 
 let inMemoryToken: string | null = getOneMapApiKeyOptional();
 let inMemoryFetchedAt: number | null = null;
@@ -80,41 +81,54 @@ export async function refreshOneMapApiKey(): Promise<string> {
   }
 
   refreshPromise = (async () => {
-    try {
-      const credentials = getOneMapCredentialsOptional();
+    const credentials = getOneMapCredentialsOptional();
 
-      if (!hasCredentials(credentials)) {
-        throw new Error(
-          'Missing OneMap refresh credentials. Add EXPO_PUBLIC_ONEMAP_API_EMAIL and EXPO_PUBLIC_ONEMAP_API_PASSWORD to mobile/.env or provide EXPO_PUBLIC_ONEMAP_API_KEY.',
-        );
-      }
-
-      const response = await fetch(`${getOneMapBaseUrl()}/api/auth/post/getToken`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(credentials),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Unable to refresh OneMap token (status ${response.status}).`);
-      }
-
-      const payload = (await response.json()) as { access_token?: string };
-      const accessToken = payload.access_token?.trim() ?? '';
-
-      if (!accessToken) {
-        throw new Error('OneMap token refresh succeeded but no access_token was returned.');
-      }
-
-      await persistToken(accessToken);
-      console.info('[OneMap] API key updated successfully.');
-      return accessToken;
-    } catch (error) {
-      console.error('[OneMap] Failed to update API key.', error);
-      throw error;
+    if (!hasCredentials(credentials)) {
+      throw new Error(
+        'Missing OneMap refresh credentials. Add EXPO_PUBLIC_ONEMAP_API_EMAIL and EXPO_PUBLIC_ONEMAP_API_PASSWORD to mobile/.env or provide EXPO_PUBLIC_ONEMAP_API_KEY.',
+      );
     }
+
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= ONE_MAP_TOKEN_REFRESH_RETRY_LIMIT; attempt += 1) {
+      try {
+        const response = await fetch(`${getOneMapBaseUrl()}/api/auth/post/getToken`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(credentials),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Unable to refresh OneMap token (status ${response.status}).`);
+        }
+
+        const payload = (await response.json()) as { access_token?: string };
+        const accessToken = payload.access_token?.trim() ?? '';
+
+        if (!accessToken) {
+          throw new Error('OneMap token refresh succeeded but no access_token was returned.');
+        }
+
+        await persistToken(accessToken);
+        console.info('[OneMap] API key updated successfully.');
+        return accessToken;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    if (lastError instanceof Error) {
+      throw new Error(
+        `OneMap API key could not be refreshed after ${ONE_MAP_TOKEN_REFRESH_RETRY_LIMIT} attempts. ${lastError.message}`,
+      );
+    }
+
+    throw new Error(
+      `OneMap API key could not be refreshed after ${ONE_MAP_TOKEN_REFRESH_RETRY_LIMIT} attempts.`,
+    );
   })().finally(() => {
     refreshPromise = null;
   });

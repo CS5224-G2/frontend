@@ -1,9 +1,11 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { Platform } from 'react-native';
 import RouteDetailsPage from './RouteDetailsPage';
 import { getRouteById } from '../types';
 
 const mockResolveRouteById = jest.fn(async (id: string | undefined) => getRouteById(id) ?? null);
+const mockCanUseAndroidMapbox = jest.fn(() => false);
 
 jest.mock('react-native-maps', () => {
   const React = require('react');
@@ -24,6 +26,11 @@ jest.mock('../../services/routeLookup', () => {
     resolveRouteById: (id: string | undefined) => mockResolveRouteById(id),
   };
 });
+
+jest.mock('../utils/mapboxSupport', () => ({
+  canUseAndroidMapbox: () => mockCanUseAndroidMapbox(),
+  getMapboxAccessToken: () => 'pk.test-token',
+}));
 
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
@@ -63,6 +70,7 @@ describe('RouteDetailsPage', () => {
     mockRouteParams.routeId = '1';
     delete mockRouteParams.route;
     mockResolveRouteById.mockImplementation(async (id: string | undefined) => getRouteById(id) ?? null);
+    mockCanUseAndroidMapbox.mockReturnValue(false);
   });
 
   it('renders route details for a valid route id', async () => {
@@ -90,6 +98,26 @@ describe('RouteDetailsPage', () => {
         route: expect.objectContaining({ id: '1', name: 'Riverside Park Loop' }),
       }),
     );
+  });
+
+  it('renders the Mapbox preview on Android when native Mapbox is enabled', async () => {
+    const osDescriptor = Object.getOwnPropertyDescriptor(Platform, 'OS');
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      get: () => 'android',
+    });
+    mockCanUseAndroidMapbox.mockReturnValue(true);
+
+    render(<RouteDetailsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('route-details-map')).toBeTruthy();
+    });
+    expect(screen.queryByText('Map preview unavailable on Android')).toBeNull();
+
+    if (osDescriptor) {
+      Object.defineProperty(Platform, 'OS', osDescriptor);
+    }
   });
 
   it('renders from the passed route when the detail lookup fails', async () => {

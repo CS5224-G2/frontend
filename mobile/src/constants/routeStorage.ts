@@ -3,4 +3,6 @@ export const STORAGE_KEYS = {
   userPreferences: 'userPreferences',
   routeStartPoint: 'routeStartPoint',
   routeEndPoint: 'routeEndPoint',
+  activeRideSession: 'activeRideSession',
+  rideNotificationIds: 'rideNotificationIds',
 } as const;

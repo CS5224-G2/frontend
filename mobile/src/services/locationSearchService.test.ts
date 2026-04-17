@@ -95,8 +95,61 @@ describe('locationSearchService', () => {
     );
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      '[OneMap] API key is outdated or unauthorized; refreshing token.',
+      '[OneMap] API key is outdated or unauthorized; refreshing token (attempt 1/3).',
     );
     expect(consoleInfoSpy).toHaveBeenCalledWith('[OneMap] API key updated successfully.');
+  });
+
+  it('retries token refresh up to 3 times before throwing an error', async () => {
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => ({}),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ access_token: 'fresh-token-1' }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => ({}),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ access_token: 'fresh-token-2' }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => ({}),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ access_token: 'fresh-token-3' }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => ({}),
+      });
+
+    await expect(searchLocations('NUS')).rejects.toThrow(
+      'OneMap API key could not be refreshed after 3 attempts.',
+    );
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      '[OneMap] API key is outdated or unauthorized; refreshing token (attempt 1/3).',
+    );
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      '[OneMap] API key is outdated or unauthorized; refreshing token (attempt 2/3).',
+    );
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      '[OneMap] API key is outdated or unauthorized; refreshing token (attempt 3/3).',
+    );
   });
 });

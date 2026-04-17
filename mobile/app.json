@@ -37,10 +37,15 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location"
+          "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location to track your ride, even in the background.",
+          "locationWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location while you are using the app to track your ride.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
         }
       ],
       "expo-asset",
+      "expo-notifications",
       "@rnmapbox/maps",
       "expo-secure-store",
       "expo-sqlite"

@@ -31,6 +31,14 @@ jest.mock('../../services/rideService', () => ({
   submitRideFeedback: (...args: unknown[]) => mockSubmitRideFeedback(...args),
 }));
 
+jest.mock('../../services/userService', () => ({
+  getUserProfile: jest.fn().mockResolvedValue({
+    fullName: 'Test User',
+    avatarUrl: null,
+    avatarColor: '#3b82f6',
+  }),
+}));
+
 const mockRoute = {
   id: '1',
   name: 'East Coast Park Trail',
@@ -68,9 +76,9 @@ describe('RouteFeedbackPage', () => {
     expect(await screen.findByText('Rate Your Experience')).toBeTruthy();
   }, 10000);
 
-  it('shows the route name in the subtitle', async () => {
+  it('shows a personalised greeting subtitle after loading', async () => {
     renderPage();
-    expect(await screen.findByText(/How was your ride on East Coast Park Trail/)).toBeTruthy();
+    expect(await screen.findByText(/How was your ride, Test\?/)).toBeTruthy();
   }, 10000);
 
   it('renders the Your Rating label', async () => {
@@ -93,6 +101,30 @@ describe('RouteFeedbackPage', () => {
     expect(await screen.findByText('Route Summary')).toBeTruthy();
     expect(screen.getByText('12 km')).toBeTruthy();
     expect(screen.getByText('45 minutes')).toBeTruthy();
+  }, 10000);
+
+  it('prefers actual ride summary values when provided in route params', async () => {
+    render(
+      <RouteFeedbackPage
+        navigation={{ navigate: mockNavigate } as any}
+        route={{
+          params: {
+            routeId: '1',
+            route: mockRoute,
+            rideSummary: {
+              distanceKm: 0.68,
+              elapsedMinutes: 9,
+              checkpointsVisited: 2,
+            },
+          },
+        } as any}
+      />,
+    );
+
+    expect(await screen.findByText('Route Summary')).toBeTruthy();
+    expect(screen.getByText('0.68 km')).toBeTruthy();
+    expect(screen.getByText('9 minutes')).toBeTruthy();
+    expect(screen.getByText('2')).toBeTruthy();
   }, 10000);
 
   it('shows the written feedback text input', async () => {
@@ -125,7 +157,7 @@ describe('RouteFeedbackPage', () => {
       />,
     );
 
-    expect(await screen.findByText(/How was your ride on East Coast Park Trail/)).toBeTruthy();
+    expect(await screen.findByText('East Coast Park Trail')).toBeTruthy();
   }, 10000);
 
   it('shows Additional Comments field after page loads', async () => {

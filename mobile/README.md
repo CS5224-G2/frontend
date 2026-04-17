@@ -34,11 +34,51 @@ The app now reuses the current token when it still works and automatically reque
 npm run web
 ```
 
-#### Run on iOS
+#### Run on iOS (Simulator)
 
 ```bash
 npm run ios
 ```
+
+#### Run on iOS (Physical Device)
+
+> **⚠️ Do NOT use Expo Go (`npm start`) for testing on a physical iPhone.**
+> Features like `expo-notifications` and background location do not work in Expo Go.
+> Always use a native build.
+
+```bash
+# Debug build (with Metro console for logs)
+npm run ios -- --device <DEVICE_ID>
+
+# Release build (standalone, no Metro needed)
+npm run ios:release -- --device <DEVICE_ID>
+```
+
+**Find your device ID:**
+
+```bash
+xcrun devicectl list devices
+```
+
+**First-time setup on device:**
+After installing, go to **Settings → General → VPN & Device Management** → tap the developer team → **Trust**.
+
+**⚠️ Xcode JS Bundle Caching:**
+When you only change JS/TS files (no native code), Xcode may skip re-bundling and ship a **stale cached bundle**. Your code changes silently won't appear on the device. Always clean before rebuilding:
+
+```bash
+cd ios && xcodebuild clean -workspace CycleLink.xcworkspace -scheme CycleLink -configuration Release && cd ..
+npm run ios:release -- --device <DEVICE_ID>
+```
+
+To verify your bundle is fresh:
+
+```bash
+# Search for a unique string you added in your latest change
+grep -c "YOUR_STRING" ~/Library/Developer/Xcode/DerivedData/CycleLink-*/Build/Products/Release-iphoneos/CycleLink.app/main.jsbundle
+```
+
+If it returns `0`, the bundle is stale — clean and rebuild.
 
 #### Run on Android
 

@@ -10,6 +10,7 @@ import { useColorScheme } from 'nativewind';
 import { openRouteInMaps } from '@/services/maps';
 import { type Route } from '../../../../shared/types/index';
 import { resolveRouteById } from '../../services/routeLookup';
+import { clearRouteDraft } from '../../services/routeDraftStorage';
 import {
   formatRouteElevation,
   routeCoordinateSubtitle,
@@ -77,6 +78,21 @@ export default function RouteConfirmedScreen() {
       Alert.alert('Maps', message);
     }
   }, [route]);
+
+  const startCycling = useCallback(() => {
+    if (!route) {
+      return;
+    }
+
+    const run = async () => {
+      await clearRouteDraft().catch((error) => {
+        console.warn('Unable to clear route draft after trip confirmation', error);
+      });
+      navigation.navigate('LiveMap', { routeId: route.id, route });
+    };
+
+    void run();
+  }, [navigation, route]);
 
   if (loading) {
     return (
@@ -259,7 +275,7 @@ export default function RouteConfirmedScreen() {
 
         <Pressable
           className="bg-[#2563eb] rounded-cy-md py-4 items-center mb-5 flex-row justify-center gap-2"
-          onPress={() => navigation.navigate('LiveMap', { routeId: route.id, route })}
+          onPress={startCycling}
           testID="route-confirmed-start-cycling"
         >
           <MaterialCommunityIcons name="navigation-variant" size={22} color="#ffffff" />

@@ -6,12 +6,17 @@ import * as maps from '@/services/maps';
 import { getRouteById } from '../types';
 
 const mockResolveRouteById = jest.fn(async (id: string | undefined) => getRouteById(id) ?? null);
+const mockClearRouteDraft = jest.fn(() => Promise.resolve());
 
 jest.mock('../../services/routeLookup', () => {
   return {
     resolveRouteById: (id: string | undefined) => mockResolveRouteById(id),
   };
 });
+
+jest.mock('../../services/routeDraftStorage', () => ({
+  clearRouteDraft: () => mockClearRouteDraft(),
+}));
 
 const mockNavigate = jest.fn();
 const mockRouteParams: { routeId?: string; route?: ReturnType<typeof getRouteById> } = { routeId: '1' };
@@ -69,6 +74,7 @@ describe('RouteConfirmedPage', () => {
     render(<RouteConfirmedScreen />);
     await waitFor(() => expect(screen.getByTestId('route-confirmed-start-cycling')).toBeTruthy());
     fireEvent.press(screen.getByTestId('route-confirmed-start-cycling'));
+    await waitFor(() => expect(mockClearRouteDraft).toHaveBeenCalled());
     expect(mockNavigate).toHaveBeenCalledWith(
       'LiveMap',
       expect.objectContaining({

@@ -1,56 +1,116 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AppState } from 'react-native';
+import * as Location from 'expo-location';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import * as Location from 'expo-location';
 
 import type { Route } from '../../../../shared/types/index';
+import {
+  type ActiveRideSession,
+  advanceActiveRideSession,
+  loadActiveRideSession,
+  pauseActiveRideSession,
+  resumeActiveRideSession,
+  saveActiveRideSession,
+} from '../../services/activeRideSession';
+import {
+  clearRideSessionAndStopTracking,
+  ensureBackgroundRideTrackingStarted,
+  stopBackgroundRideTracking,
+} from '../../services/backgroundRideTracking';
+import { LIVE_MAP_PROGRESS_SIMULATION } from '../../config/runtime';
 import { resolveRouteById } from '../../services/routeLookup';
 import { saveRide } from '../../services/rideService';
 import {
-  type LngLat,
+  clearRideNotifications,
+  ensureRideNotificationPermission,
+  scheduleSimulationProgressNotifications,
+  notifyCheckpointReachedInBackground,
+  notifyRidePaused,
+  notifyRideResumed,
+  notifyRideTrackingInBackground,
+} from '../../services/rideNotifications';
+import {
   boundsFromCoordinates,
-  haversineMeters,
-  projectPointOntoPolyline,
+  haversineDistanceKm,
+  interpolateAlongRoute,
+  projectPointOntoRoute,
   routeToLineCoordinates,
+  type LngLat,
 } from '@/utils/routeGeometry';
 
-/** Warn when GPS is farther than this from the planned polyline (meters). */
 const OFF_ROUTE_WARNING_METERS = 80;
-/** Count a checkpoint as visited when within this radius (meters). */
-const CHECKPOINT_VISIT_METERS = 45;
-/** Trigger arrival modal when this close to the route end (meters). */
-const COMPLETION_END_METERS = 55;
-/**
- * For loop routes (start ≈ end), require this much progress along the polyline before
- * end proximity counts as "arrived" (avoids instant completion at the start).
- */
-const LOOP_COMPLETION_MIN_PROGRESS = 0.82;
-/** Point-to-point: still require meaningful progress before end proximity completes the ride. */
-const MIN_PROGRESS_FOR_COMPLETION = 0.78;
+
+type TrackingState = {
+  position: LngLat | null;
+  rawPosition: LngLat | null;
+  distanceKm: number;
+  progressPct: number;
+};
+
+const EMPTY_TRACKING: TrackingState = {
+  position: null,
+  rawPosition: null,
+  distanceKm: 0,
+  progressPct: 0,
+};
 
 export function useLiveMapRideState(routeId: string | undefined, initialRoute?: Route | null) {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const [route, setRoute] = useState<Route | null>(initialRoute ?? null);
   const [routeLoading, setRouteLoading] = useState(!initialRoute);
-  const sessionStartedAtRef = useRef(new Date().toISOString());
-  const persistRidePromiseRef = useRef<Promise<void> | null>(null);
-
-  const [riderLngLat, setRiderLngLat] = useState<LngLat | null>(null);
+  const [sessionReady, setSessionReady] = useState(false);
+  const [sessionStartedAt, setSessionStartedAt] = useState<string | null>(null);
+  const [sessionPausedAt, setSessionPausedAt] = useState<string | null>(null);
+  const [sessionCompletedAt, setSessionCompletedAt] = useState<string | null>(null);
+  const [pausedDurationMs, setPausedDurationMs] = useState(0);
+  const [tracking, setTracking] = useState<TrackingState>(EMPTY_TRACKING);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const [checkpointBanner, setCheckpointBanner] = useState<string | null>(null);
+  const [visitedPoiIndices, setVisitedPoiIndices] = useState<Set<number>>(new Set());
+  const [showExitModal, setShowExitModal] = useState(false);
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [locationReady, setLocationReady] = useState(false);
   const [locationDenied, setLocationDenied] = useState(false);
   const [metersFromRoute, setMetersFromRoute] = useState<number | null>(null);
-  const [progress, setProgress] = useState(0);
-  const [elapsedSec, setElapsedSec] = useState(0);
-  const [routeCompleted, setRouteCompleted] = useState(false);
-  const [checkpointsVisitedCount, setCheckpointsVisitedCount] = useState(0);
-  const [checkpointBanner, setCheckpointBanner] = useState<string | null>(null);
-  const [showExitModal, setShowExitModal] = useState(false);
+  const persistRidePromiseRef = useRef<Promise<void> | null>(null);
+  const initializedSessionRouteIdRef = useRef<string | undefined>(undefined);
+  const previousCheckpointRef = useRef(0);
+  const completionModalShownRef = useRef(false);
+  const appStateRef = useRef(AppState.currentState);
+  const simulationStatusRef = useRef({ progressPct: 0, elapsedSec: 0 });
+  const rideSummaryRef = useRef<{ distanceKm: number; elapsedMinutes: number; checkpointsVisited: number }>({ distanceKm: 0, elapsedMinutes: 0, checkpointsVisited: 0 });
 
-  const visitedCheckpointIdsRef = useRef<Set<string>>(new Set());
-  const routeCompletedRef = useRef(false);
+  const hydrateTrackingFromSession = useCallback(async () => {
+    if (!routeId) {
+      return null;
+    }
+
+    const session = await loadActiveRideSession();
+    if (!session || session.routeId !== routeId) {
+      return null;
+    }
+
+    setSessionStartedAt(session.startedAt);
+    setSessionPausedAt(session.status === 'paused' ? session.pausedAt ?? session.startedAt : null);
+    setPausedDurationMs(session.totalPausedMs ?? 0);
+    setTracking({
+      position: session.lastKnownPosition
+        ? [session.lastKnownPosition.lng, session.lastKnownPosition.lat]
+        : null,
+      rawPosition: session.lastKnownPosition
+        ? [session.lastKnownPosition.lng, session.lastKnownPosition.lat]
+        : null,
+      distanceKm: session.distanceKm ?? 0,
+      progressPct: session.progressPct ?? 0,
+    });
+
+    return session;
+  }, [routeId]);
 
   useEffect(() => {
     let cancelled = false;
+
     (async () => {
       if (!routeId) {
         if (!cancelled) {
@@ -64,149 +124,525 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
         setRouteLoading(true);
       }
 
-      const r = await resolveRouteById(routeId);
+      const resolved = await resolveRouteById(routeId);
       if (!cancelled) {
-        setRoute(r ?? initialRoute ?? null);
+        setRoute(resolved ?? initialRoute ?? null);
         setRouteLoading(false);
       }
     })();
+
     return () => {
       cancelled = true;
     };
-  }, [routeId]);
+  }, [initialRoute, routeId]);
 
   useEffect(() => {
-    visitedCheckpointIdsRef.current = new Set();
-    setCheckpointsVisitedCount(0);
+    setSessionReady(false);
+    setSessionStartedAt(null);
+    setSessionPausedAt(null);
+    setSessionCompletedAt(null);
+    setPausedDurationMs(0);
+    setTracking(EMPTY_TRACKING);
     setCheckpointBanner(null);
-    setRouteCompleted(false);
-    routeCompletedRef.current = false;
-    setProgress(0);
-    setMetersFromRoute(null);
-    setRiderLngLat(null);
+    setShowExitModal(false);
+    setShowCompletionModal(false);
     setLocationReady(false);
     setLocationDenied(false);
-  }, [route?.id]);
+    setMetersFromRoute(null);
+    initializedSessionRouteIdRef.current = undefined;
+    persistRidePromiseRef.current = null;
+    previousCheckpointRef.current = 0;
+    completionModalShownRef.current = false;
+  }, [routeId]);
+
+  const simulationScheduledRef = useRef(false);
 
   useEffect(() => {
-    const id = setInterval(() => setElapsedSec((s) => s + 1), 1000);
-    return () => clearInterval(id);
-  }, []);
+    simulationScheduledRef.current = false;
+  }, [route, sessionReady]);
+
+  useEffect(() => {
+    const updateNow = () => setNowMs(Date.now());
+    const id = setInterval(updateNow, 1000);
+    const sub = AppState.addEventListener('change', (nextState) => {
+      const previousState = appStateRef.current;
+      appStateRef.current = nextState;
+
+      if (nextState === 'active') {
+        updateNow();
+        simulationScheduledRef.current = false;
+        void clearRideNotifications().catch(() => {});
+        // Re-schedule from current progress when user returns to foreground,
+        // then clear again once they're back (they'll see the UI instead).
+        void hydrateTrackingFromSession();
+      }
+
+      // For non-simulation: fire a "tracking active" banner when going to background.
+      // Simulation notifications are pre-scheduled at ride start (see bootstrapSession).
+      const goingToBackground =
+        (previousState === 'active' || previousState === 'inactive') &&
+        (nextState === 'background' || nextState === 'inactive');
+
+      if (
+        goingToBackground &&
+        !simulationScheduledRef.current &&
+        route &&
+        sessionReady &&
+        !sessionPausedAt &&
+        !sessionCompletedAt
+      ) {
+        simulationScheduledRef.current = true;
+        if (LIVE_MAP_PROGRESS_SIMULATION) {
+          // Re-schedule from current progress — foreground return cleared the previous
+          // batch, so we need a fresh set before the app suspends again.
+          void clearRideNotifications()
+            .catch(() => {})
+            .then(() =>
+              scheduleSimulationProgressNotifications(
+                route,
+                simulationStatusRef.current.progressPct,
+                simulationStatusRef.current.elapsedSec,
+              ),
+            )
+            .catch(() => {});
+        } else {
+          void notifyRideTrackingInBackground(route.name).catch(() => {});
+        }
+      }
+    });
+    updateNow();
+
+    return () => {
+      clearInterval(id);
+      sub?.remove?.();
+    };
+  }, [
+    hydrateTrackingFromSession,
+    route,
+    sessionCompletedAt,
+    sessionPausedAt,
+    sessionReady,
+  ]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function bootstrapSession() {
+      if (!routeId || !route) {
+        if (!cancelled) {
+          setSessionReady(true);
+        }
+        return;
+      }
+
+      if (route.id !== routeId) {
+        return;
+      }
+
+      if (initializedSessionRouteIdRef.current === routeId) {
+        if (!cancelled) {
+          setSessionReady(true);
+        }
+        return;
+      }
+
+      initializedSessionRouteIdRef.current = routeId;
+      const activeSession = await hydrateTrackingFromSession();
+      if (cancelled) {
+        return;
+      }
+
+      if (activeSession?.routeId === routeId) {
+        if (!initialRoute) {
+          setRoute(activeSession.route);
+        }
+        setSessionReady(true);
+        void ensureRideNotificationPermission()
+          .then(() => {
+            if (LIVE_MAP_PROGRESS_SIMULATION) {
+              return clearRideNotifications()
+                .catch(() => {})
+                .then(() =>
+                  scheduleSimulationProgressNotifications(
+                    activeSession.route,
+                    activeSession.progressPct ?? 0,
+                    0,
+                  ),
+                )
+                .catch(() => {});
+            }
+            return Promise.resolve();
+          })
+          .catch(() => {});
+        return;
+      }
+
+      const startedAt = new Date().toISOString();
+      setSessionStartedAt(startedAt);
+      setSessionPausedAt(null);
+      setPausedDurationMs(0);
+      setTracking(EMPTY_TRACKING);
+      setSessionReady(true);
+      await saveActiveRideSession({
+        version: 1,
+        routeId,
+        route,
+        startedAt,
+      });
+      void ensureRideNotificationPermission()
+        .then(() => {
+          if (LIVE_MAP_PROGRESS_SIMULATION) {
+            // Pre-schedule all simulation notifications NOW while the app is foregrounded.
+            // iOS may suspend JS before background-transition async chains complete,
+            // so we schedule eagerly here instead of waiting for the AppState change.
+            return clearRideNotifications()
+              .catch(() => {})
+              .then(() => scheduleSimulationProgressNotifications(route, 0, 0))
+              .catch(() => {});
+          }
+          return Promise.resolve();
+        })
+        .catch(() => {});
+    }
+
+    void bootstrapSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrateTrackingFromSession, initialRoute, route, routeId]);
 
   const lineCoords = useMemo(() => (route ? routeToLineCoordinates(route) : []), [route]);
+  const isPaused = sessionPausedAt !== null;
+  const isRideFinished = sessionCompletedAt !== null;
 
-  const isLoopRoute = useMemo(() => {
-    if (!route) return false;
-    return haversineMeters(route.startPoint.lat, route.startPoint.lng, route.endPoint.lat, route.endPoint.lng) < 60;
-  }, [route]);
+  const buildSession = useCallback(
+    (overrides: Partial<ActiveRideSession> = {}): ActiveRideSession | null => {
+      if (!routeId || !route || !sessionStartedAt) {
+        return null;
+      }
 
-  const completionMinProgress = isLoopRoute ? LOOP_COMPLETION_MIN_PROGRESS : MIN_PROGRESS_FOR_COMPLETION;
+      return {
+        version: 1,
+        routeId,
+        route,
+        startedAt: sessionStartedAt,
+        status: sessionPausedAt ? 'paused' : 'active',
+        pausedAt: sessionPausedAt ?? undefined,
+        totalPausedMs: pausedDurationMs,
+        lastKnownPosition: tracking.position
+          ? { lat: tracking.position[1], lng: tracking.position[0] }
+          : undefined,
+        distanceKm: tracking.distanceKm,
+        progressPct: tracking.progressPct,
+        ...overrides,
+      };
+    },
+    [pausedDurationMs, route, routeId, sessionPausedAt, sessionStartedAt, tracking],
+  );
+
+  const applyTrackedPosition = useCallback(
+    (nextPosition: LngLat, accuracyMeters?: number | null) => {
+      if (!route || !routeId || !sessionStartedAt || isPaused || isRideFinished) {
+        return;
+      }
+
+      setLocationReady(true);
+      setLocationDenied(false);
+
+      setTracking((prev) => {
+        const nextSession = advanceActiveRideSession(
+          {
+            version: 1,
+            routeId,
+            route,
+            startedAt: sessionStartedAt,
+            status: 'active',
+            totalPausedMs: pausedDurationMs,
+            lastKnownPosition: prev.position
+              ? { lat: prev.position[1], lng: prev.position[0] }
+              : undefined,
+            distanceKm: prev.distanceKm,
+            progressPct: prev.progressPct,
+          },
+          { lat: nextPosition[1], lng: nextPosition[0] },
+          accuracyMeters,
+        );
+
+        return {
+          position: nextSession.lastKnownPosition
+            ? [nextSession.lastKnownPosition.lng, nextSession.lastKnownPosition.lat]
+            : null,
+          rawPosition: nextPosition,
+          distanceKm: nextSession.distanceKm ?? 0,
+          progressPct: nextSession.progressPct ?? 0,
+        };
+      });
+    },
+    [isPaused, isRideFinished, pausedDurationMs, route, routeId, sessionStartedAt]
+  );
 
   useEffect(() => {
-    if (!route || lineCoords.length < 2) {
+    if (LIVE_MAP_PROGRESS_SIMULATION || !sessionReady || !route || !routeId || isPaused || isRideFinished) {
       return undefined;
     }
 
+    let active = true;
     let subscription: Location.LocationSubscription | null = null;
-    let cancelled = false;
 
-    (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (cancelled) return;
-      if (status !== 'granted') {
+    async function startWatching() {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (!active) {
+        return;
+      }
+
+      if (permission.status !== 'granted') {
         setLocationDenied(true);
         setLocationReady(true);
         return;
       }
 
+      const initialPosition = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      if (!active) {
+        return;
+      }
+
+      applyTrackedPosition(
+        [initialPosition.coords.longitude, initialPosition.coords.latitude],
+        initialPosition.coords.accuracy,
+      );
+
       subscription = await Location.watchPositionAsync(
         {
-          accuracy: Location.Accuracy.Balanced,
-          timeInterval: 2000,
+          accuracy: Location.Accuracy.BestForNavigation,
           distanceInterval: 5,
+          timeInterval: 3000,
         },
-        (loc) => {
-          if (cancelled) return;
-          const lat = loc.coords.latitude;
-          const lng = loc.coords.longitude;
-          setRiderLngLat([lng, lat]);
-          setLocationReady(true);
-
-          const proj = projectPointOntoPolyline(lat, lng, lineCoords);
-          setMetersFromRoute(proj.distToRouteM);
-          setProgress(proj.progress01 * 100);
-
-          const distToEnd = haversineMeters(lat, lng, route.endPoint.lat, route.endPoint.lng);
-          if (
-            distToEnd < COMPLETION_END_METERS &&
-            proj.progress01 >= completionMinProgress &&
-            !routeCompletedRef.current
-          ) {
-            routeCompletedRef.current = true;
-            setRouteCompleted(true);
-          }
-
-          for (const cp of route.checkpoints) {
-            if (visitedCheckpointIdsRef.current.has(cp.id)) continue;
-            const d = haversineMeters(lat, lng, cp.lat, cp.lng);
-            if (d < CHECKPOINT_VISIT_METERS) {
-              visitedCheckpointIdsRef.current.add(cp.id);
-              setCheckpointsVisitedCount(visitedCheckpointIdsRef.current.size);
-              setCheckpointBanner(`${cp.name} — ${cp.description}`);
-              setTimeout(() => setCheckpointBanner(null), 4000);
-              break;
-            }
-          }
+        (update) => {
+          applyTrackedPosition(
+            [update.coords.longitude, update.coords.latitude],
+            update.coords.accuracy,
+          );
         },
       );
-    })().catch(() => {
-      if (!cancelled) {
-        setLocationDenied(true);
-        setLocationReady(true);
-      }
-    });
+    }
+
+    void startWatching();
 
     return () => {
-      cancelled = true;
+      active = false;
       subscription?.remove();
     };
-  }, [route, lineCoords, completionMinProgress]);
+  }, [applyTrackedPosition, isPaused, isRideFinished, route, routeId, sessionReady]);
+
+  useEffect(() => {
+    if (LIVE_MAP_PROGRESS_SIMULATION || !sessionReady || !route || !routeId || isPaused || isRideFinished) {
+      return;
+    }
+
+    void ensureBackgroundRideTrackingStarted().catch((error) => {
+      console.warn('[BackgroundRideTracking] Failed to start background tracking', error);
+    });
+  }, [isPaused, isRideFinished, route, routeId, sessionReady]);
+
+  useEffect(() => {
+    if (!routeId || !route || !sessionStartedAt || !sessionReady || isRideFinished) {
+      return;
+    }
+
+    const session = buildSession();
+    if (!session) {
+      return;
+    }
+
+    void saveActiveRideSession(session);
+  }, [buildSession, isRideFinished, routeId, route, sessionReady, sessionStartedAt]);
+
+  const elapsedSec = useMemo(() => {
+    if (!sessionStartedAt) {
+      return 0;
+    }
+
+    const startedAtMs = Date.parse(sessionStartedAt);
+    if (Number.isNaN(startedAtMs)) {
+      return 0;
+    }
+
+    const referenceMs = sessionCompletedAt
+      ? Date.parse(sessionCompletedAt)
+      : sessionPausedAt
+        ? Date.parse(sessionPausedAt)
+        : nowMs;
+    const safeReferenceMs = Number.isNaN(referenceMs) ? nowMs : referenceMs;
+
+    return Math.max(0, Math.floor((safeReferenceMs - startedAtMs - pausedDurationMs) / 1000));
+  }, [nowMs, pausedDurationMs, sessionCompletedAt, sessionPausedAt, sessionStartedAt]);
+
+  const simulatedProgressPct = useMemo(
+    () => Math.min(100, elapsedSec * 2),
+    [elapsedSec]
+  );
+
+  const progressPct = LIVE_MAP_PROGRESS_SIMULATION
+    ? simulatedProgressPct
+    : tracking.progressPct;
+
+  useEffect(() => {
+    simulationStatusRef.current = {
+      progressPct,
+      elapsedSec,
+    };
+  }, [elapsedSec, progressPct]);
+
+  const riderPosition = useMemo<LngLat>(() => {
+    if (LIVE_MAP_PROGRESS_SIMULATION) {
+      return lineCoords.length ? interpolateAlongRoute(lineCoords, progressPct / 100) : [0, 0];
+    }
+
+    return tracking.position ?? lineCoords[0] ?? [0, 0];
+  }, [lineCoords, progressPct, tracking.position]);
+
+  useEffect(() => {
+    if (!tracking.position || lineCoords.length < 2) {
+      setMetersFromRoute(null);
+      return;
+    }
+
+    const { distanceKmFromRoute } = projectPointOntoRoute(lineCoords, tracking.position);
+    setMetersFromRoute(Number.isFinite(distanceKmFromRoute) ? distanceKmFromRoute * 1000 : null);
+  }, [lineCoords, tracking.position]);
 
   const lineFeature = useMemo(
-    () => ({
+    (): {
+      type: 'Feature';
+      properties: Record<string, never>;
+      geometry: { type: 'LineString'; coordinates: LngLat[] };
+    } => ({
       type: 'Feature' as const,
       properties: {},
       geometry: { type: 'LineString' as const, coordinates: lineCoords },
     }),
-    [lineCoords],
+    [lineCoords]
   );
 
   const bounds = useMemo(() => boundsFromCoordinates(lineCoords), [lineCoords]);
 
   const riderPoint = useMemo(
-    () =>
-      riderLngLat
-        ? {
-            type: 'Feature' as const,
-            properties: {},
-            geometry: { type: 'Point' as const, coordinates: riderLngLat },
-          }
-        : null,
-    [riderLngLat],
+    (): {
+      type: 'Feature';
+      properties: Record<string, never>;
+      geometry: { type: 'Point'; coordinates: LngLat };
+    } => ({
+      type: 'Feature' as const,
+      properties: {},
+      geometry: { type: 'Point' as const, coordinates: riderPosition },
+    }),
+    [riderPosition]
   );
 
-  const offRouteWarning = useMemo(() => {
-    if (metersFromRoute == null || !Number.isFinite(metersFromRoute)) return false;
-    return metersFromRoute > OFF_ROUTE_WARNING_METERS;
-  }, [metersFromRoute]);
+  const riderLngLat = useMemo<LngLat | null>(() => {
+    if (LIVE_MAP_PROGRESS_SIMULATION) {
+      return lineCoords.length ? riderPosition : null;
+    }
 
-  const distanceTraveledKm = useMemo(() => {
-    if (!route || lineCoords.length < 2 || !riderLngLat) return '0.00';
-    const lat = riderLngLat[1];
-    const lng = riderLngLat[0];
-    const { cumulativeM } = projectPointOntoPolyline(lat, lng, lineCoords);
-    return (cumulativeM / 1000).toFixed(2);
-  }, [route, lineCoords, riderLngLat]);
+    return tracking.position;
+  }, [lineCoords.length, riderPosition, tracking.position]);
+
+  const riderHasFix = LIVE_MAP_PROGRESS_SIMULATION
+    ? lineCoords.length > 0
+    : Boolean(tracking.position);
+
+  const distanceToEndKm = useMemo(() => {
+    if (!route || !tracking.position) {
+      return Number.POSITIVE_INFINITY;
+    }
+
+    return haversineDistanceKm(tracking.position, [route.endPoint.lng, route.endPoint.lat]);
+  }, [route, tracking.position]);
+
+  const routeCompleted = LIVE_MAP_PROGRESS_SIMULATION
+    ? progressPct >= 99
+    : progressPct >= 98 || (progressPct >= 95 && distanceToEndKm <= 0.03);
+
+  useEffect(() => {
+    if (!routeCompleted || completionModalShownRef.current) {
+      return;
+    }
+
+    completionModalShownRef.current = true;
+    const completedAt = new Date().toISOString();
+    setSessionCompletedAt(completedAt);
+    setSessionPausedAt(null);
+    setShowCompletionModal(true);
+
+    // In simulation mode the completion notification is already pre-scheduled at ride
+    // start via scheduleSimulationProgressNotifications — no need to schedule again here.
+    // In real GPS mode the background task sends notifyRideCompletedInBackground directly.
+
+    // Do NOT call clearRideNotifications() here — it would cancel the completion
+    // notification that was just scheduled (or pre-scheduled at ride start) before
+    // it has a chance to fire. Notifications are cleared in finalizeCompletedRide
+    // and abandonIncompleteRide, after the user interacts with the completion modal.
+    void clearRideSessionAndStopTracking().catch((error) => {
+      console.warn('[LiveMap] Failed to finalize completed ride session', error);
+    });
+  }, [route, routeCompleted]);
+
+  const currentCheckpoint = useMemo(() => {
+    if (!route || !route.checkpoints.length) {
+      return 0;
+    }
+
+    const threshold = 100 / (route.checkpoints.length + 1);
+    return Math.min(route.checkpoints.length, Math.floor(progressPct / threshold));
+  }, [progressPct, route]);
+
+  useEffect(() => {
+    if (!route || !lineCoords.length) {
+      previousCheckpointRef.current = 0;
+      return undefined;
+    }
+
+    if (currentCheckpoint > previousCheckpointRef.current) {
+      const checkpoint = route.checkpoints[currentCheckpoint - 1];
+      if (checkpoint) {
+        setCheckpointBanner(`${checkpoint.name} - ${checkpoint.description}`);
+        if (LIVE_MAP_PROGRESS_SIMULATION) {
+          void notifyCheckpointReachedInBackground(route.name, checkpoint.name).catch(() => {});
+        }
+        const timer = setTimeout(() => setCheckpointBanner(null), 3000);
+        previousCheckpointRef.current = currentCheckpoint;
+        return () => clearTimeout(timer);
+      }
+    }
+
+    previousCheckpointRef.current = currentCheckpoint;
+    return undefined;
+  }, [currentCheckpoint, lineCoords.length, route]);
+
+  useEffect(() => {
+    const poiDetectionLngLat = riderLngLat ?? tracking.rawPosition;
+    if (!poiDetectionLngLat || !route?.pointsOfInterestVisited?.length) return;
+
+    const pois = route.pointsOfInterestVisited;
+    setVisitedPoiIndices((prev) => {
+      const next = new Set(prev);
+      let anyNew = false;
+      pois.forEach((poi, i) => {
+        if (next.has(i)) return;
+        if (typeof poi.lat !== 'number' || typeof poi.lng !== 'number') return;
+        const distKm = haversineDistanceKm(poiDetectionLngLat, [poi.lng, poi.lat]);
+        if (distKm <= 0.08) {
+          next.add(i);
+          anyNew = true;
+        }
+      });
+      return anyNew ? next : prev;
+    });
+  }, [riderLngLat, route, tracking.rawPosition]);
 
   const formatTime = useCallback((seconds: number) => {
     const hrs = Math.floor(seconds / 3600);
@@ -218,23 +654,59 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   }, []);
 
+  const distanceTraveled = route
+    ? (
+        LIVE_MAP_PROGRESS_SIMULATION
+          ? (route.distance * progressPct) / 100
+          : tracking.distanceKm
+      ).toFixed(2)
+    : '0.00';
+
+  const rideSummary = useMemo(
+    () => ({
+      distanceKm: routeCompleted && route ? route.distance : Number(distanceTraveled),
+      elapsedMinutes: Math.max(1, Math.round(elapsedSec / 60)),
+      checkpointsVisited: routeCompleted && route ? route.checkpoints.length : currentCheckpoint,
+    }),
+    [currentCheckpoint, distanceTraveled, elapsedSec, route, routeCompleted],
+  );
+
+  useEffect(() => {
+    rideSummaryRef.current = rideSummary;
+  }, [rideSummary]);
+
+  const checkpointsVisitedCount = useMemo(() => {
+    if (!route) {
+      return 0;
+    }
+
+    return Math.min(route.checkpoints.length, currentCheckpoint);
+  }, [currentCheckpoint, route]);
+
+  const offRouteWarning = useMemo(() => {
+    if (metersFromRoute == null || !Number.isFinite(metersFromRoute)) {
+      return false;
+    }
+
+    return metersFromRoute > OFF_ROUTE_WARNING_METERS;
+  }, [metersFromRoute]);
+
   const persistRideCompletion = useCallback(async () => {
-    if (!route || !routeId) {
+    if (!route || !routeId || !routeCompleted) {
       return;
     }
 
     if (!persistRidePromiseRef.current) {
-      const completedDistance = routeCompleted ? route.distance : Number(distanceTraveledKm);
-      const safeDistance = Number.isFinite(completedDistance) ? completedDistance : 0;
+      const safeDistance = Number.isFinite(rideSummary.distanceKm) ? rideSummary.distanceKm : 0;
       const avgSpeed = elapsedSec > 0 ? Number((safeDistance / (elapsedSec / 3600)).toFixed(1)) : 0;
 
       persistRidePromiseRef.current = saveRide({
         route,
-        startTime: sessionStartedAtRef.current,
+        startTime: sessionStartedAt ?? new Date(nowMs).toISOString(),
         endTime: new Date().toISOString(),
         distance: safeDistance,
         avgSpeed,
-        checkpointsVisited: checkpointsVisitedCount,
+        checkpointsVisited: rideSummary.checkpointsVisited,
         pointsOfInterestVisited: route.pointsOfInterestVisited,
       })
         .then(() => {})
@@ -245,68 +717,175 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
 
     await persistRidePromiseRef.current;
   }, [
-    checkpointsVisitedCount,
-    distanceTraveledKm,
     elapsedSec,
+    nowMs,
     route,
     routeCompleted,
     routeId,
+    rideSummary,
+    sessionStartedAt,
   ]);
 
-  const goFeedback = useCallback(() => {
-    const navigate = async () => {
-      setRouteCompleted(false);
-      routeCompletedRef.current = false;
-      setShowExitModal(false);
-      await persistRideCompletion();
-      if (routeId) {
-        navigation.navigate('RouteFeedback', { routeId, route });
-      } else {
-        navigation.navigate('RouteFeedback', route ? { route } : undefined);
+  const pauseRide = useCallback(() => {
+    const run = async () => {
+      const pausedAt = new Date().toISOString();
+      const nextSession = buildSession();
+      if (!nextSession || !route || isRideFinished) {
+        return;
+      }
+
+      const pausedSession = pauseActiveRideSession(nextSession, pausedAt);
+      setSessionPausedAt(pausedAt);
+      await saveActiveRideSession(pausedSession);
+      await stopBackgroundRideTracking();
+      await notifyRidePaused(route.name).catch(() => {});
+    };
+
+    void run();
+  }, [buildSession, isRideFinished, route]);
+
+  const resumeRide = useCallback(() => {
+    const run = async () => {
+      const resumedAt = new Date().toISOString();
+      const currentSession = buildSession();
+      if (!currentSession || !route || isRideFinished) {
+        return;
+      }
+
+      const resumedSession = resumeActiveRideSession(currentSession, resumedAt);
+      setSessionPausedAt(null);
+      setPausedDurationMs(resumedSession.totalPausedMs ?? 0);
+      await saveActiveRideSession(resumedSession);
+      await ensureBackgroundRideTrackingStarted().catch((error) => {
+        console.warn('[BackgroundRideTracking] Failed to resume background tracking', error);
+      });
+      await notifyRideResumed(route.name).catch(() => {});
+      await clearRideNotifications().catch(() => {});
+
+      // Re-schedule simulation notifications from current position after resume.
+      if (LIVE_MAP_PROGRESS_SIMULATION) {
+        void scheduleSimulationProgressNotifications(
+          route,
+          simulationStatusRef.current.progressPct,
+          simulationStatusRef.current.elapsedSec,
+        ).catch(() => {});
       }
     };
 
+    void run();
+  }, [buildSession, isRideFinished, route]);
+
+  const finalizeCompletedRide = useCallback(
+    (destination: 'feedback' | 'home') => {
+      const navigate = async () => {
+        setShowExitModal(false);
+        setShowCompletionModal(false);
+        await persistRideCompletion();
+        await clearRideSessionAndStopTracking();
+        await clearRideNotifications().catch(() => {});
+
+        if (destination === 'feedback') {
+          navigation.reset({
+            index: 0,
+            routes: [
+              {
+                name: 'RouteFeedback',
+                params: routeId
+                  ? { routeId, route, rideSummary }
+                  : route
+                    ? { route, rideSummary }
+                    : undefined,
+              },
+            ],
+          });
+          return;
+        }
+
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'HomePage' }],
+        });
+      };
+
+      void navigate();
+    },
+    [navigation, persistRideCompletion, rideSummary, route, routeId],
+  );
+
+  const goFeedback = useCallback(() => {
+    finalizeCompletedRide('feedback');
+  }, [finalizeCompletedRide]);
+
+  const finishCompletedRide = useCallback(() => {
+    finalizeCompletedRide('home');
+  }, [finalizeCompletedRide]);
+
+  const abandonIncompleteRide = useCallback(() => {
+    const navigate = async () => {
+      setShowExitModal(false);
+      setShowCompletionModal(false);
+      await clearRideSessionAndStopTracking();
+      await clearRideNotifications().catch(() => {});
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'HomePage' }],
+      });
+    };
+
     void navigate();
-  }, [navigation, persistRideCompletion, route, routeId]);
+  }, [navigation]);
 
   const stopCycling = () => {
     if (routeCompleted) {
-      goFeedback();
+      setShowCompletionModal(true);
       return;
     }
     setShowExitModal(true);
   };
 
-  const confirmExit = () => {
-    setShowExitModal(false);
-    goFeedback();
+  const confirmEndRide = () => {
+    if (routeCompleted) {
+      goFeedback();
+      return;
+    }
+
+    abandonIncompleteRide();
   };
 
   return {
     navigation,
     route,
-    routeLoading,
-    progress,
+    routeLoading: routeLoading || !sessionReady,
+    progress: progressPct,
     elapsedSec,
     routeCompleted,
     checkpointsVisitedCount,
+    isPaused,
+    currentCheckpoint,
     checkpointBanner,
     showExitModal,
     setShowExitModal,
+    showCompletionModal,
+    setShowCompletionModal,
     lineCoords,
     lineFeature,
     bounds,
     riderPoint,
     riderLngLat,
-    riderHasFix: Boolean(riderLngLat),
+    riderHasFix,
     offRouteWarning,
     metersFromRoute,
     locationDenied,
     locationReady,
     formatTime,
-    distanceTraveled: distanceTraveledKm,
+    distanceTraveled,
+    rideSummary,
+    pauseRide,
+    resumeRide,
     goFeedback,
+    finishCompletedRide,
     stopCycling,
-    confirmExit,
+    confirmEndRide,
+    visitedPoiIndices,
   };
 }

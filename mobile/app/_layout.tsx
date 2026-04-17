@@ -11,6 +11,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AuthProvider } from '@/app/AuthContext';
 import { ThemeProvider } from '@/app/ThemeContext';
+import { initializeRideNotifications } from '@/services/rideNotifications';
+
+// Warm up the expo-notifications module and create the Android channel early,
+// so the first notification isn't delayed or dropped.
+initializeRideNotifications();
 
 function RootLayoutNav() {
   const { colorScheme } = useColorScheme();

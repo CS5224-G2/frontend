@@ -8,6 +8,37 @@ jest.mock('expo-haptics', () => ({
 }));
 
 jest.mock('expo-location', () => ({
+  Accuracy: {
+    Balanced: 3,
+    BestForNavigation: 6,
+  },
+  requestForegroundPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'granted' })),
+  requestBackgroundPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'granted' })),
+  isBackgroundLocationAvailableAsync: jest.fn(() => Promise.resolve(true)),
+  hasStartedLocationUpdatesAsync: jest.fn(() => Promise.resolve(false)),
+  startLocationUpdatesAsync: jest.fn(() => Promise.resolve()),
+  stopLocationUpdatesAsync: jest.fn(() => Promise.resolve()),
+  getCurrentPositionAsync: jest.fn(() =>
+    Promise.resolve({
+      coords: {
+        latitude: 1.3001,
+        longitude: 103.7701,
+        accuracy: 10,
+      },
+    })
+  ),
+  watchPositionAsync: jest.fn((_options, callback) => {
+    callback({
+      coords: {
+        latitude: 1.3001,
+        longitude: 103.7701,
+        accuracy: 10,
+      },
+    });
+    return Promise.resolve({
+      remove: jest.fn(),
+    });
+  }),
   reverseGeocodeAsync: jest.fn(() => Promise.resolve([])),
   requestForegroundPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'granted' })),
   Accuracy: { Balanced: 4, High: 6 },
@@ -33,6 +64,43 @@ jest.mock('expo-location', () => ({
       });
     });
   }),
+}));
+
+jest.mock('expo-task-manager', () => ({
+  defineTask: jest.fn(),
+}));
+
+jest.mock('expo-notifications', () => ({
+  IosAuthorizationStatus: {
+    PROVISIONAL: 3,
+  },
+  AndroidImportance: {
+    MAX: 7,
+  },
+  AndroidNotificationVisibility: {
+    PUBLIC: 1,
+  },
+  AndroidNotificationPriority: {
+    DEFAULT: 'default',
+    MAX: 'max',
+  },
+  SchedulableTriggerInputTypes: {
+    TIME_INTERVAL: 'timeInterval',
+  },
+  setNotificationHandler: jest.fn(),
+  setNotificationChannelAsync: jest.fn(() => Promise.resolve()),
+  getPermissionsAsync: jest.fn(() => Promise.resolve({ granted: true })),
+  requestPermissionsAsync: jest.fn(() => Promise.resolve({ granted: true })),
+  scheduleNotificationAsync: jest.fn(() => Promise.resolve('notification-id')),
+  dismissNotificationAsync: jest.fn(() => Promise.resolve()),
+  cancelScheduledNotificationAsync: jest.fn(() => Promise.resolve()),
+  dismissAllNotificationsAsync: jest.fn(() => Promise.resolve()),
+  cancelAllScheduledNotificationsAsync: jest.fn(() => Promise.resolve()),
+  addNotificationResponseReceivedListener: jest.fn(() => ({
+    remove: jest.fn(),
+  })),
+  getLastNotificationResponse: jest.fn(() => null),
+  clearLastNotificationResponse: jest.fn(),
 }));
 
 const mockAsyncStorageStore = new Map();
