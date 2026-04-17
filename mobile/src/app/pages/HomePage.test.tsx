@@ -331,7 +331,7 @@ describe('HomePage', () => {
     expect(screen.getByText('Recovered from ride history')).toBeTruthy();
   });
 
-  it('does not refetch the profile on focus refresh when stored preferences already exist', async () => {
+  it('does not fetch the profile for cyclist type when stored preferences already exist', async () => {
     await renderHomePage({
       userPreferences: JSON.stringify({
         cyclistType: 'fitness',
@@ -343,8 +343,10 @@ describe('HomePage', () => {
       }),
     });
 
+    // With stored preferences, getUserProfile is called once (avatar fetch on mount)
+    // but NOT a second time for cyclist type — that comes from stored preferences.
     await waitFor(() => {
-      expect(mockGetUserProfile).toHaveBeenCalledTimes(0);
+      expect(mockGetUserProfile).toHaveBeenCalledTimes(1);
     });
   });
 
