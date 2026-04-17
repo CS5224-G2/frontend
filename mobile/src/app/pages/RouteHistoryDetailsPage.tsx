@@ -410,13 +410,8 @@ export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
       <Button
         onPress={() =>
           navigation.navigate('HomeTab', {
-            state: {
-              routes: [
-                { name: 'HomePage' },
-                { name: 'RouteDetails', params: { routeId: routeInfo.id, route: routeInfo } },
-              ],
-              index: 1,
-            },
+            screen: 'RouteDetails',
+            params: { routeId: routeInfo.id, route: routeInfo },
           })
         }
         style={{

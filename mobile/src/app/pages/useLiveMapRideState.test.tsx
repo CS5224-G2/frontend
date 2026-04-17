@@ -419,30 +419,46 @@ describe('POI visited detection', () => {
   };
 
   it('adds a POI index to visitedPoiIndices when the rider is within 80 m', async () => {
-    const poi = routeWithPoi.pointsOfInterestVisited[0];
-    (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValueOnce({
-      coords: { latitude: poi.lat, longitude: poi.lng, accuracy: 5 },
-    });
-    (Location.watchPositionAsync as jest.Mock).mockImplementationOnce(
-      async (_opts: unknown, cb: (pos: { coords: { latitude: number; longitude: number; accuracy: number } }) => void) => {
-        cb({ coords: { latitude: poi.lat, longitude: poi.lng, accuracy: 5 } });
-        return { remove: jest.fn() };
-      }
-    );
+    // Use simulation mode so riderLngLat is determined by progressPct, not GPS.
+    // At elapsedSec=0, progressPct=0, riderLngLat = startPoint. Placing the POI
+    // at startPoint gives a deterministic distance=0 that always fires on mount.
+    mockLiveMapProgressSimulationEnabled = true;
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-04-18T00:00:00.000Z'));
+
+    const nearbyRoute = {
+      ...mockRoutes[1],
+      pointsOfInterestVisited: [
+        {
+          name: 'Start Line Cafe',
+          lat: mockRoutes[1].startPoint.lat,
+          lng: mockRoutes[1].startPoint.lng,
+          category: 'hawkerCenter' as const,
+        },
+        {
+          name: 'Far Away Place',
+          lat: 1.3,
+          lng: 104.0,
+          category: 'park' as const,
+        },
+      ],
+    };
 
     const { result } = renderHook(() =>
-      useLiveMapRideState(routeWithPoi.id, routeWithPoi)
+      useLiveMapRideState(nearbyRoute.id, nearbyRoute)
     );
 
     await waitFor(() => {
       expect(result.current.routeLoading).toBe(false);
     });
 
+    // riderLngLat in sim mode at progressPct=0 = startPoint.
+    // POI 0 is also at startPoint → distance 0 ≤ 80 m → detected.
     await waitFor(() => {
       expect(result.current.visitedPoiIndices.has(0)).toBe(true);
     });
 
-    // The far-away POI should still be unvisited
+    // The far-away POI should remain unvisited
     expect(result.current.visitedPoiIndices.has(1)).toBe(false);
   });
 
