@@ -44,81 +44,8 @@ import OnboardingScreen from './pages/OnboardingPage';
 import UserJourneyScreen from './pages/UserJourneyPage';
 import ForgotPasswordScreen from './pages/ForgotPasswordPage';
 import { FLOATING_TAB_BAR_DOCK_HEIGHT } from './utils/floatingTabBarInset';
-import {
-  extractRideCompletionNotificationData,
-  initializeRideNotifications,
-  ensureRideNotificationPermission,
-} from '../services/rideNotifications';
-import { LIVE_MAP_PROGRESS_SIMULATION } from '../config/runtime';
+import { extractRideCompletionNotificationData } from '../services/rideNotifications';
 
-// Warm up the expo-notifications module and create the Android channel early,
-// so the first notification isn't delayed or dropped.
-initializeRideNotifications();
-
-// ─── DIAGNOSTIC: fires a test notification after app load ────────────────────
-// Uses Alert.alert() so results are visible even in release builds (no Metro).
-// Remove this block once background notifications are confirmed working.
-{
-  const { Alert: RNAlert0 } = require('react-native');
-  RNAlert0.alert('🔧 Diagnostic', `Sim flag: ${LIVE_MAP_PROGRESS_SIMULATION}`);
-  setTimeout(() => {
-    void (async () => {
-      try {
-        const { Alert: RNAlert } = require('react-native');
-
-        // Step 1: Try loading the module directly
-        let Notifs: typeof import('expo-notifications');
-        try {
-          Notifs = require('expo-notifications');
-        } catch (loadErr: any) {
-          RNAlert.alert('❌ Module Load Failed', String(loadErr));
-          return;
-        }
-
-        // Step 2: Check current permission status
-        const existing = await Notifs.getPermissionsAsync();
-        RNAlert.alert(
-          '📋 Current Permission',
-          `granted: ${existing.granted}\nstatus: ${existing.status}\niOS status: ${existing.ios?.status}\niOS allowsAlert: ${existing.ios?.allowsAlert}\niOS allowsSound: ${existing.ios?.allowsSound}`,
-        );
-
-        // Step 3: Request if not granted
-        if (!existing.granted) {
-          const requested = await Notifs.requestPermissionsAsync({
-            ios: { allowAlert: true, allowBadge: true, allowSound: true },
-          });
-          RNAlert.alert(
-            '📋 After Request',
-            `granted: ${requested.granted}\nstatus: ${requested.status}\niOS status: ${requested.ios?.status}`,
-          );
-          if (!requested.granted) {
-            RNAlert.alert('❌ Permission Denied', 'Go to Settings → CycleLink → Notifications → Allow');
-            return;
-          }
-        }
-
-        // Step 4: Schedule test notification
-        const id = await Notifs.scheduleNotificationAsync({
-          content: {
-            title: '🔔 Notification test',
-            body: 'If you see this, notifications work!',
-            sound: 'default',
-          },
-          trigger: {
-            type: Notifs.SchedulableTriggerInputTypes.TIME_INTERVAL,
-            seconds: 5,
-            repeats: false,
-          },
-        });
-        RNAlert.alert('✅ Scheduled', `Notification ID: ${id}\nShould appear in 5 seconds. Lock your phone now!`);
-      } catch (err: any) {
-        const { Alert: RNAlert } = require('react-native');
-        RNAlert.alert('❌ Error', String(err?.message ?? err));
-      }
-    })();
-  }, 3000);
-}
-// ─────────────────────────────────────────────────────────────────────────────
 
 const Stack = createNativeStackNavigator<any>();
 const Tab = createBottomTabNavigator<any>();
@@ -383,6 +310,7 @@ export function RootNavigator() {
   const [navReady, setNavReady] = useState(false);
   const [pendingRideFeedbackParams, setPendingRideFeedbackParams] = useState<any | null>(null);
   const hasCheckedInitialNotificationRef = useRef(false);
+
 
   useEffect(() => {
     const extractParams = (response: Notifications.NotificationResponse | null) => {
