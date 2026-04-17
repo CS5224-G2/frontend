@@ -31,6 +31,14 @@ jest.mock('../../services/rideService', () => ({
   submitRideFeedback: (...args: unknown[]) => mockSubmitRideFeedback(...args),
 }));
 
+jest.mock('../../services/userService', () => ({
+  getUserProfile: jest.fn().mockResolvedValue({
+    fullName: 'Test User',
+    avatarUrl: null,
+    avatarColor: '#3b82f6',
+  }),
+}));
+
 const mockRoute = {
   id: '1',
   name: 'East Coast Park Trail',
@@ -68,9 +76,9 @@ describe('RouteFeedbackPage', () => {
     expect(await screen.findByText('Rate Your Experience')).toBeTruthy();
   }, 10000);
 
-  it('shows the route name in the subtitle', async () => {
+  it('shows a personalised greeting subtitle after loading', async () => {
     renderPage();
-    expect(await screen.findByText(/How was your ride on East Coast Park Trail/)).toBeTruthy();
+    expect(await screen.findByText(/How was your ride, Test\?/)).toBeTruthy();
   }, 10000);
 
   it('renders the Your Rating label', async () => {
@@ -149,7 +157,7 @@ describe('RouteFeedbackPage', () => {
       />,
     );
 
-    expect(await screen.findByText(/How was your ride on East Coast Park Trail/)).toBeTruthy();
+    expect(await screen.findByText('East Coast Park Trail')).toBeTruthy();
   }, 10000);
 
   it('shows Additional Comments field after page loads', async () => {

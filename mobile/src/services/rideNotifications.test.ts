@@ -65,12 +65,15 @@ describe('rideNotifications', () => {
     expect(await AsyncStorage.getItem(STORAGE_KEYS.rideNotificationIds)).toBeNull();
   });
 
-  it('does not schedule ride notifications once the active session is gone', async () => {
+  it('schedules ride notifications regardless of active session state', async () => {
     await AsyncStorage.removeItem(STORAGE_KEYS.activeRideSession);
 
     await notifyRideTrackingInBackground('Test Route');
 
-    expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
+    // The active-session guard was intentionally removed — notifications are
+    // scheduled unconditionally so the completion notification is not blocked
+    // by a session that may already be cleared before the async chain resolves.
+    expect(Notifications.scheduleNotificationAsync).toHaveBeenCalled();
   });
 
   it('schedules a loud background checkpoint notification', async () => {
