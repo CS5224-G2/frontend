@@ -9,8 +9,10 @@ import type {
   RouteRecommendationRequest,
   RouteRequestLocation,
   UserPreferences,
+  PointOfInterestCategory,
 } from '../../../shared/types/index';
 import { normalizeUserPreferences } from '../app/utils/routePreferences';
+import { inferPoiCategory } from '../app/utils/poiLabels';
 import { httpClient } from './httpClient';
 
 export type { Route };
@@ -58,7 +60,7 @@ type BackendRoute = {
   shade?: number | 'reduce-shade' | 'dont-care';
   air_quality_index?: number;
   air_quality?: number | 'care' | 'dont-care';
-  points_of_interest_visited?: Array<{ name: string; description?: string; lat?: number; lng?: number }>;
+  points_of_interest_visited?: Array<{ name: string; description?: string; lat?: number; lng?: number; category?: string }>;
 };
 
 type BackendRequestLocationSource = 'search' | 'map' | 'current-location';
@@ -277,7 +279,13 @@ const toFrontendRoute = (r: BackendRoute): Route => {
     cyclistType: r.cyclist_type,
     shade: r.shade ?? r.shade_pct ?? 'dont-care',
     airQuality: r.air_quality ?? r.air_quality_index ?? 'dont-care',
-    pointsOfInterestVisited: r.points_of_interest_visited,
+    pointsOfInterestVisited: r.points_of_interest_visited?.map((poi) => ({
+      name: poi.name,
+      description: poi.description,
+      lat: poi.lat,
+      lng: poi.lng,
+      category: (poi.category as PointOfInterestCategory | undefined) ?? inferPoiCategory(poi.name),
+    })),
   };
 
   return finalizeRouteEndpoints(base);

@@ -197,6 +197,7 @@ export type RideHistory = {
     description?: string;
     lat?: number;
     lng?: number;
+    category?: PointOfInterestCategory;
   }>;
   routeDetails?: Route;
 };

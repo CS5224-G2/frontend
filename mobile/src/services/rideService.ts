@@ -3,10 +3,11 @@
 // Adapter pattern: maps between backend snake_case and frontend camelCase.
 // =============================================================================
 
-import type { RideHistory, GraphDataPoint, GraphPeriod, Route, RouteFeedbackPayload } from '../../../shared/types/index';
+import type { RideHistory, GraphDataPoint, GraphPeriod, Route, RouteFeedbackPayload, PointOfInterestCategory } from '../../../shared/types/index';
 import { USE_MOCKS } from '../config/runtime';
 import { ApiError, httpClient } from './httpClient';
 import { finalizeRouteEndpoints } from './routeService';
+import { inferPoiCategory } from '../app/utils/poiLabels';
 import {
   getDistanceStatsLocal,
   getPendingLocalDistanceStats,
@@ -48,6 +49,7 @@ type BackendRide = {
     description: string;
     lat: number;
     lng: number;
+    category?: string;
   }>;
   route_details?: {
     route_id: string;
@@ -89,6 +91,7 @@ type BackendRide = {
       description: string;
       lat?: number;
       lng?: number;
+      category?: string;
     }>;
   };
 };
@@ -187,6 +190,7 @@ const toFrontendRide = (r: BackendRide): RideHistory => ({
     description: poi.description,
     lat: poi.lat,
     lng: poi.lng,
+    category: (poi.category as PointOfInterestCategory | undefined) ?? inferPoiCategory(poi.name),
   })),
   routeDetails: r.route_details
     ? finalizeRouteEndpoints({
@@ -224,6 +228,7 @@ const toFrontendRide = (r: BackendRide): RideHistory => ({
           description: poi.description,
           lat: poi.lat,
           lng: poi.lng,
+          category: (poi.category as PointOfInterestCategory | undefined) ?? inferPoiCategory(poi.name),
         })),
       })
     : undefined,

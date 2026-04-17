@@ -182,6 +182,34 @@ describe('submitRideFeedback()', () => {
   });
 });
 
+describe('getRideHistory() POI category', () => {
+  it('maps category from backend POI data', async () => {
+    const backendRideWithCategory = {
+      ...backendRide,
+      points_of_interest_visited: [
+        { name: 'Maxwell Food Centre', description: 'Hawker', lat: 1.281, lng: 103.851, category: 'hawkerCenter' },
+      ],
+    };
+    mockGet.mockResolvedValueOnce([backendRideWithCategory]);
+    mockGetLocalHistory.mockResolvedValueOnce([]);
+    const history = await getRideHistory();
+    expect(history[0].pointsOfInterestVisited?.[0].category).toBe('hawkerCenter');
+  });
+
+  it('infers category from name when backend omits it', async () => {
+    const backendRideNoCategory = {
+      ...backendRide,
+      points_of_interest_visited: [
+        { name: 'Maxwell Food Centre', description: 'Hawker', lat: 1.281, lng: 103.851 },
+      ],
+    };
+    mockGet.mockResolvedValueOnce([backendRideNoCategory]);
+    mockGetLocalHistory.mockResolvedValueOnce([]);
+    const history = await getRideHistory();
+    expect(history[0].pointsOfInterestVisited?.[0].category).toBe('hawkerCenter');
+  });
+});
+
 describe('saveRide()', () => {
   const route = {
     id: 'rt1',
