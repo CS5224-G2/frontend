@@ -5,6 +5,7 @@ import RouteHistoryDetailsPage from './RouteHistoryDetailsPage';
 
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
+const mockParentNavigate = jest.fn();
 const mockGetRideById = jest.fn();
 const mockResolveRouteById = jest.fn();
 const mockCanUseAndroidMapbox = jest.fn(() => false);
@@ -55,12 +56,17 @@ describe('RouteHistoryDetailsPage', () => {
     jest.clearAllMocks();
     mockResolveRouteById.mockResolvedValue(null);
     mockCanUseAndroidMapbox.mockReturnValue(false);
+    mockParentNavigate.mockClear();
   });
 
   const renderPage = () =>
     render(
       <RouteHistoryDetailsPage
-        navigation={{ navigate: mockNavigate, goBack: mockGoBack } as any}
+        navigation={{
+          navigate: mockNavigate,
+          goBack: mockGoBack,
+          getParent: () => ({ navigate: mockParentNavigate }),
+        } as any}
         route={{ params: { rideId: 'ride-1' } } as any}
       />,
     );
@@ -115,7 +121,53 @@ describe('RouteHistoryDetailsPage', () => {
     expect(await screen.findByText('City Breeze Connector')).toBeTruthy();
     expect(screen.getByText('Route Map')).toBeTruthy();
     expect(screen.getByText('Ride Completed')).toBeTruthy();
+    expect(screen.getByText('March 29, 2026 - 8:15 AM')).toBeTruthy();
+    expect(screen.getByText('Recreational - 42 min estimate')).toBeTruthy();
+    expect(screen.getByText('120 m')).toBeTruthy();
+    expect(screen.getByText('Shade 70%')).toBeTruthy();
+    expect(screen.getByText('Air 85/100')).toBeTruthy();
     expect(screen.getByText('Lau Pa Sat Hawker Centre - Popular stop')).toBeTruthy();
+  });
+
+  it('formats preference-style route values into readable labels', async () => {
+    mockGetRideById.mockResolvedValue({
+      id: 'ride-1',
+      routeId: 'route-1',
+      routeName: 'Black Crawler',
+      completionDate: 'April 18, 2026',
+      completionTime: '1:05 AM',
+      totalTime: 5,
+      distance: 1.31,
+      avgSpeed: 79.9,
+      checkpoints: 0,
+      routeDetails: {
+        id: 'route-1',
+        name: 'Black Crawler',
+        description: 'Mountain Bike Trails',
+        distance: 1.31,
+        elevation: 'dont-care',
+        estimatedTime: 5,
+        rating: 4.33,
+        reviewCount: 3,
+        startPoint: { lat: 1.375846, lng: 103.780519, name: '1.3758°, 103.7805°' },
+        endPoint: { lat: 1.37538, lng: 103.779212, name: '1.3754°, 103.7792°' },
+        checkpoints: [],
+        cyclistType: 'fitness',
+        shade: 'dont-care',
+        airQuality: 'dont-care',
+        pointsOfInterestVisited: [],
+      },
+    });
+
+    renderPage();
+
+    expect(await screen.findByText('Black Crawler')).toBeTruthy();
+    expect(screen.getByText('Fitness - 5 min estimate')).toBeTruthy();
+    expect(screen.getByText('Balanced')).toBeTruthy();
+    expect(screen.getByText('Shade flexible')).toBeTruthy();
+    expect(screen.getByText('Air flexible')).toBeTruthy();
+    expect(screen.queryByText(/dont-care/i)).toBeNull();
+    expect(screen.queryByText(/ΓÇó/)).toBeNull();
   });
 
   it('shows not found state when ride does not exist', async () => {
@@ -162,7 +214,7 @@ describe('RouteHistoryDetailsPage', () => {
     const actionButton = await screen.findByText('Ride This Route Again');
     fireEvent.press(actionButton);
 
-    expect(mockNavigate).toHaveBeenCalledWith('HomeTab', {
+    expect(mockParentNavigate).toHaveBeenCalledWith('home-tab', {
       screen: 'RouteDetails',
       params: expect.objectContaining({
         routeId: 'route-1',

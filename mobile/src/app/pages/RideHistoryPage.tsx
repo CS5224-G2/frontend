@@ -26,6 +26,8 @@ import { useColorScheme } from 'nativewind';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/native/Common';
 import { type RideHistory, type GraphDataPoint, type GraphPeriod } from '../../../../shared/types/index';
 import { getRideHistory, getDistanceStats } from '../../services/rideService';
+import { isCoordinatePlaceholderName } from '../utils/placeGeocode';
+import { routeToMapCoordinates } from '@/utils/routeGeometry';
 import {
   MAX_FAVORITE_ROUTES,
   addFavoriteRouteByRouteId,
@@ -68,6 +70,224 @@ function dedupeFavoriteRouteIds(routeIds: string[]): string[] {
 
 function getGraphLabel(item: GraphDataPoint) {
   return 'day' in item ? item.day : item.week;
+}
+
+function formatEndpointTitle(name: string | undefined, fallback: string): string {
+  const trimmed = name?.trim() ?? '';
+  return trimmed && !isCoordinatePlaceholderName(trimmed) ? trimmed : fallback;
+}
+
+function shouldReplaceRouteName(ride: RideHistory): boolean {
+  const routeName = ride.routeName.trim();
+  if (!routeName) {
+    return true;
+  }
+
+  if (isCoordinatePlaceholderName(routeName)) {
+    return true;
+  }
+
+  return routeName
+    .split(/->|→/)
+    .map((part) => part.trim())
+    .some((part) => isCoordinatePlaceholderName(part));
+}
+
+function getRideDisplayName(ride: RideHistory): string {
+  if (!shouldReplaceRouteName(ride)) {
+    return ride.routeName.trim();
+  }
+
+  if (!ride.routeDetails) {
+    return 'Pinned route';
+  }
+
+  const startLabel = formatEndpointTitle(ride.routeDetails.startPoint.name, 'Pinned start');
+  const endLabel = formatEndpointTitle(ride.routeDetails.endPoint.name, 'Pinned location');
+
+  if (startLabel === endLabel) {
+    return `${startLabel} Loop`;
+  }
+
+  return `${startLabel} to ${endLabel}`;
+}
+
+function RouteMiniPreview({
+  ride,
+  isDark,
+}: {
+  ride: RideHistory;
+  isDark: boolean;
+}) {
+  const width = 86;
+  const height = 56;
+  const padding = 7;
+  const route = ride.routeDetails;
+  const points = route ? routeToMapCoordinates(route) : [];
+  const validPoints = points.filter(
+    (point) => Number.isFinite(point.latitude) && Number.isFinite(point.longitude),
+  );
+
+  if (validPoints.length < 2) {
+    return (
+      <View
+        testID={`ride-preview-${ride.id}`}
+        className="rounded-[10px] border overflow-hidden"
+        style={{
+          width,
+          height,
+          borderColor: isDark ? '#2d2d2d' : '#dbeafe',
+          backgroundColor: isDark ? '#020617' : '#eff6ff',
+        }}
+      >
+        <View
+          style={{
+            position: 'absolute',
+            left: padding,
+            right: padding,
+            top: height / 2,
+            height: 1,
+            borderStyle: 'dashed',
+            borderTopWidth: 1,
+            borderColor: isDark ? '#1e293b' : '#dbeafe',
+          }}
+        />
+        <View
+          style={{
+            position: 'absolute',
+            left: 18,
+            top: 31,
+            width: 42,
+            height: 2.5,
+            borderRadius: 999,
+            backgroundColor: isDark ? '#60a5fa' : '#2563eb',
+            transform: [{ rotate: '-18deg' }],
+          }}
+        />
+        <View
+          style={{
+            position: 'absolute',
+            left: 20,
+            top: 28,
+            width: 7,
+            height: 7,
+            borderRadius: 999,
+            backgroundColor: '#22c55e',
+          }}
+        />
+        <View
+          style={{
+            position: 'absolute',
+            right: 18,
+            top: 20,
+            width: 7,
+            height: 7,
+            borderRadius: 999,
+            backgroundColor: '#ef4444',
+          }}
+        />
+      </View>
+    );
+  }
+
+  const lats = validPoints.map((point) => point.latitude);
+  const lngs = validPoints.map((point) => point.longitude);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs);
+  const maxLng = Math.max(...lngs);
+  const latSpan = Math.max(maxLat - minLat, 0.0008);
+  const lngSpan = Math.max(maxLng - minLng, 0.0008);
+  const innerWidth = width - padding * 2;
+  const innerHeight = height - padding * 2;
+
+  const normalized = validPoints.map((point) => ({
+    x: padding + ((point.longitude - minLng) / lngSpan) * innerWidth,
+    y: height - padding - ((point.latitude - minLat) / latSpan) * innerHeight,
+  }));
+  const segments = normalized.slice(1).map((point, index) => {
+    const previous = normalized[index];
+    const dx = point.x - previous.x;
+    const dy = point.y - previous.y;
+    const length = Math.max(Math.sqrt(dx * dx + dy * dy), 1);
+    const angle = `${(Math.atan2(dy, dx) * 180) / Math.PI}deg`;
+    const midpointX = (previous.x + point.x) / 2;
+    const midpointY = (previous.y + point.y) / 2;
+
+    return {
+      key: `segment-${index}`,
+      left: midpointX - length / 2,
+      top: midpointY - 1.25,
+      width: length,
+      angle,
+    };
+  });
+
+  const start = normalized[0];
+  const end = normalized[normalized.length - 1];
+
+  return (
+    <View
+      testID={`ride-preview-${ride.id}`}
+      className="rounded-[10px] border overflow-hidden"
+      style={{
+        width,
+        height,
+        borderColor: isDark ? '#2d2d2d' : '#dbeafe',
+        backgroundColor: isDark ? '#020617' : '#eff6ff',
+      }}
+    >
+      <View
+        style={{
+          position: 'absolute',
+          left: padding,
+          right: padding,
+          top: height / 2,
+          height: 1,
+          borderStyle: 'dashed',
+          borderTopWidth: 1,
+          borderColor: isDark ? '#1e293b' : '#dbeafe',
+        }}
+      />
+      {segments.map((segment) => (
+        <View
+          key={segment.key}
+          style={{
+            position: 'absolute',
+            left: segment.left,
+            top: segment.top - 1.25,
+            width: segment.width,
+            height: 2.5,
+            borderRadius: 999,
+            backgroundColor: isDark ? '#60a5fa' : '#2563eb',
+            transform: [{ rotate: segment.angle }],
+          }}
+        />
+      ))}
+      <View
+        style={{
+          position: 'absolute',
+          left: start.x - 3.5,
+          top: start.y - 3.5,
+          width: 7,
+          height: 7,
+          borderRadius: 999,
+          backgroundColor: '#22c55e',
+        }}
+      />
+      <View
+        style={{
+          position: 'absolute',
+          left: end.x - 3.5,
+          top: end.y - 3.5,
+          width: 7,
+          height: 7,
+          borderRadius: 999,
+          backgroundColor: '#ef4444',
+        }}
+      />
+    </View>
+  );
 }
 
 function AnimatedMetricValue({
@@ -383,7 +603,7 @@ export default function RideHistoryPage({ navigation }: Props) {
 
   const renderRide = ({ item }: { item: RideHistory }) => {
     const isFav = uniqueFavoriteRouteIds.includes(item.routeId);
-    const displayName = item.routeName;
+    const displayName = getRideDisplayName(item);
 
     return (
       <Pressable
@@ -400,18 +620,26 @@ export default function RideHistoryPage({ navigation }: Props) {
             elevation: isDark ? 0 : 2,
           }}
         >
-          <View className="flex-row justify-between items-center mb-[6px]">
-            <Text className="text-base font-bold text-[#1e293b] dark:text-slate-100 flex-1 mr-2">{displayName}</Text>
-            <Pressable onPress={() => toggleFavorite(item.routeId, displayName)}>
-              <MaterialCommunityIcons
-                name={isFav ? 'star' : 'star-outline'}
-                size={24}
-                color={isFav ? '#f59e0b' : '#a1a1aa'}
-              />
-            </Pressable>
-          </View>
+          <View className="flex-row gap-3 mb-[6px]">
+            <View className="flex-1 justify-between">
+              <View className="flex-row justify-between items-start">
+                <Text className="text-base font-bold text-[#1e293b] dark:text-slate-100 flex-1 mr-2" numberOfLines={2}>
+                  {displayName}
+                </Text>
+                <Pressable onPress={() => toggleFavorite(item.routeId, displayName)}>
+                  <MaterialCommunityIcons
+                    name={isFav ? 'star' : 'star-outline'}
+                    size={24}
+                    color={isFav ? '#f59e0b' : '#a1a1aa'}
+                  />
+                </Pressable>
+              </View>
 
-          <Text className="text-xs text-[#6b7280] dark:text-slate-400 mb-2">{item.completionDate} • {item.completionTime}</Text>
+              <Text className="text-xs text-[#6b7280] dark:text-slate-400 mt-1">{item.completionDate} • {item.completionTime}</Text>
+            </View>
+
+            <RouteMiniPreview ride={item} isDark={isDark} />
+          </View>
 
           <View className="flex-row flex-wrap justify-between">
             <View className="flex-row items-center gap-1 my-[3px]" style={{ width: '48%' }}>

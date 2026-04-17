@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import * as Location from 'expo-location';
 import { useNavigation } from '@react-navigation/native';
@@ -25,6 +25,8 @@ import {
   clearRideNotifications,
   ensureRideNotificationPermission,
   scheduleSimulationProgressNotifications,
+  notifyCheckpointReachedInBackground,
+  notifyRideCompletedInBackground,
   notifyRidePaused,
   notifyRideResumed,
   notifyRideTrackingInBackground,
@@ -78,6 +80,7 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
   const completionModalShownRef = useRef(false);
   const appStateRef = useRef(AppState.currentState);
   const simulationStatusRef = useRef({ progressPct: 0, elapsedSec: 0 });
+  const rideSummaryRef = useRef<{ distanceKm: number; elapsedMinutes: number; checkpointsVisited: number }>({ distanceKm: 0, elapsedMinutes: 0, checkpointsVisited: 0 });
 
   const hydrateTrackingFromSession = useCallback(async () => {
     if (!routeId) {
@@ -529,12 +532,16 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
     setSessionPausedAt(null);
     setShowCompletionModal(true);
 
+    if (LIVE_MAP_PROGRESS_SIMULATION && route) {
+      void notifyRideCompletedInBackground(route, rideSummaryRef.current).catch(() => {});
+    }
+
     void clearRideSessionAndStopTracking()
       .then(() => clearRideNotifications())
       .catch((error) => {
         console.warn('[LiveMap] Failed to finalize completed ride session', error);
       });
-  }, [routeCompleted]);
+  }, [route, routeCompleted]);
 
   const currentCheckpoint = useMemo(() => {
     if (!route || !route.checkpoints.length) {
@@ -555,6 +562,9 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
       const checkpoint = route.checkpoints[currentCheckpoint - 1];
       if (checkpoint) {
         setCheckpointBanner(`${checkpoint.name} - ${checkpoint.description}`);
+        if (LIVE_MAP_PROGRESS_SIMULATION) {
+          void notifyCheckpointReachedInBackground(route.name, checkpoint.name).catch(() => {});
+        }
         const timer = setTimeout(() => setCheckpointBanner(null), 3000);
         previousCheckpointRef.current = currentCheckpoint;
         return () => clearTimeout(timer);
@@ -612,6 +622,10 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
     }),
     [currentCheckpoint, distanceTraveled, elapsedSec, route, routeCompleted],
   );
+
+  useEffect(() => {
+    rideSummaryRef.current = rideSummary;
+  }, [rideSummary]);
 
   const checkpointsVisitedCount = useMemo(() => {
     if (!route) {

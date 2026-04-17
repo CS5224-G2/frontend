@@ -6,7 +6,7 @@
 import type { RideHistory, GraphDataPoint, GraphPeriod, Route, RouteFeedbackPayload } from '../../../shared/types/index';
 import { USE_MOCKS } from '../config/runtime';
 import { ApiError, httpClient } from './httpClient';
-import { finalizeRouteEndpoints } from './routeService';
+import { finalizeRouteEndpoints, getRouteById } from './routeService';
 import { inferPoiCategory, toPoiCategory } from '../app/utils/poiLabels';
 import {
   getDistanceStatsLocal,
@@ -247,8 +247,31 @@ export async function getRideHistory(token?: string): Promise<RideHistory[]> {
 
   try {
     const response = await httpClient.get<BackendRide[]>('/rides/history', token);
-    return [...localPending, ...response.map(toFrontendRide)];
-  } catch {
+    const remoteRides = response.map(toFrontendRide);
+    const missingRouteIds = Array.from(
+      new Set(
+        remoteRides
+          .filter((ride) => !ride.routeDetails)
+          .map((ride) => ride.routeId)
+          .filter((routeId): routeId is string => typeof routeId === 'string' && routeId.length > 0),
+      ),
+    );
+
+    const resolvedRoutes = new Map<string, Route | null>(
+      await Promise.all(
+        missingRouteIds.map(async (routeId) => [routeId, await getRouteById(routeId, token)] as const),
+      ),
+    );
+
+    const hydratedRemoteRides = remoteRides.map((ride) => ({
+      ...ride,
+      routeDetails: ride.routeDetails ?? resolvedRoutes.get(ride.routeId) ?? undefined,
+    }));
+
+    return [...localPending, ...hydratedRemoteRides];
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.log('getRideHistory-debug-error', error);
     return localPending;
   }
 }
