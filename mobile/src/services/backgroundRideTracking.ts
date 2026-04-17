@@ -11,12 +11,42 @@ import {
 import { saveRide } from './rideService';
 import {
   notifyCheckpointReachedInBackground,
+  notifyPoiReachedInBackground,
   notifyRideCompletedInBackground,
   type RideFeedbackSummary,
 } from './rideNotifications';
 import { haversineDistanceKm } from '@/utils/routeGeometry';
 
 export const BACKGROUND_RIDE_TRACKING_TASK = 'cyclelink-background-ride-tracking';
+
+/** Radius within which a POI triggers a notification (80 m, same as foreground). */
+const POI_PROXIMITY_KM = 0.08;
+
+function getNewlyEnteredPoiIndices(
+  session: ActiveRideSession,
+): number[] {
+  const pois = session.route.pointsOfInterestVisited ?? [];
+  if (!pois.length || !session.lastKnownPosition) {
+    return [];
+  }
+
+  const alreadyNotified = new Set(session.lastPoiIndicesNotified ?? []);
+  const newIndices: number[] = [];
+
+  pois.forEach((poi, index) => {
+    if (alreadyNotified.has(index)) return;
+    if (typeof poi.lat !== 'number' || typeof poi.lng !== 'number') return;
+    const distKm = haversineDistanceKm(
+      [session.lastKnownPosition!.lng, session.lastKnownPosition!.lat],
+      [poi.lng, poi.lat],
+    );
+    if (distKm <= POI_PROXIMITY_KM) {
+      newIndices.push(index);
+    }
+  });
+
+  return newIndices;
+}
 
 function getCheckpointCount(session: ActiveRideSession): number {
   const checkpoints = session.route.checkpoints ?? [];
@@ -139,9 +169,28 @@ TaskManager.defineTask(BACKGROUND_RIDE_TRACKING_TASK, async ({ data, error }) =>
     }
   }
 
+  // POI proximity detection — fires once per POI, persisted across background wakeups
+  const newPoiIndices = getNewlyEnteredPoiIndices(nextSession);
+  if (newPoiIndices.length > 0) {
+    const pois = nextSession.route.pointsOfInterestVisited ?? [];
+    for (const poiIndex of newPoiIndices) {
+      const poi = pois[poiIndex];
+      if (poi) {
+        void notifyPoiReachedInBackground(poi.name, poi.category ?? '').catch((notifyError) => {
+          console.warn('[BackgroundRideTracking] Failed to notify POI', notifyError);
+        });
+      }
+    }
+  }
+
+  const allNotifiedPoiIndices = Array.from(
+    new Set([...(nextSession.lastPoiIndicesNotified ?? []), ...newPoiIndices]),
+  );
+
   nextSession = {
     ...nextSession,
     lastCheckpointIndexNotified: currentCheckpointCount,
+    lastPoiIndicesNotified: allNotifiedPoiIndices,
   };
   await saveActiveRideSession(nextSession);
 });

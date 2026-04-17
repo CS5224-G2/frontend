@@ -23,6 +23,8 @@ export type ActiveRideSession = {
   distanceKm?: number;
   progressPct?: number;
   lastCheckpointIndexNotified?: number;
+  /** Indices of route.pointsOfInterestVisited that have already triggered a notification. */
+  lastPoiIndicesNotified?: number[];
 };
 
 function normalizeActiveRideSession(session: ActiveRideSession): ActiveRideSession {

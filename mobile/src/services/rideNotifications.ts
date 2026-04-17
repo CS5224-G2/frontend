@@ -215,6 +215,31 @@ export async function notifyCheckpointReachedInBackground(
   );
 }
 
+export async function notifyPoiReachedInBackground(
+  poiName: string,
+  poiCategory: string,
+): Promise<void> {
+  const categoryLabel =
+    poiCategory === 'hawkerCenter' || poiCategory === 'hawker'
+      ? 'Hawker Centre'
+      : poiCategory === 'park'
+        ? 'Park'
+        : poiCategory === 'historicSite' || poiCategory === 'historic'
+          ? 'Historic Site'
+          : poiCategory === 'touristAttraction'
+            ? 'Tourist Attraction'
+            : poiCategory;
+
+  await sendRideNotification(
+    `Nearby: ${categoryLabel}`,
+    `You are passing ${poiName}`,
+    {
+      loud: false,
+      data: { kind: 'ride-poi' },
+    },
+  );
+}
+
 export async function notifyRideCompletedInBackground(
   route: Route,
   rideSummary: RideFeedbackSummary,
