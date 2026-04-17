@@ -245,7 +245,23 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
           setRoute(activeSession.route);
         }
         setSessionReady(true);
-        void ensureRideNotificationPermission().catch(() => {});
+        void ensureRideNotificationPermission()
+          .then(() => {
+            if (LIVE_MAP_PROGRESS_SIMULATION) {
+              return clearRideNotifications()
+                .catch(() => {})
+                .then(() =>
+                  scheduleSimulationProgressNotifications(
+                    activeSession.route,
+                    activeSession.progressPct ?? 0,
+                    0,
+                  ),
+                )
+                .catch(() => {});
+            }
+            return Promise.resolve();
+          })
+          .catch(() => {});
         return;
       }
 
@@ -554,11 +570,13 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
       void notifyRideCompletedInBackground(route, rideSummaryRef.current).catch(() => {});
     }
 
-    void clearRideSessionAndStopTracking()
-      .then(() => clearRideNotifications())
-      .catch((error) => {
-        console.warn('[LiveMap] Failed to finalize completed ride session', error);
-      });
+    // Do NOT call clearRideNotifications() here — it would cancel the completion
+    // notification that was just scheduled (or pre-scheduled at ride start) before
+    // it has a chance to fire. Notifications are cleared in finalizeCompletedRide
+    // and abandonIncompleteRide, after the user interacts with the completion modal.
+    void clearRideSessionAndStopTracking().catch((error) => {
+      console.warn('[LiveMap] Failed to finalize completed ride session', error);
+    });
   }, [route, routeCompleted]);
 
   const currentCheckpoint = useMemo(() => {
