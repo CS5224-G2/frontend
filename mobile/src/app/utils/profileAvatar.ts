@@ -15,5 +15,5 @@ export const getProfileAvatarSource = (
     return mockProfileAvatarAsset;
   }
 
-  return { uri: avatarUrl };
+  return { uri: avatarUrl, cache: 'force-cache' };
 };

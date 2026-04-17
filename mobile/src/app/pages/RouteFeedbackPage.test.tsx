@@ -5,6 +5,7 @@ import RouteFeedbackPage from './RouteFeedbackPage';
 const mockNavigate = jest.fn();
 const mockResolveRouteById = jest.fn();
 const mockSubmitRideFeedback = jest.fn();
+const mockGetUserProfile = jest.fn();
 
 jest.mock('@react-navigation/native', () => ({
   ...jest.requireActual('@react-navigation/native'),
@@ -32,11 +33,7 @@ jest.mock('../../services/rideService', () => ({
 }));
 
 jest.mock('../../services/userService', () => ({
-  getUserProfile: jest.fn().mockResolvedValue({
-    fullName: 'Test User',
-    avatarUrl: null,
-    avatarColor: '#3b82f6',
-  }),
+  getUserProfile: (...args: unknown[]) => mockGetUserProfile(...args),
 }));
 
 const mockRoute = {
@@ -69,6 +66,11 @@ describe('RouteFeedbackPage', () => {
     jest.clearAllMocks();
     mockResolveRouteById.mockResolvedValue(mockRoute);
     mockSubmitRideFeedback.mockResolvedValue(undefined);
+    mockGetUserProfile.mockResolvedValue({
+      fullName: 'Test User',
+      avatarUrl: null,
+      avatarColor: '#3b82f6',
+    });
   });
 
   it('renders the page heading after loading', async () => {
@@ -163,5 +165,22 @@ describe('RouteFeedbackPage', () => {
   it('shows Additional Comments field after page loads', async () => {
     renderPage();
     expect(await screen.findByText('Additional Comments (Optional)')).toBeTruthy();
+  }, 10000);
+
+  it('renders a cached avatar image over the fallback shell when the profile has a photo', async () => {
+    mockGetUserProfile.mockResolvedValueOnce({
+      fullName: 'Test User',
+      avatarUrl: 'https://example.com/avatar.jpg',
+      avatarColor: '#3b82f6',
+    });
+
+    renderPage();
+
+    expect(await screen.findByTestId('route-feedback-avatar-image')).toBeTruthy();
+    expect(screen.getByTestId('route-feedback-avatar-fallback')).toBeTruthy();
+    expect(screen.getByTestId('route-feedback-avatar-image').props.source).toMatchObject({
+      uri: 'https://example.com/avatar.jpg',
+      cache: 'force-cache',
+    });
   }, 10000);
 });
