@@ -110,7 +110,11 @@ async function ensureRideNotificationPermission(): Promise<boolean> {
         allowAlert: true,
         allowBadge: true,
         allowSound: true,
-        allowCriticalAlerts: true,
+        // NOTE: allowCriticalAlerts requires a special Apple entitlement.
+        // Requesting it without the entitlement causes iOS to silently
+        // deny the entire permission — removing it fixes notification delivery.
+        allowProvisional: true,
+        allowAnnouncements: false,
       },
     });
     await ensureRideNotificationChannel().catch(() => {});
@@ -168,6 +172,7 @@ async function sendRideNotification(
       // (not null) to deliver notifications when the app is in the background.
       type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
       seconds: Math.max(1, delaySeconds || 1),
+      repeats: false,
       ...(Platform.OS === 'android' ? { channelId: RIDE_ALERTS_CHANNEL_ID } : {}),
     },
   });

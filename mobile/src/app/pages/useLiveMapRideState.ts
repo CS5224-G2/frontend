@@ -156,6 +156,12 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
     completionModalShownRef.current = false;
   }, [routeId]);
 
+  const simulationScheduledRef = useRef(false);
+
+  useEffect(() => {
+    simulationScheduledRef.current = false;
+  }, [route, sessionReady]);
+
   useEffect(() => {
     const updateNow = () => setNowMs(Date.now());
     const id = setInterval(updateNow, 1000);
@@ -165,30 +171,29 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
 
       if (nextState === 'active') {
         updateNow();
+        simulationScheduledRef.current = false;
         void clearRideNotifications().catch(() => {});
+        // Re-schedule from current progress when user returns to foreground,
+        // then clear again once they're back (they'll see the UI instead).
         void hydrateTrackingFromSession();
       }
 
+      // For non-simulation: fire a "tracking active" banner when going to background.
+      // Simulation notifications are pre-scheduled at ride start (see bootstrapSession).
+      const goingToBackground =
+        (previousState === 'active' || previousState === 'inactive') &&
+        (nextState === 'background' || nextState === 'inactive');
+
       if (
-        previousState === 'active' &&
-        (nextState === 'background' || nextState === 'inactive') &&
+        goingToBackground &&
+        !simulationScheduledRef.current &&
         route &&
         sessionReady &&
         !sessionPausedAt &&
         !sessionCompletedAt
       ) {
-        if (LIVE_MAP_PROGRESS_SIMULATION) {
-          void clearRideNotifications()
-            .catch(() => {})
-            .then(() =>
-              scheduleSimulationProgressNotifications(
-                route,
-                simulationStatusRef.current.progressPct,
-                simulationStatusRef.current.elapsedSec,
-              ),
-            )
-            .catch(() => {});
-        } else {
+        simulationScheduledRef.current = true;
+        if (!LIVE_MAP_PROGRESS_SIMULATION) {
           void notifyRideTrackingInBackground(route.name).catch(() => {});
         }
       }
@@ -256,7 +261,20 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
         route,
         startedAt,
       });
-      void ensureRideNotificationPermission().catch(() => {});
+      void ensureRideNotificationPermission()
+        .then(() => {
+          if (LIVE_MAP_PROGRESS_SIMULATION) {
+            // Pre-schedule all simulation notifications NOW while the app is foregrounded.
+            // iOS may suspend JS before background-transition async chains complete,
+            // so we schedule eagerly here instead of waiting for the AppState change.
+            return clearRideNotifications()
+              .catch(() => {})
+              .then(() => scheduleSimulationProgressNotifications(route, 0, 0))
+              .catch(() => {});
+          }
+          return Promise.resolve();
+        })
+        .catch(() => {});
     }
 
     void bootstrapSession();
@@ -713,6 +731,15 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
       });
       await notifyRideResumed(route.name).catch(() => {});
       await clearRideNotifications().catch(() => {});
+
+      // Re-schedule simulation notifications from current position after resume.
+      if (LIVE_MAP_PROGRESS_SIMULATION) {
+        void scheduleSimulationProgressNotifications(
+          route,
+          simulationStatusRef.current.progressPct,
+          simulationStatusRef.current.elapsedSec,
+        ).catch(() => {});
+      }
     };
 
     void run();
