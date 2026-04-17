@@ -26,7 +26,6 @@ import {
   ensureRideNotificationPermission,
   scheduleSimulationProgressNotifications,
   notifyCheckpointReachedInBackground,
-  notifyRideCompletedInBackground,
   notifyRidePaused,
   notifyRideResumed,
   notifyRideTrackingInBackground,
@@ -193,7 +192,20 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
         !sessionCompletedAt
       ) {
         simulationScheduledRef.current = true;
-        if (!LIVE_MAP_PROGRESS_SIMULATION) {
+        if (LIVE_MAP_PROGRESS_SIMULATION) {
+          // Re-schedule from current progress — foreground return cleared the previous
+          // batch, so we need a fresh set before the app suspends again.
+          void clearRideNotifications()
+            .catch(() => {})
+            .then(() =>
+              scheduleSimulationProgressNotifications(
+                route,
+                simulationStatusRef.current.progressPct,
+                simulationStatusRef.current.elapsedSec,
+              ),
+            )
+            .catch(() => {});
+        } else {
           void notifyRideTrackingInBackground(route.name).catch(() => {});
         }
       }
@@ -566,9 +578,9 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
     setSessionPausedAt(null);
     setShowCompletionModal(true);
 
-    if (LIVE_MAP_PROGRESS_SIMULATION && route) {
-      void notifyRideCompletedInBackground(route, rideSummaryRef.current).catch(() => {});
-    }
+    // In simulation mode the completion notification is already pre-scheduled at ride
+    // start via scheduleSimulationProgressNotifications — no need to schedule again here.
+    // In real GPS mode the background task sends notifyRideCompletedInBackground directly.
 
     // Do NOT call clearRideNotifications() here — it would cancel the completion
     // notification that was just scheduled (or pre-scheduled at ride start) before
