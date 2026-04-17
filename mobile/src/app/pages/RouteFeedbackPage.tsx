@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -44,7 +44,23 @@ export default function RouteFeedbackPage({ navigation, route }: Props) {
   const scrollBottomPad = useFloatingTabBarScrollPadding(20);
 
   useEffect(() => {
-    getUserProfile().then(setProfile).catch(() => {});
+    let cancelled = false;
+
+    getUserProfile()
+      .then((nextProfile) => {
+        if (nextProfile.avatarUrl && typeof Image.prefetch === 'function') {
+          Promise.resolve(Image.prefetch(nextProfile.avatarUrl)).catch(() => {});
+        }
+
+        if (!cancelled) {
+          setProfile(nextProfile);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -73,6 +89,26 @@ export default function RouteFeedbackPage({ navigation, route }: Props) {
       cancelled = true;
     };
   }, [routeId]);
+
+  const avatarSource = useMemo(
+    () => getProfileAvatarSource(profile?.avatarUrl),
+    [profile?.avatarUrl]
+  );
+  const avatarInitials = useMemo(() => {
+    if (!profile?.fullName) {
+      return '?';
+    }
+
+    return profile.fullName
+      .trim()
+      .split(/\s+/)
+      .filter((namePart) => namePart.length > 0)
+      .map((namePart) => namePart[0])
+      .slice(0, 2)
+      .join('')
+      .toUpperCase();
+  }, [profile?.fullName]);
+  const firstName = useMemo(() => profile?.fullName?.split(' ')[0] ?? null, [profile?.fullName]);
 
   const handleSubmit = async () => {
     try {
@@ -135,44 +171,52 @@ export default function RouteFeedbackPage({ navigation, route }: Props) {
 
         {/* Profile Avatar */}
         <View className="mt-[32px] items-center">
-          {(() => {
-            const avatarSource = profile?.avatarUrl ? getProfileAvatarSource(profile.avatarUrl) : null;
-            const firstName = profile?.fullName?.split(' ')[0];
-            return (
-              <>
-                {avatarSource ? (
-                  <Image
-                    source={avatarSource}
-                    style={{ width: 72, height: 72, borderRadius: 36, borderWidth: 2.5, borderColor: isDark ? '#334155' : '#e2e8f0' }}
-                  />
-                ) : (
-                  <View
-                    style={{
-                      width: 72,
-                      height: 72,
-                      borderRadius: 36,
-                      backgroundColor: profile?.avatarColor ?? '#3b82f6',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      borderWidth: 2.5,
-                      borderColor: isDark ? '#334155' : '#e2e8f0',
-                    }}
-                  >
-                    <Text style={{ color: '#fff', fontSize: 26, fontWeight: '700' }}>
-                      {profile?.fullName
-                        ? profile.fullName.trim().split(/\s+/).filter((n: string) => n.length > 0).map((n: string) => n[0]).slice(0, 2).join('').toUpperCase()
-                        : '?'}
-                    </Text>
-                  </View>
-                )}
-                {firstName ? (
-                  <Text className="mt-3 text-base text-[#64748b] dark:text-slate-400">
-                    How was your ride, {firstName}?
-                  </Text>
-                ) : null}
-              </>
-            );
-          })()}
+          <View
+            testID="route-feedback-avatar-shell"
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: 36,
+              borderWidth: 2.5,
+              borderColor: isDark ? '#334155' : '#e2e8f0',
+              overflow: 'hidden',
+            }}
+          >
+            <View
+              testID="route-feedback-avatar-fallback"
+              style={{
+                width: '100%',
+                height: '100%',
+                backgroundColor: profile?.avatarColor ?? '#3b82f6',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Text testID="route-feedback-avatar-initials" style={{ color: '#fff', fontSize: 26, fontWeight: '700' }}>
+                {avatarInitials}
+              </Text>
+            </View>
+            {avatarSource ? (
+              <Image
+                source={avatarSource}
+                fadeDuration={0}
+                testID="route-feedback-avatar-image"
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: 72,
+                  height: 72,
+                  borderRadius: 36,
+                }}
+              />
+            ) : null}
+          </View>
+          {firstName ? (
+            <Text className="mt-3 text-base text-[#64748b] dark:text-slate-400">
+              How was your ride, {firstName}?
+            </Text>
+          ) : null}
         </View>
 
         {/* Star Rating */}

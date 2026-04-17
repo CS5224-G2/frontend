@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useColorScheme } from 'nativewind';
 import * as ImagePicker from 'expo-image-picker';
@@ -24,12 +25,42 @@ import {
   UserProfile,
 } from '@/services/userService';
 import { getProfileAvatarSource } from '@/app/utils/profileAvatar';
+import { normalizeUserPreferences } from '@/app/utils/routePreferences';
 
 const preferenceOptions: Array<UserProfile['cyclingPreference']> = [
   'Leisure',
   'Commuter',
   'Performance',
 ];
+const USER_PREFERENCES_STORAGE_KEY = 'userPreferences';
+
+function mapProfileCyclingPreferenceToCyclistType(
+  preference: UserProfile['cyclingPreference'],
+) {
+  if (preference === 'Leisure') return 'recreational';
+  if (preference === 'Commuter') return 'commuter';
+  return 'fitness';
+}
+
+async function syncStoredCyclistType(cyclingPreference: UserProfile['cyclingPreference']) {
+  const storedPreferences = await AsyncStorage.getItem(USER_PREFERENCES_STORAGE_KEY);
+  let parsedPreferences: Record<string, unknown> | null = null;
+
+  if (storedPreferences) {
+    try {
+      parsedPreferences = JSON.parse(storedPreferences) as Record<string, unknown>;
+    } catch {
+      parsedPreferences = null;
+    }
+  }
+
+  const nextPreferences = normalizeUserPreferences({
+    ...(parsedPreferences ?? {}),
+    cyclistType: mapProfileCyclingPreferenceToCyclistType(cyclingPreference),
+  });
+
+  await AsyncStorage.setItem(USER_PREFERENCES_STORAGE_KEY, JSON.stringify(nextPreferences));
+}
 
 export default function EditProfilePage() {
   const navigation = useNavigation<any>();
@@ -209,12 +240,22 @@ export default function EditProfilePage() {
     setIsSaving(true);
 
     try {
-      await updateUserProfile({
+      const trimmedProfile = {
         ...formState,
         fullName: formState.fullName.trim(),
         location: formState.location.trim(),
         bio: formState.bio.trim(),
-      });
+      };
+      const savedProfile = await updateUserProfile(trimmedProfile);
+
+      try {
+        await syncStoredCyclistType(
+          savedProfile?.cyclingPreference ?? trimmedProfile.cyclingPreference
+        );
+      } catch (storageError) {
+        console.warn('[EditProfilePage] Failed to sync cached cyclist type', storageError);
+      }
+
       navigation.goBack();
     } catch (error) {
       Alert.alert(

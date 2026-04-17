@@ -1,5 +1,6 @@
 ﻿import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
 import * as userService from '../../services/userService';
 
 /** Use dev-client path so tests exercise Mapbox screen (not Expo Go-only UI). */
@@ -47,7 +48,7 @@ jest.mock('react-native-safe-area-context', () => {
   const { View } = require('react-native');
   const insets = { top: 0, right: 0, bottom: 0, left: 0 };
   return {
-    SafeAreaView: ({ children }: { children: React.ReactNode }) => <View>{children}</View>,
+    SafeAreaView: ({ children, ...props }: { children: React.ReactNode }) => <View {...props}>{children}</View>,
     useSafeAreaInsets: () => insets,
   };
 });
@@ -101,6 +102,21 @@ describe('LiveMapPage', () => {
     });
 
     process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN = prev;
+  });
+
+  it('uses a solid white bottom bar in light mode', async () => {
+    process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN = 'pk.test_jest_token';
+
+    render(<LiveMapScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('live-map-bottom-bar')).toBeTruthy();
+    });
+
+    const bottomBar = screen.getByTestId('live-map-bottom-bar');
+    expect(StyleSheet.flatten(bottomBar.props.style).backgroundColor).toBe('#ffffff');
+
+    delete process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN;
   });
 
   it('shows fallback when token is missing', async () => {
@@ -168,7 +184,7 @@ describe('LiveMapPage', () => {
   it('renders map view in dark mode without crashing', async () => {
     // Override the nativewind mock to return dark mode for this test
     const nativewindMock = jest.requireMock('nativewind');
-    nativewindMock.useColorScheme.mockReturnValueOnce({ colorScheme: 'dark' });
+    nativewindMock.useColorScheme.mockReturnValue({ colorScheme: 'dark' });
 
     process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN = 'pk.test_jest_token';
 
@@ -178,6 +194,10 @@ describe('LiveMapPage', () => {
       expect(screen.getByTestId('live-map-mapview')).toBeTruthy();
     });
 
+    const bottomBar = screen.getByTestId('live-map-bottom-bar');
+    expect(StyleSheet.flatten(bottomBar.props.style).backgroundColor).toBe('#000000');
+
     delete process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN;
+    nativewindMock.useColorScheme.mockReturnValue({ colorScheme: 'light' });
   });
 });

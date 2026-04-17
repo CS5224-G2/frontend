@@ -356,15 +356,7 @@ export default function LiveMapMapboxScreen() {
         ) : null}
       </SafeAreaView>
 
-      <SafeAreaView style={styles.bottomBar} edges={['bottom']}>
-        <GlassSurface
-          isDark={isDark}
-          tintLight="rgba(255,255,255,0.72)"
-          tintDark="rgba(15,23,42,0.78)"
-          fallbackLight="rgba(255,255,255,0.92)"
-          fallbackDark="rgba(15,23,42,0.92)"
-          style={StyleSheet.absoluteFill}
-        />
+      <SafeAreaView style={styles.bottomBar} edges={['bottom']} testID="live-map-bottom-bar">
         <View style={[styles.bottomInner, { paddingBottom: 16 + bottomTabLift }]}>
           <View style={styles.bottomGrid}>
             <View>
@@ -548,12 +540,13 @@ function getStyles(isDark: boolean) {
       left: 0,
       right: 0,
       overflow: 'hidden',
+      backgroundColor: isDark ? '#000000' : '#ffffff',
       borderTopWidth: 1,
       borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)',
     },
     bottomInner: { paddingHorizontal: 16, paddingTop: 16, gap: 12 },
     bottomGrid: { flexDirection: 'row', justifyContent: 'space-between' },
-    bottomLabel: { fontSize: 12, color: '#64748b', marginBottom: 4 },
+    bottomLabel: { fontSize: 12, color: isDark ? '#94a3b8' : '#64748b', marginBottom: 4 },
     bottomValueBlue: { fontSize: 22, fontWeight: '800', color: isDark ? '#3b82f6' : '#2563eb' },
     bottomValueGreen: { fontSize: 22, fontWeight: '800', color: isDark ? '#22c55e' : '#16a34a' },
     stopBtn: { backgroundColor: '#dc2626', borderRadius: 14, paddingVertical: 14, alignItems: 'center' },

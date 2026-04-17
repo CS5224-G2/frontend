@@ -8,6 +8,8 @@ import * as ImagePicker from 'expo-image-picker';
 
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
+const mockGetItem = jest.fn();
+const mockSetItem = jest.fn();
 
 jest.mock('@react-navigation/native', () => ({
   ...jest.requireActual('@react-navigation/native'),
@@ -29,6 +31,11 @@ jest.mock('@react-navigation/native', () => ({
       avatarColor: '#000000'
     })},
   }),
+}));
+
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  getItem: (...args: unknown[]) => mockGetItem(...args),
+  setItem: (...args: unknown[]) => mockSetItem(...args),
 }));
 
 jest.mock('../../services/userService', () => ({
@@ -55,6 +62,8 @@ jest.mock('@expo/vector-icons', () => {
 describe('EditProfilePage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetItem.mockResolvedValue(null);
+    mockSetItem.mockResolvedValue(null);
   });
 
   const renderWithAuth = (component: React.ReactElement) => {
@@ -94,6 +103,69 @@ describe('EditProfilePage', () => {
     await waitFor(() => {
       expect(mockUpdate).toHaveBeenCalled();
       expect(mockGoBack).toHaveBeenCalled();
+    });
+  });
+
+  it('syncs cached home-page cyclist type when cycling preference changes', async () => {
+    const mockUpdate = userService.updateUserProfile as jest.Mock;
+    mockGetItem.mockResolvedValueOnce(
+      JSON.stringify({
+        cyclistType: 'commuter',
+        shadePreference: 'reduce-shade',
+        elevationPreference: 'higher',
+        maxDistanceKm: 24,
+        airQualityPreference: 'care',
+        pointsOfInterest: {
+          hawkerCenter: true,
+          historicSite: false,
+          park: true,
+          touristAttraction: false,
+        },
+      })
+    );
+    mockUpdate.mockResolvedValueOnce({
+      userId: '1',
+      fullName: 'John Doe',
+      email: 'john@example.com',
+      location: 'Singapore',
+      memberSince: 'January 2025',
+      bio: 'Loves cycling',
+      cyclingPreference: 'Performance',
+      weeklyGoalKm: 50,
+      avatarUrl: null,
+      avatarColor: '#000000',
+      stats: {
+        totalRides: 0,
+        totalDistanceKm: 0,
+        favoriteTrails: 0,
+      },
+    });
+
+    renderWithAuth(<EditProfilePage />);
+
+    fireEvent.press(await screen.findByText('Performance'));
+    fireEvent.press(screen.getByText(/Save changes/i));
+
+    await waitFor(() => {
+      expect(mockSetItem).toHaveBeenCalledWith(
+        'userPreferences',
+        expect.any(String)
+      );
+    });
+
+    const savedPreferences = JSON.parse(mockSetItem.mock.calls[0][1]);
+    expect(savedPreferences).toMatchObject({
+      cyclistType: 'fitness',
+      shadePreference: 'reduce-shade',
+      elevationPreference: 'higher',
+      maxDistanceKm: 24,
+      airQualityPreference: 'care',
+      pointsOfInterest: {
+        hawkerCenter: true,
+        historicSite: false,
+        park: true,
+        touristAttraction: false,
+      },
     });
   });
 
