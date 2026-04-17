@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, ScrollView, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, Image, ScrollView, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -9,6 +9,7 @@ import { normalizeUserPreferences } from '../utils/routePreferences';
 import { getPopularRoutes, getRoutes } from '../../services/routeService';
 import { getRideHistory } from '../../services/rideService';
 import { getUserProfile } from '../../services/userService';
+import { AuthContext } from '../AuthContext';
 import { loadActiveRideSession, type ActiveRideSession } from '../../services/activeRideSession';
 import {
   getLocalFavoriteRouteIds,
@@ -60,6 +61,7 @@ export default function HomeScreen({ navigation }: Props) {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
   const insets = useSafeAreaInsets();
+  const { user: authUser } = useContext(AuthContext);
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [allRoutes, setAllRoutes] = useState<Route[]>([]);
@@ -69,11 +71,26 @@ export default function HomeScreen({ navigation }: Props) {
   const [activeRideSession, setActiveRideSession] = useState<ActiveRideSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarColor, setAvatarColor] = useState('#3b82f6');
   const preferencesRef = useRef<UserPreferences | null>(null);
+  const avatarFetchedRef = useRef(false);
 
   useEffect(() => {
     preferencesRef.current = preferences;
   }, [preferences]);
+
+  // Fetch avatar once on mount — name comes from AuthContext, only the photo needs an API call.
+  useEffect(() => {
+    if (avatarFetchedRef.current) return;
+    avatarFetchedRef.current = true;
+    getUserProfile()
+      .then((profile) => {
+        setAvatarUrl(profile.avatarUrl ?? null);
+        setAvatarColor(profile.avatarColor ?? '#3b82f6');
+      })
+      .catch(() => {});
+  }, []);
 
   const loadData = useCallback(async (mode: 'initial' | 'refresh' = 'initial') => {
     if (mode === 'refresh') {
@@ -351,19 +368,36 @@ export default function HomeScreen({ navigation }: Props) {
       <View className="bg-[#f3f4f6] dark:bg-black px-cy-lg pb-cy-md flex-row justify-between items-center" style={{ paddingTop: insets.top }}>
         <Text className="text-2xl font-bold text-[#2563eb]">CycleLink</Text>
         <View className="flex-row items-center gap-cy-sm">
-          {/* <Pressable onPress={() => navigation.navigate('UserJourneyPage')} className="flex-row items-center gap-1 px-cy-sm py-1">
-            <MaterialCommunityIcons name="information" size={16} color="#6b7280" />
-            <Text className="text-xs text-[#6b7280]">User Journey</Text>
-          </Pressable> */}
           <View className="bg-[#e0e7ff] px-cy-sm py-1 rounded">
             <Text className="text-xs text-[#4f46e5] capitalize">{preferences?.cyclistType || 'General'}</Text>
           </View>
+          {avatarUrl ? (
+            <Image
+              source={{ uri: avatarUrl }}
+              style={{ width: 34, height: 34, borderRadius: 17 }}
+              testID="home-avatar-image"
+            />
+          ) : (
+            <View
+              style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: avatarColor, justifyContent: 'center', alignItems: 'center' }}
+              testID="home-avatar-initials"
+            >
+              <Text style={{ color: 'white', fontSize: 14, fontWeight: '700' }}>
+                {authUser?.firstName?.[0]?.toUpperCase() ?? authUser?.fullName?.[0]?.toUpperCase() ?? '?'}
+              </Text>
+            </View>
+          )}
         </View>
       </View>
 
       {/* Main Content */}
       <View className="p-cy-lg pb-[100px]">
         <View className="mb-cy-lg">
+          {authUser?.fullName ? (
+            <Text className="text-sm text-[#6b7280] dark:text-slate-400 mb-[2px]" testID="home-welcome-back">
+              Welcome back, {authUser.fullName} 👋
+            </Text>
+          ) : null}
           <Text className="text-[32px] font-bold text-[#1f2937] dark:text-slate-100 mb-1">Discover Routes</Text>
           <Text className="text-sm text-[#6b7280] dark:text-slate-400">Highly rated routes recommended for you</Text>
         </View>
