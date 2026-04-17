@@ -8,6 +8,7 @@ import {
   notifyCheckpointReachedInBackground,
   notifyRideCompletedInBackground,
   notifyRideTrackingInBackground,
+  scheduleSimulationProgressNotifications,
 } from './rideNotifications';
 import { saveActiveRideSession } from './activeRideSession';
 
@@ -130,5 +131,54 @@ describe('rideNotifications', () => {
         checkpointsVisited: 2,
       },
     });
+  });
+
+  it('schedules upcoming checkpoint and completion notifications for simulation mode', async () => {
+    const simulatedRoute = {
+      ...route,
+      id: 'route-sim',
+      checkpoints: [
+        { id: 'cp-1', name: 'Checkpoint One', lat: 1.301, lng: 103.701, description: 'First' },
+        { id: 'cp-2', name: 'Checkpoint Two', lat: 1.302, lng: 103.702, description: 'Second' },
+      ],
+    };
+
+    await saveActiveRideSession({
+      version: 1,
+      routeId: simulatedRoute.id,
+      route: simulatedRoute,
+      startedAt: '2026-04-08T00:00:00.000Z',
+    });
+
+    await scheduleSimulationProgressNotifications(simulatedRoute as any, 40, 20);
+
+    expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(2);
+    expect(Notifications.scheduleNotificationAsync).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        content: expect.objectContaining({
+          title: 'Checkpoint reached',
+          body: `${simulatedRoute.name}: Checkpoint Two`,
+        }),
+        trigger: expect.objectContaining({
+          seconds: 14,
+        }),
+      }),
+    );
+    expect(Notifications.scheduleNotificationAsync).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        content: expect.objectContaining({
+          title: 'Ride complete',
+          data: expect.objectContaining({
+            kind: 'ride-completed-feedback',
+            routeId: simulatedRoute.id,
+          }),
+        }),
+        trigger: expect.objectContaining({
+          seconds: 30,
+        }),
+      }),
+    );
   });
 });

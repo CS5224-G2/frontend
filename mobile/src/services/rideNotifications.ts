@@ -128,6 +128,7 @@ async function sendRideNotification(
   body: string,
   options?: {
     data?: Record<string, unknown>;
+    delaySeconds?: number;
     loud?: boolean;
   },
 ): Promise<void> {
@@ -146,6 +147,11 @@ async function sendRideNotification(
     return;
   }
 
+  const delaySeconds =
+    typeof options?.delaySeconds === 'number' && Number.isFinite(options.delaySeconds)
+      ? Math.max(0, Math.ceil(options.delaySeconds))
+      : 0;
+
   const id = await Notifications.scheduleNotificationAsync({
     content: {
       title,
@@ -159,11 +165,11 @@ async function sendRideNotification(
       interruptionLevel: options?.loud ? 'timeSensitive' : 'active',
     },
     trigger:
-      Platform.OS === 'android'
+      delaySeconds > 0 || Platform.OS === 'android'
         ? {
             type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-            seconds: 1,
-            channelId: RIDE_ALERTS_CHANNEL_ID,
+            seconds: Math.max(1, delaySeconds || 1),
+            ...(Platform.OS === 'android' ? { channelId: RIDE_ALERTS_CHANNEL_ID } : {}),
           }
         : null,
   });
@@ -227,6 +233,57 @@ export async function notifyRideCompletedInBackground(
     `${route.name} is done. Tap to leave feedback.`,
     { data, loud: true },
   );
+}
+
+export async function scheduleSimulationProgressNotifications(
+  route: Route,
+  progressPct: number,
+  elapsedSec: number,
+): Promise<void> {
+  const checkpointThresholdStep = route.checkpoints.length
+    ? 100 / (route.checkpoints.length + 1)
+    : 100;
+
+  for (let index = 0; index < route.checkpoints.length; index += 1) {
+    const checkpoint = route.checkpoints[index];
+    const checkpointThreshold = checkpointThresholdStep * (index + 1);
+    if (checkpointThreshold <= progressPct) {
+      continue;
+    }
+
+    const secondsUntilCheckpoint = (checkpointThreshold - progressPct) / 2;
+    await sendRideNotification('Checkpoint reached', `${route.name}: ${checkpoint.name}`, {
+      loud: true,
+      delaySeconds: secondsUntilCheckpoint,
+      data: {
+        kind: CHECKPOINT_NOTIFICATION_KIND,
+      },
+    });
+  }
+
+  if (progressPct >= 99) {
+    return;
+  }
+
+  const secondsUntilCompletion = (99 - progressPct) / 2;
+  const rideSummary: RideFeedbackSummary = {
+    distanceKm: route.distance,
+    elapsedMinutes: Math.max(1, Math.round((elapsedSec + Math.max(1, secondsUntilCompletion)) / 60)),
+    checkpointsVisited: route.checkpoints.length,
+  };
+
+  const data: RideCompletionNotificationData = {
+    kind: COMPLETION_NOTIFICATION_KIND,
+    routeId: route.id,
+    route,
+    rideSummary,
+  };
+
+  await sendRideNotification('Ride complete', `${route.name} is done. Tap to leave feedback.`, {
+    data,
+    loud: true,
+    delaySeconds: secondsUntilCompletion,
+  });
 }
 
 export function extractRideCompletionNotificationData(
