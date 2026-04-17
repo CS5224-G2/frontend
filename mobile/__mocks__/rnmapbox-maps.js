@@ -10,7 +10,6 @@ module.exports = {
   setAccessToken: jest.fn(),
   StyleURL: {
     Street: 'mapbox://styles/mapbox/streets-v11',
-    Night: 'mapbox://styles/mapbox/navigation-night-v1',
   },
   MapView,
   Camera: () => null,

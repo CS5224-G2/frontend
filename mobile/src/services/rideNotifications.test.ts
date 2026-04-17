@@ -4,6 +4,9 @@ import * as Notifications from 'expo-notifications';
 import { STORAGE_KEYS } from '../constants/routeStorage';
 import {
   clearRideNotifications,
+  extractRideCompletionNotificationData,
+  notifyCheckpointReachedInBackground,
+  notifyRideCompletedInBackground,
   notifyRideTrackingInBackground,
 } from './rideNotifications';
 import { saveActiveRideSession } from './activeRideSession';
@@ -12,9 +15,18 @@ describe('rideNotifications', () => {
   const route = {
     id: 'route-1',
     name: 'Test Route',
-    startPoint: { lat: 1.3, lng: 103.7 },
-    endPoint: { lat: 1.31, lng: 103.71 },
+    description: 'Test route description',
+    distance: 12.5,
+    elevation: 10,
+    estimatedTime: 45,
+    rating: 4.5,
+    reviewCount: 12,
+    startPoint: { lat: 1.3, lng: 103.7, name: 'Start' },
+    endPoint: { lat: 1.31, lng: 103.71, name: 'End' },
     checkpoints: [],
+    cyclistType: 'general' as const,
+    shade: 50,
+    airQuality: 70,
   };
 
   beforeEach(async () => {
@@ -58,5 +70,65 @@ describe('rideNotifications', () => {
     await notifyRideTrackingInBackground('Test Route');
 
     expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
+  });
+
+  it('schedules a loud background checkpoint notification', async () => {
+    await notifyCheckpointReachedInBackground('Test Route', 'Checkpoint Alpha');
+
+    expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: expect.objectContaining({
+          title: 'Checkpoint reached',
+          body: 'Test Route: Checkpoint Alpha',
+          sound: 'default',
+          priority: Notifications.AndroidNotificationPriority.MAX,
+          interruptionLevel: 'timeSensitive',
+        }),
+      }),
+    );
+  });
+
+  it('embeds feedback payload in the ride completion notification', async () => {
+    await notifyRideCompletedInBackground(route as any, {
+      distanceKm: 12.5,
+      elapsedMinutes: 48,
+      checkpointsVisited: 2,
+    });
+
+    expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: expect.objectContaining({
+          title: 'Ride complete',
+          data: expect.objectContaining({
+            kind: 'ride-completed-feedback',
+            routeId: route.id,
+          }),
+        }),
+      }),
+    );
+  });
+
+  it('parses completion notification payloads for feedback navigation', () => {
+    expect(
+      extractRideCompletionNotificationData({
+        kind: 'ride-completed-feedback',
+        routeId: route.id,
+        route,
+        rideSummary: {
+          distanceKm: 12.5,
+          elapsedMinutes: 48,
+          checkpointsVisited: 2,
+        },
+      }),
+    ).toEqual({
+      kind: 'ride-completed-feedback',
+      routeId: route.id,
+      route,
+      rideSummary: {
+        distanceKm: 12.5,
+        elapsedMinutes: 48,
+        checkpointsVisited: 2,
+      },
+    });
   });
 });

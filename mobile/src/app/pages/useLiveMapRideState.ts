@@ -459,6 +459,18 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
     [riderPosition]
   );
 
+  const riderLngLat = useMemo<LngLat | null>(() => {
+    if (LIVE_MAP_PROGRESS_SIMULATION) {
+      return lineCoords.length ? riderPosition : null;
+    }
+
+    return tracking.position;
+  }, [lineCoords.length, riderPosition, tracking.position]);
+
+  const riderHasFix = LIVE_MAP_PROGRESS_SIMULATION
+    ? lineCoords.length > 0
+    : Boolean(tracking.position);
+
   const distanceToEndKm = useMemo(() => {
     if (!route || !tracking.position) {
       return Number.POSITIVE_INFINITY;
@@ -646,11 +658,19 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
         await clearRideNotifications().catch(() => {});
 
         if (destination === 'feedback') {
-          if (routeId) {
-            navigation.navigate('RouteFeedback', { routeId, route, rideSummary });
-          } else {
-            navigation.navigate('RouteFeedback', route ? { route, rideSummary } : undefined);
-          }
+          navigation.reset({
+            index: 0,
+            routes: [
+              {
+                name: 'RouteFeedback',
+                params: routeId
+                  ? { routeId, route, rideSummary }
+                  : route
+                    ? { route, rideSummary }
+                    : undefined,
+              },
+            ],
+          });
           return;
         }
 
@@ -724,8 +744,8 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
     lineFeature,
     bounds,
     riderPoint,
-    riderLngLat: tracking.position,
-    riderHasFix: Boolean(tracking.position),
+    riderLngLat,
+    riderHasFix,
     offRouteWarning,
     metersFromRoute,
     locationDenied,

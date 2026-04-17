@@ -7,6 +7,7 @@ import {
   Pressable,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -15,6 +16,8 @@ import { type Route } from '../../../../shared/types/index';
 import { submitRideFeedback } from '../../services/rideService';
 import { resolveRouteById } from '../../services/routeLookup';
 import { useFloatingTabBarScrollPadding } from '../utils/floatingTabBarInset';
+import { getUserProfile, type UserProfile } from '../../services/userService';
+import { getProfileAvatarSource } from '../utils/profileAvatar';
 
 type Props = NativeStackScreenProps<any, any>;
 
@@ -35,9 +38,14 @@ export default function RouteFeedbackPage({ navigation, route }: Props) {
   const [routeData, setRouteData] = useState<Route | null>(routeParam ?? null);
   const [isLoading, setIsLoading] = useState(!routeParam);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
   const scrollBottomPad = useFloatingTabBarScrollPadding(20);
+
+  useEffect(() => {
+    getUserProfile().then(setProfile).catch(() => {});
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -124,10 +132,51 @@ export default function RouteFeedbackPage({ navigation, route }: Props) {
     <ScrollView className="flex-1 bg-[#f9fafb] dark:bg-black" contentContainerStyle={{ padding: 16, paddingBottom: scrollBottomPad }}>
       <View className="p-cy-lg pt-10">
         <Text className="text-[28px] font-bold text-[#1e293b] dark:text-slate-100 text-center">Rate Your Experience</Text>
-        <Text className="text-sm text-[#64748b] dark:text-slate-400 mt-2 text-center">How was your ride on {routeData.name}?</Text>
+
+        {/* Profile Avatar */}
+        <View className="mt-[32px] items-center">
+          {(() => {
+            const avatarSource = profile?.avatarUrl ? getProfileAvatarSource(profile.avatarUrl) : null;
+            const firstName = profile?.fullName?.split(' ')[0];
+            return (
+              <>
+                {avatarSource ? (
+                  <Image
+                    source={avatarSource}
+                    style={{ width: 72, height: 72, borderRadius: 36, borderWidth: 2.5, borderColor: isDark ? '#334155' : '#e2e8f0' }}
+                  />
+                ) : (
+                  <View
+                    style={{
+                      width: 72,
+                      height: 72,
+                      borderRadius: 36,
+                      backgroundColor: profile?.avatarColor ?? '#3b82f6',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderWidth: 2.5,
+                      borderColor: isDark ? '#334155' : '#e2e8f0',
+                    }}
+                  >
+                    <Text style={{ color: '#fff', fontSize: 26, fontWeight: '700' }}>
+                      {profile?.fullName
+                        ? profile.fullName.trim().split(/\s+/).filter((n: string) => n.length > 0).map((n: string) => n[0]).slice(0, 2).join('').toUpperCase()
+                        : '?'}
+                    </Text>
+                  </View>
+                )}
+                {firstName ? (
+                  <Text className="mt-3 text-base text-[#64748b] dark:text-slate-400">
+                    How was your ride, {firstName}?
+                  </Text>
+                ) : null}
+              </>
+            );
+          })()}
+        </View>
 
         {/* Star Rating */}
-        <View className="mt-[32px] items-center">
+        <View className="mt-[24px] items-center">
           <Text className="text-lg font-semibold text-[#374151] dark:text-slate-100 mb-cy-lg">Your Rating</Text>
           <View className="flex-row justify-center gap-cy-sm">
             {[1, 2, 3, 4, 5].map((star) => (

@@ -1,9 +1,15 @@
-import React, { useContext, useEffect, useState } from 'react';
-import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
+import React, { useContext, useEffect, useRef, useState } from 'react';
+import {
+  NavigationContainer,
+  DefaultTheme,
+  DarkTheme,
+  createNavigationContainerRef,
+} from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { BottomTabBarProps, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import * as Notifications from 'expo-notifications';
 import {
   GlassView,
   isGlassEffectAPIAvailable,
@@ -38,11 +44,13 @@ import OnboardingScreen from './pages/OnboardingPage';
 import UserJourneyScreen from './pages/UserJourneyPage';
 import ForgotPasswordScreen from './pages/ForgotPasswordPage';
 import { FLOATING_TAB_BAR_DOCK_HEIGHT } from './utils/floatingTabBarInset';
+import { extractRideCompletionNotificationData } from '../services/rideNotifications';
 
 const Stack = createNativeStackNavigator<any>();
 const Tab = createBottomTabNavigator<any>();
 const AuthStack = createNativeStackNavigator<any>();
 const TAB_BAR_DOCK_HEIGHT = FLOATING_TAB_BAR_DOCK_HEIGHT;
+const navigationRef = createNavigationContainerRef<any>();
 
 const supportsNativeGlass =
   Platform.OS === 'ios' && isLiquidGlassAvailable() && isGlassEffectAPIAvailable();
@@ -298,6 +306,72 @@ export function RootNavigator() {
   const { isLoggedIn } = useContext(AuthContext);
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const [navReady, setNavReady] = useState(false);
+  const [pendingRideFeedbackParams, setPendingRideFeedbackParams] = useState<any | null>(null);
+  const hasCheckedInitialNotificationRef = useRef(false);
+
+  useEffect(() => {
+    const extractParams = (response: Notifications.NotificationResponse | null) => {
+      const data = extractRideCompletionNotificationData(
+        response?.notification.request.content.data,
+      );
+      if (!data) {
+        return null;
+      }
+
+      return {
+        routeId: data.routeId,
+        route: data.route,
+        rideSummary: data.rideSummary,
+      };
+    };
+
+    const maybeQueue = (response: Notifications.NotificationResponse | null) => {
+      const params = extractParams(response);
+      if (params) {
+        setPendingRideFeedbackParams(params);
+      }
+    };
+
+    if (!hasCheckedInitialNotificationRef.current) {
+      hasCheckedInitialNotificationRef.current = true;
+      maybeQueue(Notifications.getLastNotificationResponse());
+    }
+
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      maybeQueue(response);
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!pendingRideFeedbackParams || !isLoggedIn || !navReady || !navigationRef.isReady()) {
+      return;
+    }
+
+    navigationRef.resetRoot({
+      index: 0,
+      routes: [
+        {
+          name: 'HomeTab',
+          state: {
+            index: 0,
+            routes: [
+              {
+                name: 'RouteFeedback',
+                params: pendingRideFeedbackParams,
+              },
+            ],
+          },
+        },
+      ],
+    });
+    setPendingRideFeedbackParams(null);
+    Notifications.clearLastNotificationResponse();
+  }, [isLoggedIn, navReady, pendingRideFeedbackParams]);
 
   const navTheme = isDark
     ? {
@@ -321,7 +395,11 @@ export function RootNavigator() {
       };
 
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer
+      ref={navigationRef}
+      theme={navTheme}
+      onReady={() => setNavReady(true)}
+    >
       {!isLoggedIn ? <AuthNavigator /> : <AppNavigator />}
     </NavigationContainer>
   );

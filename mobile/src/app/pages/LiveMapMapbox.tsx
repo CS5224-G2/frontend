@@ -115,7 +115,6 @@ export default function LiveMapMapboxScreen() {
     rideSummary,
     pauseRide,
     resumeRide,
-    finishCompletedRide,
     goFeedback,
     stopCycling,
     confirmEndRide,
@@ -194,7 +193,7 @@ export default function LiveMapMapboxScreen() {
       {hasMap && lineCoordsLen > 0 ? (
         <MapView
           style={StyleSheet.absoluteFill}
-          styleURL={isDark ? StyleURL.Night : StyleURL.Street}
+          styleURL={isDark ? 'mapbox://styles/mapbox/navigation-night-v1' : StyleURL.Street}
           scaleBarEnabled={false}
           logoEnabled={false}
           attributionEnabled
@@ -224,21 +223,12 @@ export default function LiveMapMapboxScreen() {
               }}
             />
           </ShapeSource>
-          {startPointGeo.features.length > 0 ? (
-            <ShapeSource id="liveMapRouteStart" shape={startPointGeo}>
-              <CircleLayer id="routeStartOuter" style={{ circleRadius: 12, circleColor: '#22c55e', circleOpacity: 0.35 }} />
-              <CircleLayer
-                id="routeStartInner"
-                style={{ circleRadius: 7, circleColor: '#16a34a', circleStrokeWidth: 2, circleStrokeColor: '#ffffff' }}
-              />
-            </ShapeSource>
-          ) : null}
+
           {endPointGeo.features.length > 0 ? (
             <ShapeSource id="liveMapRouteEnd" shape={endPointGeo}>
-              <CircleLayer id="routeEndOuter" style={{ circleRadius: 12, circleColor: '#f87171', circleOpacity: 0.35 }} />
               <CircleLayer
-                id="routeEndInner"
-                style={{ circleRadius: 7, circleColor: '#dc2626', circleStrokeWidth: 2, circleStrokeColor: '#ffffff' }}
+                id="routeEndDot"
+                style={{ circleRadius: 8, circleColor: isDark ? '#f87171' : '#dc2626', circleStrokeWidth: 2.5, circleStrokeColor: '#ffffff' }}
               />
             </ShapeSource>
           ) : null}
@@ -297,19 +287,16 @@ export default function LiveMapMapboxScreen() {
           style={styles.statsCard}
         >
           <View style={styles.statsCardInner} testID="live-map-stats-card">
-            <View style={styles.statsHeader}>
-              <Text style={styles.statsTitle} numberOfLines={1}>
-                {route.name}
-              </Text>
-              <Text style={styles.statsPct}>{progress.toFixed(0)}%</Text>
-            </View>
+            <Text style={styles.statsPct}>{progress.toFixed(0)}%</Text>
             <View style={styles.progressTrack}>
               <View style={[styles.progressFill, { width: `${progress}%` }]} />
             </View>
             <View style={styles.statsFooter}>
-              <Text style={styles.statsMeta}>
-                {checkpointsVisitedCount}/{route.checkpoints.length} checkpoints
-              </Text>
+              {(route.checkpoints?.length ?? 0) > 0 && (
+                <Text style={styles.statsMeta}>
+                  {checkpointsVisitedCount}/{route.checkpoints.length} checkpoints
+                </Text>
+              )}
               <Text style={styles.statsMeta}>{distanceTraveled} km traveled</Text>
             </View>
             <View style={styles.startEndRow} testID="live-map-start-end-legend">
@@ -437,13 +424,10 @@ export default function LiveMapMapboxScreen() {
               <View style={styles.modalActions}>
                 <Pressable
                   style={styles.secondaryBtn}
-                  onPress={finishCompletedRide}
+                  onPress={goFeedback}
                   testID="live-map-complete-dismiss"
                 >
                   <Text style={styles.secondaryBtnText}>Close</Text>
-                </Pressable>
-                <Pressable style={styles.primaryBtn} onPress={goFeedback} testID="live-map-feedback-btn">
-                  <Text style={styles.primaryBtnText}>End Route & Give Feedback</Text>
                 </Pressable>
               </View>
             </View>

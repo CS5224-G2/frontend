@@ -170,6 +170,8 @@ describe('useLiveMapRideState', () => {
     expect(result.current.progress).toBeGreaterThanOrEqual(4);
     expect(result.current.progress).toBeLessThanOrEqual(6);
     expect(result.current.distanceTraveled).not.toBe('0.00');
+    expect(result.current.riderHasFix).toBe(true);
+    expect(result.current.riderLngLat).toEqual(result.current.riderPoint.geometry.coordinates);
   });
 
   it('does not end the ride until end is explicitly confirmed', async () => {
@@ -344,16 +346,21 @@ describe('useLiveMapRideState', () => {
       result.current.goFeedback();
     });
 
-    expect(mockNavigate).toHaveBeenCalledWith(
-      'RouteFeedback',
-      expect.objectContaining({
-        routeId: route.id,
-        route,
-        rideSummary: expect.objectContaining({
-          elapsedMinutes: expect.any(Number),
-        }),
-      }),
-    );
+    expect(mockReset).toHaveBeenCalledWith({
+      index: 0,
+      routes: [
+        {
+          name: 'RouteFeedback',
+          params: expect.objectContaining({
+            routeId: route.id,
+            route,
+            rideSummary: expect.objectContaining({
+              elapsedMinutes: expect.any(Number),
+            }),
+          }),
+        },
+      ],
+    });
   });
 
   it('finalizes the ride immediately once completion is reached', async () => {
