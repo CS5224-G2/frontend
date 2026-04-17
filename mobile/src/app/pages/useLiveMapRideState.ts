@@ -566,27 +566,25 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
   }, [currentCheckpoint, lineCoords.length, route]);
 
   useEffect(() => {
-    const poiDetectionLngLat = tracking.rawPosition ?? riderLngLat;
+    const poiDetectionLngLat = riderLngLat ?? tracking.rawPosition;
     if (!poiDetectionLngLat || !route?.pointsOfInterestVisited?.length) return;
 
     const pois = route.pointsOfInterestVisited;
-    let anyNew = false;
-    const next = new Set(visitedPoiIndices);
-
-    pois.forEach((poi, i) => {
-      if (next.has(i)) return;
-      if (typeof poi.lat !== 'number' || typeof poi.lng !== 'number') return;
-      const distKm = haversineDistanceKm(poiDetectionLngLat, [poi.lng, poi.lat]);
-      if (distKm <= 0.08) {
-        next.add(i);
-        anyNew = true;
-      }
+    setVisitedPoiIndices((prev) => {
+      const next = new Set(prev);
+      let anyNew = false;
+      pois.forEach((poi, i) => {
+        if (next.has(i)) return;
+        if (typeof poi.lat !== 'number' || typeof poi.lng !== 'number') return;
+        const distKm = haversineDistanceKm(poiDetectionLngLat, [poi.lng, poi.lat]);
+        if (distKm <= 0.08) {
+          next.add(i);
+          anyNew = true;
+        }
+      });
+      return anyNew ? next : prev;
     });
-
-    if (anyNew) {
-      setVisitedPoiIndices(next);
-    }
-  }, [riderLngLat, route, tracking.rawPosition, visitedPoiIndices]);
+  }, [riderLngLat, route, tracking.rawPosition]);
 
   const formatTime = useCallback((seconds: number) => {
     const hrs = Math.floor(seconds / 3600);

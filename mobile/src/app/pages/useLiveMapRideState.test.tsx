@@ -398,6 +398,11 @@ describe('useLiveMapRideState', () => {
 });
 
 describe('POI visited detection', () => {
+  afterEach(() => {
+    mockLiveMapProgressSimulationEnabled = false;
+    jest.useRealTimers();
+  });
+
   const routeWithPoi = {
     ...mockRoutes[1],
     pointsOfInterestVisited: [
