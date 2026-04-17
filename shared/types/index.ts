@@ -150,7 +150,13 @@ export type Route = {
   cyclistType: CyclistType;
   shade: number | 'reduce-shade' | 'dont-care';  // 0–100 or preference string
   airQuality: number | 'care' | 'dont-care';     // 0–100 or preference string
-  pointsOfInterestVisited?: Array<{ name: string; description?: string; lat?: number; lng?: number }>;
+  pointsOfInterestVisited?: Array<{
+    name: string;
+    description?: string;
+    lat?: number;
+    lng?: number;
+    category?: PointOfInterestCategory;
+  }>;
 };
 
 export type RouteRecommendationRequest = {
