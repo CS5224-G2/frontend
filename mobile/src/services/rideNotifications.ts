@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 
 import type { Route } from '../../../shared/types/index';
 import { STORAGE_KEYS } from '../constants/routeStorage';
-import { loadActiveRideSession } from './activeRideSession';
+
 
 type NotificationsModule = typeof import('expo-notifications');
 
@@ -137,10 +137,9 @@ async function sendRideNotification(
     return;
   }
 
-  const activeSession = await loadActiveRideSession();
-  if (!activeSession) {
-    return;
-  }
+  // NOTE: Do NOT guard on activeSession here — the completion notification is sent
+  // *before* clearActiveRideSession(), but the session may already be cleared by the
+  // time iOS re-evaluates the async chain in the background task.
 
   const Notifications = getNotificationsModule();
   if (!Notifications) {
@@ -164,14 +163,13 @@ async function sendRideNotification(
         : Notifications.AndroidNotificationPriority.DEFAULT,
       interruptionLevel: options?.loud ? 'timeSensitive' : 'active',
     },
-    trigger:
-      delaySeconds > 0 || Platform.OS === 'android'
-        ? {
-            type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-            seconds: Math.max(1, delaySeconds || 1),
-            ...(Platform.OS === 'android' ? { channelId: RIDE_ALERTS_CHANNEL_ID } : {}),
-          }
-        : null,
+    trigger: {
+      // Always use TIME_INTERVAL on both platforms — iOS requires an explicit trigger
+      // (not null) to deliver notifications when the app is in the background.
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds: Math.max(1, delaySeconds || 1),
+      ...(Platform.OS === 'android' ? { channelId: RIDE_ALERTS_CHANNEL_ID } : {}),
+    },
   });
 
   const existingIds = await AsyncStorage.getItem(STORAGE_KEYS.rideNotificationIds);
