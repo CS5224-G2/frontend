@@ -26,6 +26,10 @@ type StoredTokenRecord = {
   fetchedAt: number | null;
 };
 
+type OneMapTokenValidationResponse = {
+  error?: string;
+};
+
 function isValidTimestamp(value: number): boolean {
   return Number.isFinite(value) && value > 0;
 }
@@ -40,6 +44,10 @@ function isTokenStillFresh(fetchedAt: number | null): boolean {
 
 function hasCredentials(value: OneMapCredentials | null): value is OneMapCredentials {
   return Boolean(value?.email && value?.password);
+}
+
+function hasTokenAccessError(value: string | undefined): boolean {
+  return Boolean(value && /(token|unauthori[sz]ed|expire)/i.test(value));
 }
 
 async function loadStoredTokenRecord(): Promise<StoredTokenRecord> {
@@ -187,4 +195,39 @@ export async function getUsableOneMapApiKey(options?: { forceRefresh?: boolean }
   throw new Error(
     'Missing OneMap configuration. Add EXPO_PUBLIC_ONEMAP_API_KEY or EXPO_PUBLIC_ONEMAP_API_EMAIL and EXPO_PUBLIC_ONEMAP_API_PASSWORD to mobile/.env to enable live place search.',
   );
+}
+
+async function isOneMapApiKeyStillValid(apiToken: string): Promise<boolean> {
+  const response = await fetch(
+    `${getOneMapBaseUrl()}/api/common/elastic/search?searchVal=Singapore&returnGeom=N&getAddrDetails=N&pageNum=1`,
+    {
+      headers: { Authorization: apiToken },
+    },
+  );
+
+  if (response.status === 401 || response.status === 403) {
+    return false;
+  }
+
+  if (!response.ok) {
+    return true;
+  }
+
+  const payload = (await response.json()) as OneMapTokenValidationResponse;
+  return !hasTokenAccessError(payload.error);
+}
+
+export async function initializeOneMapApiKeyOnAppOpen(): Promise<void> {
+  try {
+    const apiToken = await getUsableOneMapApiKey();
+    const isValid = await isOneMapApiKeyStillValid(apiToken);
+
+    if (!isValid) {
+      console.info('[OneMap] Cached API key is invalid or expired; refreshing token.');
+      await getUsableOneMapApiKey({ forceRefresh: true });
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.warn(`[OneMap] Unable to initialize API key on app open: ${message}`);
+  }
 }

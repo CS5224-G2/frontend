@@ -723,8 +723,11 @@ export default function RouteConfigPage({ navigation }: Props) {
 
   return (
     <>
-      <ScrollView className="flex-1 bg-[#F8FAFC] dark:bg-[#1a1a1a]" contentContainerStyle={{ padding: 16, paddingBottom: 70 }}>
-        <View className="mb-4">
+      <ScrollView
+        className="flex-1 bg-[#F8FAFC] dark:bg-[#1a1a1a]"
+        contentContainerStyle={{ padding: 16, paddingBottom: Math.max(insets.bottom, 12) + 96 }}
+      >
+          <View className="mb-4">
           <Text className="text-[28px] font-semibold text-slate-900 dark:text-slate-100">Configure Custom Route</Text>
           <Text className="mt-2 text-[14px] leading-5 text-slate-500 dark:text-slate-400">
             Set your start, destination, and optional stops first. Then tune the ride preferences underneath.

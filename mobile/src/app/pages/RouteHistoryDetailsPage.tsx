@@ -9,7 +9,12 @@ import { type RideHistory, type Route } from '../../../../shared/types/index';
 import { getRideById } from '../../services/rideService';
 import { resolveRouteById } from '../../services/routeLookup';
 import { useFloatingTabBarScrollPadding } from '../utils/floatingTabBarInset';
-import { fitRegionForCoordinates, routeToLineCoordinates, routeToMapCoordinates } from '@/utils/routeGeometry';
+import {
+  fitRegionForCoordinates,
+  projectPointOntoRoute,
+  routeToLineCoordinates,
+  routeToMapCoordinates,
+} from '@/utils/routeGeometry';
 import { canUseAndroidMapbox } from '../utils/mapboxSupport';
 import { mapPinMarkerProps } from '../utils/mapMarkers';
 import { isLikelyHawkerCentre } from '../utils/poiLabels';
@@ -110,15 +115,114 @@ export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
       !(poi.lat === 0 && poi.lng === 0),
   );
 
-  const checkpointCoords = useMemo(
-    () => visitedCheckpoints.map((cp) => ({ latitude: cp.lat, longitude: cp.lng })),
-    [visitedCheckpoints],
+  const lineCoords = useMemo(
+    () =>
+      routeInfo
+        ? routeToLineCoordinates(routeInfo).filter(([lng, lat]) => !(lat === 0 && lng === 0))
+        : [],
+    [routeInfo],
   );
 
-  const poiCoords = useMemo(
-    () => visitedPoisWithCoords.map((poi) => ({ latitude: poi.lat, longitude: poi.lng })),
-    [visitedPoisWithCoords],
+  const snapToRenderedRoute = useMemo(() => {
+    return (lat: number, lng: number) => {
+      if (!(Number.isFinite(lat) && Number.isFinite(lng)) || (lat === 0 && lng === 0)) {
+        return null;
+      }
+
+      if (lineCoords.length < 2) {
+        return { latitude: lat, longitude: lng };
+      }
+
+      const { snappedPoint } = projectPointOntoRoute(lineCoords, [lng, lat]);
+      return { latitude: snappedPoint[1], longitude: snappedPoint[0] };
+    };
+  }, [lineCoords]);
+
+  const startMarkerCoordinate = useMemo(() => {
+    if (!routeInfo) {
+      return null;
+    }
+
+    if (lineCoords.length >= 1) {
+      return { latitude: lineCoords[0][1], longitude: lineCoords[0][0] };
+    }
+
+    return snapToRenderedRoute(routeInfo.startPoint.lat, routeInfo.startPoint.lng);
+  }, [lineCoords, routeInfo, snapToRenderedRoute]);
+
+  const endMarkerCoordinate = useMemo(() => {
+    if (!routeInfo) {
+      return null;
+    }
+
+    if (lineCoords.length >= 1) {
+      const last = lineCoords[lineCoords.length - 1];
+      return { latitude: last[1], longitude: last[0] };
+    }
+
+    return snapToRenderedRoute(routeInfo.endPoint.lat, routeInfo.endPoint.lng);
+  }, [lineCoords, routeInfo, snapToRenderedRoute]);
+
+  type SnappedMarker = {
+    id: string;
+    name: string;
+    description?: string;
+    coordinate: { latitude: number; longitude: number };
+  };
+
+  type SnappedPoiMarker = SnappedMarker & {
+    hawker: boolean;
+  };
+
+  const snappedCheckpointMarkers = useMemo(
+    () => {
+      const markers: SnappedMarker[] = [];
+      visitedCheckpoints.forEach((checkpoint) => {
+        const coordinate = snapToRenderedRoute(checkpoint.lat, checkpoint.lng);
+        if (!coordinate) {
+          return;
+        }
+
+        markers.push({
+          id: `checkpoint-${checkpoint.id}`,
+          name: checkpoint.name,
+          description: checkpoint.description,
+          coordinate,
+        });
+      });
+      return markers;
+    },
+    [snapToRenderedRoute, visitedCheckpoints],
   );
+
+  const snappedPoiMarkers = useMemo(
+    () => {
+      const markers: SnappedPoiMarker[] = [];
+      visitedPoisWithCoords.forEach((poi, index) => {
+        const coordinate = snapToRenderedRoute(poi.lat, poi.lng);
+        if (!coordinate) {
+          return;
+        }
+
+        markers.push({
+          id: `poi-${poi.name}-${index}`,
+          name: poi.name,
+          description: poi.description,
+          coordinate,
+          hawker: isLikelyHawkerCentre(poi.name),
+        });
+      });
+      return markers;
+    },
+    [snapToRenderedRoute, visitedPoisWithCoords],
+  );
+
+  const checkpointCoords = useMemo(
+    () => snappedCheckpointMarkers.map((checkpoint) => checkpoint.coordinate),
+    [snappedCheckpointMarkers],
+  );
+
+  const poiCoords = useMemo(() => snappedPoiMarkers.map((poi) => poi.coordinate), [snappedPoiMarkers]);
 
   const pathCoords = useMemo(
     () =>
@@ -130,62 +234,63 @@ export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
     [routeInfo],
   );
 
-  const lineCoords = useMemo(
-    () =>
-      routeInfo
-        ? routeToLineCoordinates(routeInfo).filter(([lng, lat]) => !(lat === 0 && lng === 0))
-        : [],
-    [routeInfo],
-  );
-
   const mapRegion = useMemo<Region>(() => {
     const points: LatLng[] = [...pathCoords, ...checkpointCoords, ...poiCoords];
-    if (routeInfo) {
-      if (!(routeInfo.startPoint.lat === 0 && routeInfo.startPoint.lng === 0)) {
-        points.push({
-          latitude: routeInfo.startPoint.lat,
-          longitude: routeInfo.startPoint.lng,
-        });
-      }
-      if (!(routeInfo.endPoint.lat === 0 && routeInfo.endPoint.lng === 0)) {
-        points.push({
-          latitude: routeInfo.endPoint.lat,
-          longitude: routeInfo.endPoint.lng,
-        });
-      }
+    if (startMarkerCoordinate) {
+      points.push(startMarkerCoordinate);
+    }
+    if (endMarkerCoordinate) {
+      points.push(endMarkerCoordinate);
     }
     return fitRegionForCoordinates(points);
-  }, [checkpointCoords, pathCoords, poiCoords, routeInfo]);
+  }, [checkpointCoords, endMarkerCoordinate, pathCoords, poiCoords, startMarkerCoordinate]);
 
   const mapUsable = Boolean(
     pathCoords.length >= 2 ||
       checkpointCoords.length > 0 ||
       poiCoords.length > 0 ||
-      (routeInfo &&
-        !(
-          (routeInfo.startPoint.lat === 0 && routeInfo.startPoint.lng === 0) &&
-          (routeInfo.endPoint.lat === 0 && routeInfo.endPoint.lng === 0)
-        )),
+      Boolean(startMarkerCoordinate) ||
+      Boolean(endMarkerCoordinate),
   );
   const showEmbeddedMap = mapUsable && !androidMapboxEnabled;
   const showAndroidMapboxMap = mapUsable && androidMapboxEnabled && RouteMapPreviewMapbox;
 
   const mapboxMarkers = useMemo(
     () => [
-      ...visitedCheckpoints.map((checkpoint) => ({
-        id: `checkpoint-${checkpoint.id}`,
-        coordinate: [checkpoint.lng, checkpoint.lat] as [number, number],
+      ...(startMarkerCoordinate
+        ? [
+            {
+              id: 'route-start',
+              coordinate: [startMarkerCoordinate.longitude, startMarkerCoordinate.latitude] as [number, number],
+              color: '#22c55e',
+              kind: 'start' as const,
+            },
+          ]
+        : []),
+      ...snappedCheckpointMarkers.map((checkpoint) => ({
+        id: checkpoint.id,
+        coordinate: [checkpoint.coordinate.longitude, checkpoint.coordinate.latitude] as [number, number],
         color: '#2563eb',
         kind: 'waypoint' as const,
       })),
-      ...visitedPoisWithCoords.map((poi, index) => ({
-        id: `poi-${poi.name}-${index}`,
-        coordinate: [poi.lng, poi.lat] as [number, number],
+      ...snappedPoiMarkers.map((poi) => ({
+        id: poi.id,
+        coordinate: [poi.coordinate.longitude, poi.coordinate.latitude] as [number, number],
         color: '#f59e0b',
         kind: 'poi' as const,
       })),
+      ...(endMarkerCoordinate
+        ? [
+            {
+              id: 'route-end',
+              coordinate: [endMarkerCoordinate.longitude, endMarkerCoordinate.latitude] as [number, number],
+              color: '#ef4444',
+              kind: 'end' as const,
+            },
+          ]
+        : []),
     ],
-    [visitedCheckpoints, visitedPoisWithCoords],
+    [endMarkerCoordinate, snappedCheckpointMarkers, snappedPoiMarkers, startMarkerCoordinate],
   );
 
   if (isLoading) {
@@ -247,8 +352,8 @@ export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
               <MapView
                 style={{ width: '100%', height: 240 }}
                 initialRegion={mapRegion}
-                scrollEnabled={false}
-                zoomEnabled={false}
+                scrollEnabled
+                zoomEnabled
                 rotateEnabled={false}
                 pitchEnabled={false}
                 toolbarEnabled={false}
@@ -261,10 +366,30 @@ export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
                   />
                 ) : null}
 
-                {visitedCheckpoints.map((checkpoint) => (
+                {startMarkerCoordinate ? (
                   <Marker
-                    key={`checkpoint-${checkpoint.id}`}
-                    coordinate={{ latitude: checkpoint.lat, longitude: checkpoint.lng }}
+                    coordinate={startMarkerCoordinate}
+                    title="Start"
+                    description={routeInfo.startPoint.name}
+                    anchor={{ x: 0.5, y: 0.5 }}
+                  >
+                    <View
+                      style={{
+                        width: 16,
+                        height: 16,
+                        borderRadius: 8,
+                        backgroundColor: '#22c55e',
+                        borderWidth: 3,
+                        borderColor: '#ffffff',
+                      }}
+                    />
+                  </Marker>
+                ) : null}
+
+                {snappedCheckpointMarkers.map((checkpoint) => (
+                  <Marker
+                    key={checkpoint.id}
+                    coordinate={checkpoint.coordinate}
                     title={checkpoint.name}
                     description={checkpoint.description}
                     {...mapPinMarkerProps()}
@@ -273,24 +398,43 @@ export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
                   </Marker>
                 ))}
 
-                {visitedPoisWithCoords.map((poi, index) => {
-                  const hawker = isLikelyHawkerCentre(poi.name);
+                {snappedPoiMarkers.map((poi) => {
                   return (
                     <Marker
-                      key={`poi-${poi.name}-${index}`}
-                      coordinate={{ latitude: poi.lat, longitude: poi.lng }}
+                      key={poi.id}
+                      coordinate={poi.coordinate}
                       title={poi.name}
                       description={poi.description}
                       {...mapPinMarkerProps()}
                     >
                       <MaterialCommunityIcons
-                        name={hawker ? 'food' : 'map-marker'}
+                        name={poi.hawker ? 'food' : 'map-marker'}
                         size={30}
-                        color={hawker ? '#be185d' : '#f59e0b'}
+                        color={poi.hawker ? '#be185d' : '#f59e0b'}
                       />
                     </Marker>
                   );
                 })}
+
+                {endMarkerCoordinate ? (
+                  <Marker
+                    coordinate={endMarkerCoordinate}
+                    title="End"
+                    description={routeInfo.endPoint.name}
+                    anchor={{ x: 0.5, y: 0.5 }}
+                  >
+                    <View
+                      style={{
+                        width: 16,
+                        height: 16,
+                        borderRadius: 8,
+                        backgroundColor: '#ef4444',
+                        borderWidth: 3,
+                        borderColor: '#ffffff',
+                      }}
+                    />
+                  </Marker>
+                ) : null}
               </MapView>
             ) : showAndroidMapboxMap ? (
               <RouteMapPreviewMapbox
@@ -298,8 +442,8 @@ export default function RouteHistoryDetailsPage({ navigation, route }: Props) {
                 markers={mapboxMarkers}
                 strokeColor="#22c55e"
                 testID="route-history-details-map"
-                scrollEnabled={false}
-                zoomEnabled={false}
+                scrollEnabled
+                zoomEnabled
               />
             ) : (
               <View className="h-[240px] items-center justify-center bg-[#e2e8f0] dark:bg-[#0f172a] px-4">
