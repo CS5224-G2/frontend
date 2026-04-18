@@ -8,6 +8,7 @@ import {
   Switch,
   Text,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useColorScheme } from 'nativewind';
@@ -57,6 +58,7 @@ function ToggleRow({ title, description, value, onValueChange }: ToggleRowProps)
 export default function PrivacySecurityPage() {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
   const { logout } = useContext(AuthContext);
   const [settings, setSettings] = useState<PrivacySecuritySettings>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);
@@ -65,6 +67,9 @@ export default function PrivacySecurityPage() {
   const { preference, setPreference } = useTheme();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const pageSpacing = height < 700 ? 12 : height < 820 ? 14 : 16;
+  const pagePaddingVertical = height < 700 ? 14 : 20;
+  const pageBottomPadding = Math.max(insets.bottom + 20, Math.round(height * 0.04));
 
   const handleDeleteAccount = () => {
     Alert.alert(
@@ -177,7 +182,14 @@ export default function PrivacySecurityPage() {
   return (
     <ScrollView
       className="flex-1 bg-[#F3F4F6] dark:bg-black"
-      contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 120, gap: 16 }}
+      contentContainerStyle={{
+        flexGrow: 1,
+        paddingHorizontal: 20,
+        paddingTop: pagePaddingVertical,
+        paddingBottom: pageBottomPadding,
+        gap: pageSpacing,
+      }}
+      showsVerticalScrollIndicator={false}
     >
       <View className="bg-white dark:bg-[#111111] rounded-[24px] p-[22px] border border-border dark:border-[#2d2d2d]">
         <Text className="text-[13px] font-bold tracking-[0.6px] uppercase text-primary-dark mb-2">Privacy and device</Text>
@@ -280,7 +292,7 @@ export default function PrivacySecurityPage() {
         </Pressable>
       </View>
 
-      <View className="flex-row mt-1 mb-6" style={{ gap: 12 }}>
+      <View className="flex-row mt-1" style={{ gap: 12 }}>
         <Pressable
           testID="privacy-security-cancel-button"
           className="flex-1 justify-center items-center border border-border dark:border-[#2d2d2d] bg-white dark:bg-[#111111] rounded-[18px]"
