@@ -25,7 +25,12 @@ import { mapDotMarkerProps, mapPinMarkerProps } from '../utils/mapMarkers';
 import { isLikelyHawkerCentre } from '../utils/poiLabels';
 import { useRouteEndpointLabels } from '../utils/placeGeocode';
 import { useFloatingTabBarScrollPadding } from '../utils/floatingTabBarInset';
-import { fitRegionForCoordinates, routeToLineCoordinates, routeToMapCoordinates } from '@/utils/routeGeometry';
+import {
+  fitRegionForCoordinates,
+  projectPointOntoRoute,
+  routeToLineCoordinates,
+  routeToMapCoordinates,
+} from '@/utils/routeGeometry';
 import { canUseAndroidMapbox } from '../utils/mapboxSupport';
 
 export default function RouteDetailsScreen() {
@@ -93,35 +98,130 @@ export default function RouteDetailsScreen() {
     () => (route ? routeToLineCoordinates(route).filter(([lng, lat]) => hasRouteCoordinates(lat, lng)) : []),
     [route],
   );
+  const snapToRenderedRoute = useCallback(
+    (lat: number, lng: number) => {
+      if (!hasRouteCoordinates(lat, lng)) {
+        return null;
+      }
+
+      if (lineCoords.length < 2) {
+        return { latitude: lat, longitude: lng };
+      }
+
+      const { snappedPoint } = projectPointOntoRoute(lineCoords, [lng, lat]);
+      return { latitude: snappedPoint[1], longitude: snappedPoint[0] };
+    },
+    [lineCoords],
+  );
+  const startMarkerCoordinate = useMemo(() => {
+    if (!route) {
+      return null;
+    }
+
+    if (lineCoords.length >= 1) {
+      return { latitude: lineCoords[0][1], longitude: lineCoords[0][0] };
+    }
+
+    return snapToRenderedRoute(route.startPoint.lat, route.startPoint.lng);
+  }, [lineCoords, route, snapToRenderedRoute]);
+  const endMarkerCoordinate = useMemo(() => {
+    if (!route) {
+      return null;
+    }
+
+    if (lineCoords.length >= 1) {
+      const last = lineCoords[lineCoords.length - 1];
+      return { latitude: last[1], longitude: last[0] };
+    }
+
+    return snapToRenderedRoute(route.endPoint.lat, route.endPoint.lng);
+  }, [lineCoords, route, snapToRenderedRoute]);
+  const checkpointMarkers = useMemo(() => {
+    if (!route) {
+      return [] as Array<{ id: string; name: string; description: string; coordinate: { latitude: number; longitude: number } }>;
+    }
+
+    return route.checkpoints
+      .map((checkpoint) => {
+        const coordinate = snapToRenderedRoute(checkpoint.lat, checkpoint.lng);
+        if (!coordinate) {
+          return null;
+        }
+
+        return {
+          id: checkpoint.id,
+          name: checkpoint.name,
+          description: checkpoint.description,
+          coordinate,
+        };
+      })
+      .filter((marker): marker is { id: string; name: string; description: string; coordinate: { latitude: number; longitude: number } } => Boolean(marker));
+  }, [route, snapToRenderedRoute]);
+  const poiMarkers = useMemo(() => {
+    if (!route) {
+      return [] as Array<{
+        id: string;
+        name: string;
+        description: string;
+        coordinate: { latitude: number; longitude: number };
+        hawker: boolean;
+      }>;
+    }
+
+    return (route.pointsOfInterestVisited ?? [])
+      .map((poi, index) => {
+        if (typeof poi.lat !== 'number' || typeof poi.lng !== 'number') {
+          return null;
+        }
+
+        const coordinate = snapToRenderedRoute(poi.lat, poi.lng);
+        if (!coordinate) {
+          return null;
+        }
+
+        return {
+          id: `poi-${poi.name}-${index}`,
+          name: poi.name,
+          description: poi.description,
+          coordinate,
+          hawker: isLikelyHawkerCentre(poi.name),
+        };
+      })
+      .filter(
+        (
+          marker,
+        ): marker is {
+          id: string;
+          name: string;
+          description: string;
+          coordinate: { latitude: number; longitude: number };
+          hawker: boolean;
+        } => Boolean(marker),
+      );
+  }, [route, snapToRenderedRoute]);
 
   const mapRegion = useMemo(() => {
     if (!route) {
       return fitRegionForCoordinates([]);
     }
     const points = [...polylineCoords];
-    points.push(
-      { latitude: route.startPoint.lat, longitude: route.startPoint.lng },
-      { latitude: route.endPoint.lat, longitude: route.endPoint.lng },
-    );
-    route.checkpoints.forEach((c) => {
-      if (hasRouteCoordinates(c.lat, c.lng)) {
-        points.push({ latitude: c.lat, longitude: c.lng });
-      }
-    });
-    (route.pointsOfInterestVisited ?? []).forEach((poi) => {
-      if (typeof poi.lat === 'number' && typeof poi.lng === 'number') {
-        points.push({ latitude: poi.lat, longitude: poi.lng });
-      }
-    });
+    if (startMarkerCoordinate) {
+      points.push(startMarkerCoordinate);
+    }
+    if (endMarkerCoordinate) {
+      points.push(endMarkerCoordinate);
+    }
+    points.push(...checkpointMarkers.map((marker) => marker.coordinate));
+    points.push(...poiMarkers.map((marker) => marker.coordinate));
     return fitRegionForCoordinates(points);
-  }, [route, polylineCoords]);
+  }, [checkpointMarkers, endMarkerCoordinate, poiMarkers, polylineCoords, route, startMarkerCoordinate]);
 
   const mapUsable = Boolean(
     route &&
       (polylineCoords.length >= 1 ||
-        hasRouteCoordinates(route.startPoint.lat, route.startPoint.lng) ||
-        hasRouteCoordinates(route.endPoint.lat, route.endPoint.lng) ||
-        route.checkpoints.some((c) => hasRouteCoordinates(c.lat, c.lng))),
+        Boolean(startMarkerCoordinate) ||
+        Boolean(endMarkerCoordinate) ||
+        checkpointMarkers.length > 0),
   );
   const showIosEmbeddedMap = mapUsable && Platform.OS !== 'android';
   const showAndroidMapboxMap = mapUsable && Platform.OS === 'android' && androidMapboxEnabled && RouteMapPreviewMapbox;
@@ -139,42 +239,38 @@ export default function RouteDetailsScreen() {
       testID?: string;
     }>;
 
-    if (hasRouteCoordinates(route.startPoint.lat, route.startPoint.lng)) {
+    if (startMarkerCoordinate) {
       markers.push({
         id: 'route-start',
-        coordinate: [route.startPoint.lng, route.startPoint.lat],
+        coordinate: [startMarkerCoordinate.longitude, startMarkerCoordinate.latitude],
         color: '#22c55e',
         kind: 'start',
         testID: 'route-details-marker-start',
       });
     }
 
-    route.checkpoints.forEach((checkpoint) => {
-      if (hasRouteCoordinates(checkpoint.lat, checkpoint.lng)) {
-        markers.push({
-          id: checkpoint.id,
-          coordinate: [checkpoint.lng, checkpoint.lat],
-          color: '#2563eb',
-          kind: 'waypoint',
-        });
-      }
+    checkpointMarkers.forEach((checkpoint) => {
+      markers.push({
+        id: checkpoint.id,
+        coordinate: [checkpoint.coordinate.longitude, checkpoint.coordinate.latitude],
+        color: '#2563eb',
+        kind: 'waypoint',
+      });
     });
 
-    (route.pointsOfInterestVisited ?? []).forEach((poi, index) => {
-      if (typeof poi.lat === 'number' && typeof poi.lng === 'number') {
-        markers.push({
-          id: `poi-${poi.name}-${index}`,
-          coordinate: [poi.lng, poi.lat],
-          color: '#f59e0b',
-          kind: 'poi',
-        });
-      }
+    poiMarkers.forEach((poi) => {
+      markers.push({
+        id: poi.id,
+        coordinate: [poi.coordinate.longitude, poi.coordinate.latitude],
+        color: '#f59e0b',
+        kind: 'poi',
+      });
     });
 
-    if (hasRouteCoordinates(route.endPoint.lat, route.endPoint.lng)) {
+    if (endMarkerCoordinate) {
       markers.push({
         id: 'route-end',
-        coordinate: [route.endPoint.lng, route.endPoint.lat],
+        coordinate: [endMarkerCoordinate.longitude, endMarkerCoordinate.latitude],
         color: '#ef4444',
         kind: 'end',
         testID: 'route-details-marker-end',
@@ -182,7 +278,7 @@ export default function RouteDetailsScreen() {
     }
 
     return markers;
-  }, [route]);
+  }, [checkpointMarkers, endMarkerCoordinate, poiMarkers, route, startMarkerCoordinate]);
 
   if (loading) {
     return (
@@ -245,9 +341,9 @@ export default function RouteDetailsScreen() {
                 />
               ) : null}
 
-              {hasRouteCoordinates(route.startPoint.lat, route.startPoint.lng) ? (
+              {startMarkerCoordinate ? (
                 <Marker
-                  coordinate={{ latitude: route.startPoint.lat, longitude: route.startPoint.lng }}
+                  coordinate={startMarkerCoordinate}
                   title="Start"
                   description={startLabel}
                   testID="route-details-marker-start"
@@ -257,43 +353,37 @@ export default function RouteDetailsScreen() {
                 </Marker>
               ) : null}
 
-              {route.checkpoints.map((cp) =>
-                hasRouteCoordinates(cp.lat, cp.lng) ? (
-                  <Marker
-                    key={cp.id}
-                    coordinate={{ latitude: cp.lat, longitude: cp.lng }}
-                    title={cp.name}
-                    description={cp.description}
-                    {...mapPinMarkerProps()}
-                  >
-                    <MaterialCommunityIcons name="map-marker" size={28} color="#2563eb" />
-                  </Marker>
-                ) : null,
-              )}
-
-              {(route.pointsOfInterestVisited ?? []).map((poi, i) => {
-                if (typeof poi.lat !== 'number' || typeof poi.lng !== 'number') return null;
-                const hawker = isLikelyHawkerCentre(poi.name);
-                return (
-                  <Marker
-                    key={`poi-${poi.name}-${i}`}
-                    coordinate={{ latitude: poi.lat, longitude: poi.lng }}
-                    title={poi.name}
-                    description={poi.description}
-                    {...mapPinMarkerProps()}
-                  >
-                    <MaterialCommunityIcons
-                      name={hawker ? 'food' : 'map-marker'}
-                      size={26}
-                      color={hawker ? '#be185d' : '#f59e0b'}
-                    />
-                  </Marker>
-                );
-              })}
-
-              {hasRouteCoordinates(route.endPoint.lat, route.endPoint.lng) ? (
+              {checkpointMarkers.map((checkpoint) => (
                 <Marker
-                  coordinate={{ latitude: route.endPoint.lat, longitude: route.endPoint.lng }}
+                  key={checkpoint.id}
+                  coordinate={checkpoint.coordinate}
+                  title={checkpoint.name}
+                  description={checkpoint.description}
+                  {...mapPinMarkerProps()}
+                >
+                  <MaterialCommunityIcons name="map-marker" size={28} color="#2563eb" />
+                </Marker>
+              ))}
+
+              {poiMarkers.map((poi) => (
+                <Marker
+                  key={poi.id}
+                  coordinate={poi.coordinate}
+                  title={poi.name}
+                  description={poi.description}
+                  {...mapPinMarkerProps()}
+                >
+                  <MaterialCommunityIcons
+                    name={poi.hawker ? 'food' : 'map-marker'}
+                    size={26}
+                    color={poi.hawker ? '#be185d' : '#f59e0b'}
+                  />
+                </Marker>
+              ))}
+
+              {endMarkerCoordinate ? (
+                <Marker
+                  coordinate={endMarkerCoordinate}
                   title="End"
                   description={endLabel}
                   testID="route-details-marker-end"
