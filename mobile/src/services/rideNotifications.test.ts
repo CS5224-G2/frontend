@@ -108,8 +108,24 @@ describe('rideNotifications', () => {
             routeId: route.id,
           }),
         }),
+        trigger: expect.objectContaining({
+          seconds: 2,
+        }),
       }),
     );
+  });
+
+  it('does not try to prompt for notification permission from background sends', async () => {
+    (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValueOnce({ granted: false });
+
+    await notifyRideCompletedInBackground(route as any, {
+      distanceKm: 12.5,
+      elapsedMinutes: 48,
+      checkpointsVisited: 2,
+    });
+
+    expect(Notifications.requestPermissionsAsync).not.toHaveBeenCalled();
+    expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
   });
 
   it('parses completion notification payloads for feedback navigation', () => {

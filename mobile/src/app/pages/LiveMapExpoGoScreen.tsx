@@ -31,6 +31,9 @@ export default function LiveMapExpoGoScreen() {
     setShowExitModal,
     offRouteWarning,
     locationDenied,
+    locationReady,
+    locationIssue,
+    riderHasFix,
     isPaused,
     showCompletionModal,
     navigation,
@@ -51,6 +54,41 @@ export default function LiveMapExpoGoScreen() {
     () => (route ? routeToLineCoordinates(route).length : 0),
     [route]
   );
+  const locationBanner = useMemo(() => {
+    if (locationDenied) {
+      return {
+        testID: 'live-map-location-denied',
+        title: 'Location off',
+        body: 'Enable location permission to track your ride.',
+      };
+    }
+
+    if (locationIssue === 'services-disabled') {
+      return {
+        testID: 'live-map-location-services-off',
+        title: 'Location services off',
+        body: 'Turn on Location Services on the device or simulator to show the rider tracker.',
+      };
+    }
+
+    if (locationIssue === 'signal-unavailable' && !riderHasFix) {
+      return {
+        testID: 'live-map-location-unavailable',
+        title: 'Waiting for GPS',
+        body: 'No location fix yet. Move to an open area or set a simulator location and try again.',
+      };
+    }
+
+    if (!locationReady && !riderHasFix) {
+      return {
+        testID: 'live-map-location-pending',
+        title: 'Locating rider',
+        body: 'Getting your current position.',
+      };
+    }
+
+    return null;
+  }, [locationDenied, locationIssue, locationReady, riderHasFix]);
   const bottomTabLift = useFloatingTabBarExtraLift(16);
 
   if (routeLoading) {
@@ -127,10 +165,10 @@ export default function LiveMapExpoGoScreen() {
           </View>
         ) : null}
 
-        {locationDenied ? (
-          <View style={styles.warnBanner} testID="live-map-location-denied">
-            <Text style={styles.warnTitle}>Location off</Text>
-            <Text style={styles.warnBody}>Enable location permission to track your ride.</Text>
+        {locationBanner ? (
+          <View style={styles.warnBanner} testID={locationBanner.testID}>
+            <Text style={styles.warnTitle}>{locationBanner.title}</Text>
+            <Text style={styles.warnBody}>{locationBanner.body}</Text>
           </View>
         ) : null}
 

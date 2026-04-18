@@ -11,13 +11,16 @@ jest.mock('expo-location', () => ({
   Accuracy: {
     Balanced: 3,
     BestForNavigation: 6,
+    High: 6,
   },
   requestForegroundPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'granted' })),
   requestBackgroundPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'granted' })),
+  hasServicesEnabledAsync: jest.fn(() => Promise.resolve(true)),
   isBackgroundLocationAvailableAsync: jest.fn(() => Promise.resolve(true)),
   hasStartedLocationUpdatesAsync: jest.fn(() => Promise.resolve(false)),
   startLocationUpdatesAsync: jest.fn(() => Promise.resolve()),
   stopLocationUpdatesAsync: jest.fn(() => Promise.resolve()),
+  getLastKnownPositionAsync: jest.fn(() => Promise.resolve(null)),
   getCurrentPositionAsync: jest.fn(() =>
     Promise.resolve({
       coords: {
@@ -40,30 +43,6 @@ jest.mock('expo-location', () => ({
     });
   }),
   reverseGeocodeAsync: jest.fn(() => Promise.resolve([])),
-  requestForegroundPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'granted' })),
-  Accuracy: { Balanced: 4, High: 6 },
-  watchPositionAsync: jest.fn((_options, callback) => {
-    const subscription = { remove: jest.fn() };
-    return new Promise((resolve) => {
-      setImmediate(() => {
-        if (typeof callback === 'function') {
-          callback({
-            coords: {
-              latitude: 1.2966,
-              longitude: 103.7764,
-              altitude: null,
-              accuracy: 12,
-              altitudeAccuracy: null,
-              heading: null,
-              speed: null,
-            },
-            timestamp: Date.now(),
-          });
-        }
-        resolve(subscription);
-      });
-    });
-  }),
 }));
 
 jest.mock('expo-task-manager', () => ({

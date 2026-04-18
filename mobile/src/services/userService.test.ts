@@ -5,7 +5,7 @@ jest.mock('./httpClient', () => ({
 import { httpClient } from './httpClient';
 import {
   getUserProfile, updateUserProfile, uploadUserProfileAvatar,
-  deleteUserProfileAvatar, deleteAccount,
+  deleteUserProfileAvatar, deleteAccount, getCachedUserProfile, clearCachedUserProfile,
 } from './userService';
 
 const mockGet = httpClient.get as jest.Mock;
@@ -27,7 +27,10 @@ const backendProfile = {
   ride_stats: { total_rides: 10, total_distance_km: 120.5, favorite_trails_count: 3 },
 };
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  clearCachedUserProfile();
+});
 
 describe('getUserProfile()', () => {
   it('maps BackendUserProfileResponse to UserProfile camelCase shape', async () => {
@@ -41,6 +44,7 @@ describe('getUserProfile()', () => {
     expect(profile.stats.totalDistanceKm).toBe(120.5);
     expect(profile.stats.favoriteTrails).toBe(3);
     expect(mockGet).toHaveBeenCalledWith('/user/profile', undefined);
+    expect(getCachedUserProfile()).toEqual(profile);
   });
 });
 
@@ -69,6 +73,18 @@ describe('uploadUserProfileAvatar()', () => {
     expect(mockPost).toHaveBeenCalledWith('/user/profile/avatar', expect.any(FormData), undefined);
     expect(url).toBe('https://cdn.example.com/avatar.jpg');
   });
+
+  it('updates the cached avatar url when a profile is already cached', async () => {
+    mockGet.mockResolvedValueOnce(backendProfile);
+    await getUserProfile();
+
+    mockPost.mockResolvedValueOnce({ avatar_url: 'https://cdn.example.com/avatar.jpg' });
+    await uploadUserProfileAvatar('file:///photos/photo.jpg');
+
+    expect(getCachedUserProfile()).toEqual(
+      expect.objectContaining({ avatarUrl: 'https://cdn.example.com/avatar.jpg' })
+    );
+  });
 });
 
 describe('deleteUserProfileAvatar()', () => {
@@ -76,6 +92,19 @@ describe('deleteUserProfileAvatar()', () => {
     mockDelete.mockResolvedValueOnce(undefined);
     await deleteUserProfileAvatar();
     expect(mockDelete).toHaveBeenCalledWith('/user/profile/avatar', undefined);
+  });
+
+  it('clears the cached avatar url when one exists', async () => {
+    mockGet.mockResolvedValueOnce({
+      ...backendProfile,
+      avatar_url: 'https://cdn.example.com/avatar.jpg',
+    });
+    await getUserProfile();
+
+    mockDelete.mockResolvedValueOnce(undefined);
+    await deleteUserProfileAvatar();
+
+    expect(getCachedUserProfile()).toEqual(expect.objectContaining({ avatarUrl: null }));
   });
 });
 

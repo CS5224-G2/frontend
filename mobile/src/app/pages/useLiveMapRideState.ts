@@ -40,6 +40,8 @@ import {
 } from '@/utils/routeGeometry';
 
 const OFF_ROUTE_WARNING_METERS = 80;
+const ENDPOINT_COMPLETION_RADIUS_KM = 0.04;
+const MIN_COMPLETION_MOVEMENT_KM = 0.02;
 
 type TrackingState = {
   position: LngLat | null;
@@ -47,6 +49,8 @@ type TrackingState = {
   distanceKm: number;
   progressPct: number;
 };
+
+type LocationIssue = 'services-disabled' | 'signal-unavailable';
 
 const EMPTY_TRACKING: TrackingState = {
   position: null,
@@ -72,6 +76,7 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [locationReady, setLocationReady] = useState(false);
   const [locationDenied, setLocationDenied] = useState(false);
+  const [locationIssue, setLocationIssue] = useState<LocationIssue | null>(null);
   const [metersFromRoute, setMetersFromRoute] = useState<number | null>(null);
   const persistRidePromiseRef = useRef<Promise<void> | null>(null);
   const initializedSessionRouteIdRef = useRef<string | undefined>(undefined);
@@ -104,6 +109,9 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
       distanceKm: session.distanceKm ?? 0,
       progressPct: session.progressPct ?? 0,
     });
+    setLocationReady(Boolean(session.lastKnownPosition));
+    setLocationDenied(false);
+    setLocationIssue(null);
 
     return session;
   }, [routeId]);
@@ -148,6 +156,7 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
     setShowCompletionModal(false);
     setLocationReady(false);
     setLocationDenied(false);
+    setLocationIssue(null);
     setMetersFromRoute(null);
     initializedSessionRouteIdRef.current = undefined;
     persistRidePromiseRef.current = null;
@@ -349,6 +358,7 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
 
       setLocationReady(true);
       setLocationDenied(false);
+      setLocationIssue(null);
 
       setTracking((prev) => {
         const nextSession = advanceActiveRideSession(
@@ -390,44 +400,108 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
     let active = true;
     let subscription: Location.LocationSubscription | null = null;
 
-    async function startWatching() {
-      const permission = await Location.requestForegroundPermissionsAsync();
-      if (!active) {
-        return;
-      }
+    function setLocationUnavailable(issue: LocationIssue) {
+      setLocationReady(true);
+      setLocationDenied(false);
+      setLocationIssue(issue);
+    }
 
-      if (permission.status !== 'granted') {
-        setLocationDenied(true);
-        setLocationReady(true);
-        return;
-      }
+    async function getCurrentPositionWithTimeout(timeoutMs: number) {
+      return await new Promise<Location.LocationObject>((resolve, reject) => {
+        const timer = setTimeout(
+          () => reject(new Error('Timed out while waiting for a location fix.')),
+          timeoutMs,
+        );
 
-      const initialPosition = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
+        Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        })
+          .then((position) => {
+            clearTimeout(timer);
+            resolve(position);
+          })
+          .catch((error) => {
+            clearTimeout(timer);
+            reject(error);
+          });
       });
+    }
 
-      if (!active) {
-        return;
-      }
+    async function startWatching() {
+      try {
+        const permission = await Location.requestForegroundPermissionsAsync();
+        if (!active) {
+          return;
+        }
 
-      applyTrackedPosition(
-        [initialPosition.coords.longitude, initialPosition.coords.latitude],
-        initialPosition.coords.accuracy,
-      );
+        if (permission.status !== 'granted') {
+          setLocationDenied(true);
+          setLocationReady(true);
+          setLocationIssue(null);
+          return;
+        }
 
-      subscription = await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.BestForNavigation,
-          distanceInterval: 5,
-          timeInterval: 3000,
-        },
-        (update) => {
+        const servicesEnabled = await Location.hasServicesEnabledAsync();
+        if (!active) {
+          return;
+        }
+
+        if (!servicesEnabled) {
+          setLocationUnavailable('services-disabled');
+          return;
+        }
+
+        const lastKnownPosition = await Location.getLastKnownPositionAsync({
+          maxAge: 60_000,
+          requiredAccuracy: 100,
+        });
+
+        if (!active) {
+          return;
+        }
+
+        if (lastKnownPosition) {
           applyTrackedPosition(
-            [update.coords.longitude, update.coords.latitude],
-            update.coords.accuracy,
+            [lastKnownPosition.coords.longitude, lastKnownPosition.coords.latitude],
+            lastKnownPosition.coords.accuracy,
           );
-        },
-      );
+        }
+
+        try {
+          const initialPosition = await getCurrentPositionWithTimeout(10_000);
+          if (!active) {
+            return;
+          }
+
+          applyTrackedPosition(
+            [initialPosition.coords.longitude, initialPosition.coords.latitude],
+            initialPosition.coords.accuracy,
+          );
+        } catch {
+          if (!lastKnownPosition) {
+            setLocationUnavailable('signal-unavailable');
+          }
+        }
+
+        subscription = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.BestForNavigation,
+            distanceInterval: 5,
+            timeInterval: 3000,
+          },
+          (update) => {
+            applyTrackedPosition(
+              [update.coords.longitude, update.coords.latitude],
+              update.coords.accuracy,
+            );
+          },
+        );
+      } catch {
+        if (!active) {
+          return;
+        }
+        setLocationUnavailable('signal-unavailable');
+      }
     }
 
     void startWatching();
@@ -506,14 +580,15 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
   }, [lineCoords, progressPct, tracking.position]);
 
   useEffect(() => {
-    if (!tracking.position || lineCoords.length < 2) {
+    const positionForDistance = tracking.rawPosition ?? tracking.position;
+    if (!positionForDistance || lineCoords.length < 2) {
       setMetersFromRoute(null);
       return;
     }
 
-    const { distanceKmFromRoute } = projectPointOntoRoute(lineCoords, tracking.position);
+    const { distanceKmFromRoute } = projectPointOntoRoute(lineCoords, positionForDistance);
     setMetersFromRoute(Number.isFinite(distanceKmFromRoute) ? distanceKmFromRoute * 1000 : null);
-  }, [lineCoords, tracking.position]);
+  }, [lineCoords, tracking.position, tracking.rawPosition]);
 
   const lineFeature = useMemo(
     (): {
@@ -548,24 +623,53 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
       return lineCoords.length ? riderPosition : null;
     }
 
-    return tracking.position;
-  }, [lineCoords.length, riderPosition, tracking.position]);
+    return tracking.rawPosition ?? tracking.position;
+  }, [lineCoords.length, riderPosition, tracking.position, tracking.rawPosition]);
 
   const riderHasFix = LIVE_MAP_PROGRESS_SIMULATION
     ? lineCoords.length > 0
-    : Boolean(tracking.position);
+    : Boolean(tracking.rawPosition ?? tracking.position);
+
+  const completionReferencePosition = tracking.rawPosition ?? tracking.position;
 
   const distanceToEndKm = useMemo(() => {
-    if (!route || !tracking.position) {
+    if (!route || !completionReferencePosition) {
       return Number.POSITIVE_INFINITY;
     }
 
-    return haversineDistanceKm(tracking.position, [route.endPoint.lng, route.endPoint.lat]);
-  }, [route, tracking.position]);
+    return haversineDistanceKm(completionReferencePosition, [route.endPoint.lng, route.endPoint.lat]);
+  }, [completionReferencePosition, route]);
+
+  const distanceFromStartKm = useMemo(() => {
+    if (!route || !completionReferencePosition) {
+      return 0;
+    }
+
+    return haversineDistanceKm(completionReferencePosition, [route.startPoint.lng, route.startPoint.lat]);
+  }, [completionReferencePosition, route]);
+
+  const completionMovementThresholdKm = useMemo(() => {
+    if (!route) {
+      return MIN_COMPLETION_MOVEMENT_KM;
+    }
+
+    return Math.min(0.05, Math.max(route.distance * 0.1, MIN_COMPLETION_MOVEMENT_KM));
+  }, [route]);
+
+  const endpointCompletionEligible =
+    !LIVE_MAP_PROGRESS_SIMULATION &&
+    Boolean(route) &&
+    Boolean(completionReferencePosition) &&
+    distanceToEndKm <= ENDPOINT_COMPLETION_RADIUS_KM &&
+    (distanceFromStartKm >= completionMovementThresholdKm ||
+      tracking.distanceKm >= completionMovementThresholdKm);
 
   const routeCompleted = LIVE_MAP_PROGRESS_SIMULATION
     ? progressPct >= 99
-    : progressPct >= 98 || (progressPct >= 95 && distanceToEndKm <= 0.03);
+    : progressPct >= 98 || endpointCompletionEligible;
+
+  const displayProgressPct =
+    routeCompleted && !LIVE_MAP_PROGRESS_SIMULATION ? 100 : progressPct;
 
   useEffect(() => {
     if (!routeCompleted || completionModalShownRef.current) {
@@ -597,8 +701,8 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
     }
 
     const threshold = 100 / (route.checkpoints.length + 1);
-    return Math.min(route.checkpoints.length, Math.floor(progressPct / threshold));
-  }, [progressPct, route]);
+    return Math.min(route.checkpoints.length, Math.floor(displayProgressPct / threshold));
+  }, [displayProgressPct, route]);
 
   useEffect(() => {
     if (!route || !lineCoords.length) {
@@ -856,7 +960,7 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
     navigation,
     route,
     routeLoading: routeLoading || !sessionReady,
-    progress: progressPct,
+    progress: displayProgressPct,
     elapsedSec,
     routeCompleted,
     checkpointsVisitedCount,
@@ -877,6 +981,7 @@ export function useLiveMapRideState(routeId: string | undefined, initialRoute?: 
     metersFromRoute,
     locationDenied,
     locationReady,
+    locationIssue,
     formatTime,
     distanceTraveled,
     rideSummary,

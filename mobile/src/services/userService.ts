@@ -8,6 +8,8 @@ import { httpClient } from './httpClient';
 
 export type { UserProfile };
 
+let cachedUserProfile: UserProfile | null = null;
+
 // ---------------------------------------------------------------------------
 // Backend shapes (internal)
 // ---------------------------------------------------------------------------
@@ -65,6 +67,11 @@ const toFrontendProfile = (payload: BackendUserProfileResponse): UserProfile => 
   },
 });
 
+function cacheUserProfile(profile: UserProfile | null): UserProfile | null {
+  cachedUserProfile = profile;
+  return profile;
+}
+
 const toBackendUpdatePayload = (profile: UserProfile): BackendUserProfileUpdatePayload => ({
   full_name: profile.fullName.trim(),
   city_name: profile.location.trim(),
@@ -88,13 +95,13 @@ const getMimeType = (imageUri: string): string => {
 
 export async function getUserProfile(token?: string): Promise<UserProfile> {
   const response = await httpClient.get<BackendUserProfileResponse>('/user/profile', token);
-  return toFrontendProfile(response);
+  return cacheUserProfile(toFrontendProfile(response)) as UserProfile;
 }
 
 export async function updateUserProfile(profile: UserProfile, token?: string): Promise<UserProfile> {
   const payload = toBackendUpdatePayload(profile);
   const response = await httpClient.put<BackendUserProfileResponse>('/user/profile', payload, token);
-  return toFrontendProfile(response);
+  return cacheUserProfile(toFrontendProfile(response)) as UserProfile;
 }
 
 export async function uploadUserProfileAvatar(imageUri: string, token?: string): Promise<string> {
@@ -102,15 +109,36 @@ export async function uploadUserProfileAvatar(imageUri: string, token?: string):
   const formData = new FormData();
   formData.append('avatar', { uri: imageUri, name: fileName, type: getMimeType(imageUri) } as any);
   const response = await httpClient.post<BackendAvatarUploadResponse>('/user/profile/avatar', formData, token);
+  if (cachedUserProfile) {
+    cachedUserProfile = {
+      ...cachedUserProfile,
+      avatarUrl: response.avatar_url,
+    };
+  }
   return response.avatar_url;
 }
 
 export async function deleteUserProfileAvatar(token?: string): Promise<void> {
   await httpClient.delete<void>('/user/profile/avatar', token);
+  if (cachedUserProfile) {
+    cachedUserProfile = {
+      ...cachedUserProfile,
+      avatarUrl: null,
+    };
+  }
 }
 
 export async function deleteAccount(token?: string): Promise<void> {
   await httpClient.delete<void>('/user/account', token);
+  cachedUserProfile = null;
+}
+
+export function getCachedUserProfile(): UserProfile | null {
+  return cachedUserProfile;
+}
+
+export function clearCachedUserProfile(): void {
+  cachedUserProfile = null;
 }
 
 export function serializeUserProfile(profile: UserProfile): string {
