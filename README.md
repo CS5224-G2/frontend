@@ -158,7 +158,7 @@ If you use direct S3 URLs, make sure the bucket policy or access point policy al
 
 This project used AI-assisted development tools as part of the CS5224 Cloud Computing group project.
 
-**Tools used:** Claude Code (Anthropic Claude Sonnet 4.6) via the Claude Code CLI
+**Tools used:** Claude Code (Anthropic Claude Sonnet 4.6) via the Claude Code CLI, Claude Opus 4.6 via Antigravity CLI and OpenAI Codex 5.4 via Codex App.
 
 **Scope of AI assistance:**
 - Generating the `web-app/` frontend (React + Vite + TypeScript + Tailwind CSS) from a human-authored specification and implementation plan
