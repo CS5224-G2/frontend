@@ -162,6 +162,7 @@ This project used AI-assisted development tools as part of the CS5224 Cloud Comp
 
 **Scope of AI assistance:**
 - Generating the `web-app/` frontend (React + Vite + TypeScript + Tailwind CSS) from a human-authored specification and implementation plan
+- Generating the `mobile/` directory using AI-assisted coding for Expo app development.
 - Writing and reviewing unit tests (Vitest + React Testing Library)
 - Identifying and fixing bugs (accessibility issues, redirect logic, TypeScript type errors)
 - Code quality review (accessibility, React anti-patterns, security)
