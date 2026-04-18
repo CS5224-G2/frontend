@@ -92,7 +92,9 @@ export function initializeRideNotifications(): void {
   void ensureRideNotificationChannel().catch(() => {});
 }
 
-async function ensureRideNotificationPermission(): Promise<boolean> {
+async function hasRideNotificationPermission(options?: {
+  allowPrompt?: boolean;
+}): Promise<boolean> {
   const Notifications = getNotificationsModule();
   if (!Notifications) {
     return false;
@@ -103,6 +105,10 @@ async function ensureRideNotificationPermission(): Promise<boolean> {
     if (existing.granted) {
       await ensureRideNotificationChannel().catch(() => {});
       return true;
+    }
+
+    if (!options?.allowPrompt) {
+      return false;
     }
 
     // Don't use allowProvisional — it causes iOS to deliver notifications
@@ -123,6 +129,10 @@ async function ensureRideNotificationPermission(): Promise<boolean> {
   }
 }
 
+async function ensureRideNotificationPermission(): Promise<boolean> {
+  return hasRideNotificationPermission({ allowPrompt: true });
+}
+
 async function sendRideNotification(
   title: string,
   body: string,
@@ -132,7 +142,7 @@ async function sendRideNotification(
     loud?: boolean;
   },
 ): Promise<void> {
-  const granted = await ensureRideNotificationPermission();
+  const granted = await hasRideNotificationPermission({ allowPrompt: false });
   if (!granted) {
     return;
   }
@@ -255,7 +265,13 @@ export async function notifyRideCompletedInBackground(
   await sendRideNotification(
     'Ride complete',
     `${route.name} is done. Tap to leave feedback.`,
-    { data, loud: true },
+    {
+      data,
+      loud: true,
+      // Give the background task a short buffer to finish persisting + tear-down
+      // before the banner is delivered.
+      delaySeconds: 2,
+    },
   );
 }
 
