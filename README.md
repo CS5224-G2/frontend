@@ -114,3 +114,6 @@ This project used AI-assisted development tools as part of the CS5224 Cloud Comp
 - Backend, infrastructure, and deployment configuration
 
 All AI-generated code was reviewed and approved by the team before being committed.
+
+## Learning
+AI assistance delivered the most value on high-volume, pattern-repetitive work — generating Tailwind-styled UI components, form pages, and navigation scaffolding that would have been tedious but straightforward for a human — yet required the most human intervention at integration boundaries: the background ride tracking service (haversine geometry, checkpoint proximity thresholds, mid-ride token expiration carveouts) and the adapter layers translating between backend snake_case schemas and frontend camelCase models consistently needed human correction to handle edge cases the AI glossed over. The architectural decisions that shaped everything else — choosing lightweight React Context over Redux, designing the mock/real API toggle for offline development, and structuring the dual web-and-mobile repo around shared types — were genuinely irreducible to AI delegation, because they encoded tradeoffs specific to this team's constraints (a time-boxed academic project with a separately owned backend) that no prompt could fully specify in advance.
