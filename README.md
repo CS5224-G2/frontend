@@ -106,8 +106,16 @@ This project used AI-assisted development tools as part of the CS5224 Cloud Comp
 - Writing and reviewing unit tests (Vitest + React Testing Library)
 - Identifying and fixing bugs (accessibility, redirect logic, TypeScript type errors)
 - Code quality review (accessibility, React anti-patterns, security)
+- Writing and editing this README
 
 **Human contributions:**
+
+*Alek Kwek* — overall UI design, profile page, history page, login page, signup page, admin dashboard, landing page, profile picture upload, iOS development
+
+*Grace* — landing page, map UI, Mapbox integration, route recommendation flow, customisable route page, Android development
+
+*Lichen* — Mapbox SDK setup and initial integration, Mapbox UI, map UI, iOS and web development, most of the foundational mobile architecture
+
 - Project requirements, system design, and architecture decisions
 - Review and approval of all design specifications and implementation plans
 - Validation of final output against project goals
