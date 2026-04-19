@@ -106,14 +106,17 @@ This project used AI-assisted development tools as part of the CS5224 Cloud Comp
 - Writing and reviewing unit tests (Vitest + React Testing Library)
 - Identifying and fixing bugs (accessibility, redirect logic, TypeScript type errors)
 - Code quality review (accessibility, React anti-patterns, security)
+- Writing and editing this README
 
 **Human contributions:**
-- Project requirements, system design, and architecture decisions
-- Review and approval of all design specifications and implementation plans
-- Validation of final output against project goals
-- Backend, infrastructure, and deployment configuration
 
-All AI-generated code was reviewed and approved by the team before being committed.
+*Alek Kwek* — overall UI design, profile page, history page, login page, signup page, admin dashboard, landing page, profile picture upload, iOS development
+
+*Grace* — landing page, map UI, Mapbox integration, route recommendation flow, customisable route page, Android development
+
+*Lichen* — Mapbox SDK setup and initial integration, Mapbox UI, map UI, iOS and web development, most of the foundational mobile architecture
+
+*Team (combined effort)* — project requirements, system design and architecture decisions, review and approval of all AI-generated code, validation against project goals, backend and infrastructure
 
 ## Learning
 AI assistance delivered the most value on high-volume, pattern-repetitive work like generating Tailwind-styled UI components, form pages, and navigation scaffolding, but required the most human intervention at integration boundaries. The background ride tracking service (haversine geometry, checkpoint proximity thresholds, mid-ride token expiration carveouts) and the adapter layers translating between backend snake_case and frontend camelCase schemas consistently needed human correction to handle edge cases the AI glossed over. Core architectural decisions — choosing React Context over Redux, designing the mock/real API toggle, and structuring the dual web-and-mobile repo around shared types — remained irreducibly human, because they encoded tradeoffs specific to a time-boxed academic project with a separately owned backend that no prompt could fully specify in advance.
