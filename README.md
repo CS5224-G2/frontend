@@ -110,9 +110,9 @@ This project used AI-assisted development tools as part of the CS5224 Cloud Comp
 
 **Human contributions:**
 
-*Alek Kwek* — overall UI design, profile page, history page, login page, signup page, admin dashboard, landing page, profile picture upload, iOS development
+*Alek Kwek* — overall UI design for mobile app, profile page, history page, login page, signup page, admin dashboard, landing page, profile picture upload, iOS development
 
-*Grace* — landing page, map UI, Mapbox integration, route recommendation flow, customisable route page, Android development
+*Grace* — overall UI mockup design, landing page, map UI, Mapbox integration, route recommendation flow, customisable route page, Android development
 
 *Lichen* — Mapbox SDK setup and initial integration, Mapbox UI, map UI, iOS and web development, most of the foundational mobile architecture
 
