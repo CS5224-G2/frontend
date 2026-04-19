@@ -108,7 +108,10 @@ This project used AI-assisted development tools as part of the CS5224 Cloud Comp
 - Code quality review (accessibility, React anti-patterns, security)
 - Writing and editing this README
 
-**Human contributions:**
+** Learning **
+AI assistance delivered the most value on high-volume, pattern-repetitive work like generating Tailwind-styled UI components, form pages, and navigation scaffolding, but required the most human intervention at integration boundaries. The background ride tracking service (haversine geometry, checkpoint proximity thresholds, mid-ride token expiration carveouts) and the adapter layers translating between backend snake_case and frontend camelCase schemas consistently needed human correction to handle edge cases the AI glossed over. Core architectural decisions — choosing React Context over Redux, designing the mock/real API toggle, and structuring the dual web-and-mobile repo around shared types — remained irreducibly human, because they encoded tradeoffs specific to a time-boxed academic project with a separately owned backend that no prompt could fully specify in advance.
+
+##Human contributions:
 
 *Alek Kwek* — overall UI design for mobile app, profile page, history page, login page, signup page, admin dashboard, landing page, profile picture upload, iOS development
 
@@ -117,6 +120,3 @@ This project used AI-assisted development tools as part of the CS5224 Cloud Comp
 *Lichen* — Mapbox SDK setup and initial integration, Mapbox UI, map UI, iOS and web development, most of the foundational mobile architecture
 
 *Team (combined effort)* — project requirements, system design and architecture decisions, review and approval of all AI-generated code, validation against project goals, backend and infrastructure
-
-## Learning
-AI assistance delivered the most value on high-volume, pattern-repetitive work like generating Tailwind-styled UI components, form pages, and navigation scaffolding, but required the most human intervention at integration boundaries. The background ride tracking service (haversine geometry, checkpoint proximity thresholds, mid-ride token expiration carveouts) and the adapter layers translating between backend snake_case and frontend camelCase schemas consistently needed human correction to handle edge cases the AI glossed over. Core architectural decisions — choosing React Context over Redux, designing the mock/real API toggle, and structuring the dual web-and-mobile repo around shared types — remained irreducibly human, because they encoded tradeoffs specific to a time-boxed academic project with a separately owned backend that no prompt could fully specify in advance.
